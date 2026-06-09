@@ -1,0 +1,69 @@
+#[test_only]
+module risk_guard::risk_guard_tests {
+    use std::string;
+    use sui::clock;
+    use sui::coin;
+    use sui::balance;
+    use sui::test_utils;
+    use risk_feed::risk_feed;
+    use risk_guard::risk_guard;
+
+    public struct TESTCOIN has drop {}
+
+    fun fund_coin(amount: u64, ctx: &mut TxContext): coin::Coin<TESTCOIN> {
+        coin::from_balance(balance::create_for_testing<TESTCOIN>(amount), ctx)
+    }
+
+    #[test]
+    fun withdraw_allowed_when_market_calm() {
+        let mut ctx = tx_context::dummy();
+        let (mut feed, cap) = risk_feed::new_for_testing(&mut ctx);
+        let clock = clock::create_for_testing(&mut ctx);
+        // 200 bps = 2% implied crash probability — well under the 5% tolerance.
+        risk_feed::publish(
+            &mut feed, &cap, string::utf8(b"BTC"),
+            200, 60_000_000000000, string::utf8(b"blob"), &clock, &ctx,
+        );
+
+        let mut t = risk_guard::new_treasury<TESTCOIN>(string::utf8(b"BTC"), 500, &mut ctx);
+        risk_guard::deposit(&mut t, fund_coin(1000, &mut ctx));
+
+        assert!(risk_guard::is_safe(&t, &feed), 0);
+        assert!(risk_guard::headroom_bps(&t, &feed) == 300, 1);
+
+        let c = risk_guard::withdraw(&mut t, &feed, 400, &mut ctx);
+        assert!(coin::value(&c) == 400, 2);
+        assert!(risk_guard::value(&t) == 600, 3);
+
+        coin::burn_for_testing(c);
+        clock::destroy_for_testing(clock);
+        test_utils::destroy(t);
+        test_utils::destroy(feed);
+        test_utils::destroy(cap);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = risk_guard::ECrashRiskTooHigh)]
+    fun withdraw_frozen_when_crash_risk_high() {
+        let mut ctx = tx_context::dummy();
+        let (mut feed, cap) = risk_feed::new_for_testing(&mut ctx);
+        let clock = clock::create_for_testing(&mut ctx);
+        // 1200 bps = 12% — above the 5% tolerance, so withdrawals freeze.
+        risk_feed::publish(
+            &mut feed, &cap, string::utf8(b"BTC"),
+            1200, 60_000_000000000, string::utf8(b"blob"), &clock, &ctx,
+        );
+
+        let mut t = risk_guard::new_treasury<TESTCOIN>(string::utf8(b"BTC"), 500, &mut ctx);
+        risk_guard::deposit(&mut t, fund_coin(1000, &mut ctx));
+        assert!(!risk_guard::is_safe(&t, &feed), 0);
+
+        let c = risk_guard::withdraw(&mut t, &feed, 400, &mut ctx); // aborts here
+
+        coin::burn_for_testing(c);
+        clock::destroy_for_testing(clock);
+        test_utils::destroy(t);
+        test_utils::destroy(feed);
+        test_utils::destroy(cap);
+    }
+}

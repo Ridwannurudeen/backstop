@@ -107,4 +107,13 @@ module risk_feed::risk_feed {
     public fun ts_ms(r: &Reading): u64 { r.ts_ms }
     public fun walrus_blob(r: &Reading): String { r.walrus_blob }
     public fun updated_by(r: &Reading): address { r.updated_by }
+
+    #[test_only]
+    /// Construct a feed + publisher cap directly in tests (init is not test-callable).
+    public fun new_for_testing(ctx: &mut TxContext): (RiskFeed, PublisherCap) {
+        (
+            RiskFeed { id: object::new(ctx), readings: table::new<String, Reading>(ctx) },
+            PublisherCap { id: object::new(ctx) },
+        )
+    }
 }
