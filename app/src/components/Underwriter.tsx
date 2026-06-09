@@ -52,6 +52,16 @@ export default function Underwriter() {
 
   const decisions = data?.decisions ?? [];
 
+  const track = {
+    evaluated: decisions.length,
+    accepted: decisions.filter((d) => d.decision.accept).length,
+    suppliedUsd: decisions.reduce(
+      (s, d) => s + (d.execution.executed ? d.execution.amountUsd : 0),
+      0,
+    ),
+    proofs: decisions.filter((d) => d.walrusUrl).length,
+  };
+
   return (
     <div className="card">
       <h3>Autonomous AI underwriter</h3>
@@ -63,6 +73,30 @@ export default function Underwriter() {
           <span>· last run {new Date(data.generatedAt).toLocaleString()}</span>
         )}
       </p>
+
+      {decisions.length > 0 && (
+        <div
+          className="uw-stats"
+          title="The agent's verifiable on-chain track record"
+        >
+          <div className="uw-stat">
+            <div className="n">{track.evaluated}</div>
+            <div className="l">markets priced</div>
+          </div>
+          <div className="uw-stat">
+            <div className="n">{track.accepted}</div>
+            <div className="l">underwritten</div>
+          </div>
+          <div className="uw-stat">
+            <div className="n">{usd(track.suppliedUsd)}</div>
+            <div className="l">supplied on-chain</div>
+          </div>
+          <div className="uw-stat">
+            <div className="n">{track.proofs}</div>
+            <div className="l">Walrus proofs</div>
+          </div>
+        </div>
+      )}
 
       {isLoading && <p className="muted">Loading decisions…</p>}
       {!isLoading && decisions.length === 0 && (

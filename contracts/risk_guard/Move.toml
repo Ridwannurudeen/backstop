@@ -1,0 +1,12 @@
+[package]
+name = "risk_guard"
+edition = "2024.beta"
+
+# Example consumer of the Backstop RiskFeed. Depends on the risk_feed package
+# locally for compilation/tests; to publish against the LIVE feed, override the
+# risk_feed address with its deployed package id (see DEPLOY.md).
+[dependencies]
+risk_feed = { local = "../risk_feed" }
+
+[addresses]
+risk_guard = "0x0"
