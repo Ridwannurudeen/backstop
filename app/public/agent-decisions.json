@@ -1,0 +1,143 @@
+{
+  "generatedAt": "2026-06-09T10:38:03.381Z",
+  "decisions": [
+    {
+      "input": {
+        "symbol": "BTC",
+        "oracleId": "0x195833aeee071530d2bdcd2e03916b7458d57c81ed540b82d6e1cb594bdf41f2",
+        "expiryMs": "1781251200000",
+        "strikeUsd": 56868,
+        "referencePriceUsd": 63186.924593082,
+        "impliedCrashProb": 0.058950509,
+        "bidUsd": 48.950457,
+        "premiumUsd": 58.950509,
+        "sizeUsd": 1000,
+        "svi": {
+          "event_digest": "6SHeLrdHtPs1Karve5JaKoDE4vcPqyaz1Wbdhcrsm4oX1",
+          "digest": "6SHeLrdHtPs1Karve5JaKoDE4vcPqyaz1Wbdhcrsm4oX",
+          "sender": "0xcca26f7ae2e40604498294e95bacccc4652cc8cb2aa074d7ee608c7e7bdf0c29",
+          "checkpoint": 346293490,
+          "checkpoint_timestamp_ms": 1781001423135,
+          "tx_index": 5,
+          "event_index": 1,
+          "package": "f5ea2b3749c65d6e56507cc35388719aadb28f9cab873696a2f8687f5c785138",
+          "oracle_id": "0x195833aeee071530d2bdcd2e03916b7458d57c81ed540b82d6e1cb594bdf41f2",
+          "a": 1053158,
+          "b": 16957304,
+          "rho": 225766418,
+          "rho_negative": true,
+          "m": 18333509,
+          "m_negative": false,
+          "sigma": 26856933,
+          "onchain_timestamp": 1781001423067
+        }
+      },
+      "decision": {
+        "accept": true,
+        "maxCapacityUsd": 84817,
+        "premiumBps": 737,
+        "rationale": "Rules: implied crash prob 5.90% < 25% threshold; capacity scaled by 1/prob, premium = prob+25% margin.",
+        "source": "rules"
+      },
+      "execution": {
+        "executed": false,
+        "reason": "execution disabled (set AGENT_EXECUTE=1 + SUI_PRIVATE_KEY)"
+      },
+      "timestamp": "2026-06-09T10:37:17.396Z",
+      "walrusBlobId": "KbkEdcUHRPysVwtVHRsjOsgpUqo2fqnMF5XxIfulXds",
+      "walrusUrl": "https://aggregator.walrus-testnet.walrus.space/v1/blobs/KbkEdcUHRPysVwtVHRsjOsgpUqo2fqnMF5XxIfulXds"
+    },
+    {
+      "input": {
+        "symbol": "BTC",
+        "oracleId": "0x1368db417891e8c7d4a083e1daa1fed3b52d33d93dfe7324e37c5e15b6b6a872",
+        "expiryMs": "1781856000000",
+        "strikeUsd": 56868,
+        "referencePriceUsd": 63186.924593082,
+        "impliedCrashProb": 0.156837284,
+        "bidUsd": 142.566082,
+        "premiumUsd": 156.837284,
+        "sizeUsd": 1000,
+        "svi": {
+          "event_digest": "7iMm1GhZc7yHELAci2mrKxCQKihXQZaNB69bfsVibu1Y3",
+          "digest": "7iMm1GhZc7yHELAci2mrKxCQKihXQZaNB69bfsVibu1Y",
+          "sender": "0xcca26f7ae2e40604498294e95bacccc4652cc8cb2aa074d7ee608c7e7bdf0c29",
+          "checkpoint": 346293582,
+          "checkpoint_timestamp_ms": 1781001443043,
+          "tx_index": 7,
+          "event_index": 3,
+          "package": "f5ea2b3749c65d6e56507cc35388719aadb28f9cab873696a2f8687f5c785138",
+          "oracle_id": "0x1368db417891e8c7d4a083e1daa1fed3b52d33d93dfe7324e37c5e15b6b6a872",
+          "a": 2483053,
+          "b": 33434922,
+          "rho": 31943508,
+          "rho_negative": false,
+          "m": 63319380,
+          "m_negative": false,
+          "sigma": 59859817,
+          "onchain_timestamp": 1781001443043
+        }
+      },
+      "decision": {
+        "accept": true,
+        "maxCapacityUsd": 31880,
+        "premiumBps": 1960,
+        "rationale": "Rules: implied crash prob 15.68% < 25% threshold; capacity scaled by 1/prob, premium = prob+25% margin.",
+        "source": "rules"
+      },
+      "execution": {
+        "executed": false,
+        "reason": "execution disabled (set AGENT_EXECUTE=1 + SUI_PRIVATE_KEY)"
+      },
+      "timestamp": "2026-06-09T10:37:39.414Z",
+      "walrusBlobId": "V0-PM-43QMuNoZUB4JezcyC26tFVONBJvPDhH3IwlA8",
+      "walrusUrl": "https://aggregator.walrus-testnet.walrus.space/v1/blobs/V0-PM-43QMuNoZUB4JezcyC26tFVONBJvPDhH3IwlA8"
+    },
+    {
+      "input": {
+        "symbol": "BTC",
+        "oracleId": "0x5169649f6bf3ba756bbbef3a90a8e0da60883bbd7f0bb0fcb8acc2321ef6d63d",
+        "expiryMs": "1782460800000",
+        "strikeUsd": 56868,
+        "referencePriceUsd": 63186.924593082,
+        "impliedCrashProb": 0.208471643,
+        "bidUsd": 192.457669,
+        "premiumUsd": 208.471643,
+        "sizeUsd": 1000,
+        "svi": {
+          "event_digest": "HZvRRQ2hsFwh52SC1eXq6PJpnxvwEHnjwBEac6u1ir3D5",
+          "digest": "HZvRRQ2hsFwh52SC1eXq6PJpnxvwEHnjwBEac6u1ir3D",
+          "sender": "0xcca26f7ae2e40604498294e95bacccc4652cc8cb2aa074d7ee608c7e7bdf0c29",
+          "checkpoint": 346293676,
+          "checkpoint_timestamp_ms": 1781001463088,
+          "tx_index": 6,
+          "event_index": 5,
+          "package": "f5ea2b3749c65d6e56507cc35388719aadb28f9cab873696a2f8687f5c785138",
+          "oracle_id": "0x5169649f6bf3ba756bbbef3a90a8e0da60883bbd7f0bb0fcb8acc2321ef6d63d",
+          "a": 1772587,
+          "b": 52714970,
+          "rho": 170914964,
+          "rho_negative": true,
+          "m": 29630204,
+          "m_negative": false,
+          "sigma": 114075224,
+          "onchain_timestamp": 1781001463088
+        }
+      },
+      "decision": {
+        "accept": true,
+        "maxCapacityUsd": 23984,
+        "premiumBps": 2606,
+        "rationale": "Rules: implied crash prob 20.85% < 25% threshold; capacity scaled by 1/prob, premium = prob+25% margin.",
+        "source": "rules"
+      },
+      "execution": {
+        "executed": false,
+        "reason": "execution disabled (set AGENT_EXECUTE=1 + SUI_PRIVATE_KEY)"
+      },
+      "timestamp": "2026-06-09T10:37:56.156Z",
+      "walrusBlobId": "xJ26Lar4miuf4-D8U0CgCo-Rk_ojMDmdf4gtdD1wnGY",
+      "walrusUrl": "https://aggregator.walrus-testnet.walrus.space/v1/blobs/xJ26Lar4miuf4-D8U0CgCo-Rk_ojMDmdf4gtdD1wnGY"
+    }
+  ]
+}

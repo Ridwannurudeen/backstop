@@ -1,0 +1,86 @@
+.term-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.term-stat {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.term-stat .k {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.term-stat .v {
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  margin-top: 4px;
+}
+
+.term-chart {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.term-chart .axis {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.term-chart .grid-line {
+  stroke: var(--line);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+  opacity: 0.5;
+}
+
+.term-chart .curve {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.term-chart .area {
+  fill: var(--accent);
+  opacity: 0.08;
+}
+
+.term-chart .dot {
+  fill: var(--accent);
+}
+
+.term-chart .lbl {
+  fill: var(--muted);
+  font-size: 10px;
+  font-family: inherit;
+}
+
+.term-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.term-table td {
+  padding: 7px 0;
+  border-top: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+}
+
+.term-table td.k {
+  color: var(--muted);
+}
+
+.term-table td.v {
+  text-align: right;
+}

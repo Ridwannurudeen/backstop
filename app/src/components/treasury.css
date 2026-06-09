@@ -1,0 +1,60 @@
+.treasury-total {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  margin: 4px 0 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.seg {
+  display: flex;
+  gap: 8px;
+}
+
+.seg button {
+  flex: 1;
+  padding: 9px 0;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.seg button.on {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.holding {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 0;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.holding .sym {
+  font-weight: 600;
+}
+
+.holding .val {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.leg-line {
+  display: flex;
+  justify-content: space-between;
+  padding: 7px 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.leg-line .v {
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}

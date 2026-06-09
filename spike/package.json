@@ -1,0 +1,15 @@
+{
+  "name": "backstop-spike",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsx index.ts --check",
+    "live": "tsx index.ts --live"
+  },
+  "dependencies": {
+    "@mysten/sui": "^1.0.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0"
+  }
+}

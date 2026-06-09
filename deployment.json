@@ -1,0 +1,19 @@
+{
+  "network": "testnet",
+  "publisherAddress": "0x5990779ec202d909c2b9240f98754895af99d92ed68f4e25c4ba6571638966d6",
+  "riskFeed": {
+    "package": "0xefda410b91a3caec4cdb34f459a87909ad6b89c00f1ca392ce345c292f4cc6ef",
+    "feedObject": "0xa48b3769723ac4441fec2f9c87582b882cf8d0d551642e17aebae1609da1ddf4",
+    "publisherCap": "0xf74913abfb1f51ddb602958b186c22adb494f62f1dee87f18619c946d9d0bcb4",
+    "publishDigest": "DR3VpymbSeMFwo6uGuc6x4jCF4cFyTNhRrXWMYwNKZNB",
+    "readingsPublishedDigest": "Ad5Fcr6otec41vioS5mTPJGY89GaaKcQPdRUZc2bvbEz"
+  },
+  "predictManager": "0x630f524dfb52a42fb112c161e03d15772386e1916e2d6f02c4f987bc99b123ac",
+  "livePolicyMint": {
+    "digest": "G2X8UFPRjgYf76dA7FBziGg6cyUAkoepGnTuCakzCcBP",
+    "market": "BTC<56901@1780992000000",
+    "coverUsd": 10,
+    "premiumDusdc": 0.288596,
+    "status": "active"
+  }
+}

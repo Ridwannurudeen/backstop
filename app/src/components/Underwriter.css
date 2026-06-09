@@ -1,0 +1,81 @@
+.uw-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+}
+
+.uw-main {
+  min-width: 0;
+}
+
+.uw-market {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.uw-prob {
+  margin: 2px 0 6px;
+}
+
+.uw-prob-v {
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
+.uw-rationale {
+  font-size: 13px;
+  max-width: 460px;
+}
+
+.uw-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.uw-src {
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.uw-src.claude {
+  color: var(--good);
+  border-color: var(--good);
+}
+
+.uw-terms {
+  text-align: right;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.uw-verify {
+  font-size: 13px;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.uw-verify:hover {
+  text-decoration: underline;
+}
+
+.uw-exec {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--good);
+  text-decoration: none;
+}
+
+.uw-exec:hover {
+  text-decoration: underline;
+}

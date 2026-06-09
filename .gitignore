@@ -1,0 +1,13 @@
+node_modules/
+dist/
+out/
+.tools/
+build/
+*.tgz
+.localkey
+.manager
+.localmanager
+.env
+.env.*
+*.log
+agent/rf.*
