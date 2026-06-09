@@ -1,6 +1,7 @@
 [package]
 name = "risk_feed"
 edition = "2024.beta"
+published-at = "0xefda410b91a3caec4cdb34f459a87909ad6b89c00f1ca392ce345c292f4cc6ef"
 
 # Modern Sui CLIs (>= 1.45) resolve the Sui framework as an implicit system
 # dependency, so no [dependencies] block is needed. If an older CLI complains,
@@ -9,4 +10,4 @@ edition = "2024.beta"
 #   Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "framework/testnet" }
 
 [addresses]
-risk_feed = "0x0"
+risk_feed = "0xefda410b91a3caec4cdb34f459a87909ad6b89c00f1ca392ce345c292f4cc6ef"
