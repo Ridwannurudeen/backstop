@@ -69,6 +69,7 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
+  table-layout: fixed;
 }
 
 .term-table td {
@@ -79,8 +80,14 @@
 
 .term-table td.k {
   color: var(--muted);
+  width: 38%;
+  word-break: break-word;
 }
 
 .term-table td.v {
   text-align: right;
+  /* raw on-chain values can be long unbroken ids — wrap instead of overflowing */
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  padding-left: 12px;
 }

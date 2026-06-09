@@ -10,26 +10,49 @@ type ReadingEvent = {
   ts_ms: string;
 };
 
+type CheckedReading = ReadingEvent & { proof: "ok" | "stale" | "unknown" };
+
 export default function OnchainRiskFeed() {
   const client = useSuiClient();
   const { data } = useQuery({
     queryKey: ["riskfeed-events"],
-    queryFn: async () => {
+    queryFn: async (): Promise<CheckedReading[]> => {
       const r = await client.queryEvents({
         query: { MoveEventType: READING_EVENT },
         limit: 25,
         order: "descending",
       });
-      return r.data.map((e) => e.parsedJson as ReadingEvent);
+      const events = r.data.map((e) => e.parsedJson as ReadingEvent);
+      // Latest reading per market (events are newest-first).
+      const seen = new Set<string>();
+      const latest = events.filter((e) =>
+        seen.has(e.market) ? false : (seen.add(e.market), true),
+      );
+      // Surface only the most recent publish batch — readings whose Walrus blobs
+      // are still within retention. Older batches' blobs may have expired.
+      const maxTs = latest.reduce((m, e) => Math.max(m, Number(e.ts_ms)), 0);
+      const recent = latest.filter(
+        (e) => Number(e.ts_ms) >= maxTs - 6 * 3_600_000,
+      );
+      // Proof-health: confirm each blob is retrievable; best-effort (a CORS/network
+      // error is "unknown", not "stale", so we never falsely hide a live reading).
+      return Promise.all(
+        recent.map(async (e) => {
+          try {
+            const res = await fetch(`${WALRUS_AGGREGATOR}/${e.walrus_blob}`, {
+              method: "HEAD",
+            });
+            return { ...e, proof: res.ok ? "ok" : "stale" } as CheckedReading;
+          } catch {
+            return { ...e, proof: "unknown" } as CheckedReading;
+          }
+        }),
+      );
     },
-    refetchInterval: 20_000,
+    refetchInterval: 60_000,
   });
 
-  // Latest reading per market (events are newest-first).
-  const seen = new Set<string>();
-  const latest = (data ?? []).filter((r) =>
-    seen.has(r.market) ? false : (seen.add(r.market), true),
-  );
+  const latest = (data ?? []).filter((r) => r.proof !== "stale");
 
   return (
     <div className="card">

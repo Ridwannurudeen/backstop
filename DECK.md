@@ -35,12 +35,12 @@
 
 ## Slide 3 — The insight *(Technical, 20%)*
 
-**Predict is the price of risk. Walrus is verifiable truth. Backstop is both.**
+**Predict is the price of risk. Walrus is tamper-evident decision memory. Backstop's calibration ledger is the trust.**
 
 - DeepBook Predict's on-chain volatility surface **is** a market price of risk — Block-Scholes-grade SVI, <400ms settlement, internal market maker.
 - A **DOWN-binary's price = the market-implied probability of failure** (risk-neutral). Read it straight from `get_trade_amounts`.
 - Walrus anchors every reading — inputs, the SVI snapshot, the decision, the realized outcome — content-addressed and independently retrievable.
-- That makes the oracle **trustless by construction**: anyone can audit its calibration. No off-chain risk vendor can offer that.
+- Trust isn't asserted — it's **earned on a public calibration ledger**: anyone can replay the oracle's past predictions against realized outcomes. No off-chain risk vendor can offer that.
 
 *Speaker note: This is the technical kernel — Backstop is the only project on either chain reading Predict as a risk oracle (verified in agent/src/pricing.ts).*
 
@@ -119,7 +119,7 @@
 **A track record no latecomer can backfill.**
 
 - **Verifiable calibration ledger:** every prediction + realized outcome is Walrus-anchored from day one. Trust in a risk oracle is *earned over time and provable* — you cannot retroactively fake a track record. Deepest moat in the thesis.
-- **Dual-ecosystem necessity:** the product structurally requires **both** Predict (price of risk) and Walrus (verifiable truth) — neither delivers it alone.
+- **Dual-ecosystem necessity:** the product structurally requires **both** Predict (price of risk) and Walrus (tamper-evident decision memory) — neither delivers it alone.
 - **Standards & network effects:** the risk parameters protocols import, the provenance builders attest to, the passport agents accumulate — standards moats, winner-take-most.
 - **Data flywheel:** more volume → better pricing → cheaper capital → more volume.
 

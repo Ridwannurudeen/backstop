@@ -225,7 +225,10 @@ async function runCycle(): Promise<void> {
       walrusUrl: null,
     };
 
-    const wal = await logToWalrus(record);
+    const wal = await logToWalrus(
+      record,
+      Number(process.env.WALRUS_EPOCHS ?? 30),
+    );
     if (wal.ok) {
       record.walrusBlobId = wal.blobId;
       record.walrusUrl = `${WALRUS_AGGREGATOR}/${wal.blobId}`;

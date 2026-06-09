@@ -38,7 +38,7 @@ Backstop is the only project on either chain reading **DeepBook Predict as a ris
 
 That combination is a **risk-truth primitive**, not an app:
 - **Predict supplies the price of risk** (the only on-chain implied-vol surface, Block Scholes-grade, <400ms settlement, internal market maker).
-- **Walrus supplies verifiable truth** — and uniquely, a **publicly auditable record of every past prediction and its realized outcome.** That makes the oracle *trustless by construction*: anyone can verify its calibration. No off-chain risk vendor can offer that.
+- **Walrus supplies tamper-evident decision memory** (content-addressed, independently retrievable) — and on top of it the agent keeps a **publicly auditable record of every past prediction and its realized outcome.** Trust isn't asserted; it's **earned on a public calibration ledger** anyone can replay against realized outcomes over time — provable, not assertable. No off-chain risk vendor can offer that.
 
 It ships **read-only, today, with no capital, no claims, no governance** — so the demo is real, not a mock.
 
@@ -75,7 +75,7 @@ Each phase ships working product. KPIs are **targets.**
 ## 5. Why this is defensible (the moat compounds)
 
 1. **A verifiable calibration ledger no one can fake retroactively.** Every prediction + realized outcome is Walrus-anchored from day one. Trust in a risk oracle is *earned over time and provable* — a latecomer can't backfill a track record. This is the deepest moat in the entire thesis.
-2. **Dual-ecosystem necessity.** The product *structurally requires both* Predict (price of risk) and Walrus (verifiable truth) — it's the canonical showcase of why Sui + Walrus together enable something neither does alone. That alignment makes Mysten/Sui Foundation a natural champion.
+2. **Dual-ecosystem necessity.** The product *structurally requires both* Predict (price of risk) and Walrus (tamper-evident decision memory) — it's the canonical showcase of why Sui + Walrus together enable something neither does alone. That alignment makes Mysten/Sui Foundation a natural champion.
 3. **Standards & network effects.** Becoming the risk parameterization other protocols import, the provenance standard builders attest to, and the reputation passport agents accumulate are *standards moats*, not feature moats — winner-take-most.
 4. **Data flywheel.** More volume → better pricing → cheaper capital → more volume.
 
