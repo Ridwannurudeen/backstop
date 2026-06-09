@@ -15,5 +15,17 @@
     "coverUsd": 10,
     "premiumDusdc": 0.288596,
     "status": "active"
+  },
+  "riskGuard": {
+    "package": "0xe74811df78258af8dfa59df997aa1df0b622b1306fcfdbe414e224ee9f0e6d8e",
+    "publishDigest": "6dtyv7uPFJHo76xkvJkqYpMRxJdGSQB7LuthBKQgoqsy",
+    "consumesRiskFeed": "0xefda410b91a3caec4cdb34f459a87909ad6b89c00f1ca392ce345c292f4cc6ef",
+    "guardedTreasury": "0x784ef2373738bc19120926ab92edb519650428d79c0ffb15def82b229fd4ddb6",
+    "treasuryCoinType": "0x2::sui::SUI",
+    "market": "BTC<56901@1780992000000",
+    "toleranceBps": 500,
+    "createDigest": "AFMA9saypdJ1sc9UbCcgsrh27MxYxR23jKAwL5ofBYH6",
+    "withdrawDigest": "7eGTCiTQMsqzZNW519GRRHiv5AUWWu4uyBsuwcsjc8We",
+    "note": "GuardedTreasury<SUI> whose withdraw read the live RiskFeed (282bps <= 500bps tolerance) and released funds — proof a protocol consumes the feed."
   }
 }

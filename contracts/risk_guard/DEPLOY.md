@@ -45,6 +45,21 @@ A withdrawal then reads the live feed: it succeeds while the published BTC crash
 probability stays under 5%, and aborts (`ECrashRiskTooHigh`) when a reading breaches
 it — provably driven by the same on-chain RiskFeed the underwriter publishes to.
 
-> Status: compiled + unit-tested. Live publish is the stretch (needs gas + the
-> address override above); the agent publishes the readings this consumes via
-> `agent/src/publishRiskFeed.ts`.
+## Live end-to-end demo (one command)
+
+`agent/src/demoGuard.ts` creates a `GuardedTreasury<SUI>`, deposits, and withdraws —
+the withdraw reads the live `RiskFeed` and only releases funds if the market is calm:
+
+```bash
+cd agent
+RISK_GUARD_PKG=<riskGuard.package> RISK_FEED_OBJ=<riskFeed.feedObject> \
+GUARD_MARKET="BTC<56901@1780992000000" GUARD_TOL_BPS=500 \
+SUI_PRIVATE_KEY=<funded key> npx tsx src/demoGuard.ts
+```
+
+> Status: **LIVE on testnet.** `risk_guard` package `0xe748…6d8e` (publish
+> `6dtyv7uPFJHo76xkvJkqYpMRxJdGSQB7LuthBKQgoqsy`) links against the deployed
+> `risk_feed`. A `GuardedTreasury<SUI>` (`0x784e…ddb6`) was created
+> (`AFMA9saypdJ1sc9UbCcgsrh27MxYxR23jKAwL5ofBYH6`) and a withdrawal **succeeded by
+> reading the live feed** — BTC crash prob 282 bps ≤ 500 bps tolerance — tx
+> `7eGTCiTQMsqzZNW519GRRHiv5AUWWu4uyBsuwcsjc8We`. Full ids in `deployment.json`.
