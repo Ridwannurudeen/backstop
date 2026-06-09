@@ -6,7 +6,8 @@
     "feedObject": "0xa48b3769723ac4441fec2f9c87582b882cf8d0d551642e17aebae1609da1ddf4",
     "publisherCap": "0xf74913abfb1f51ddb602958b186c22adb494f62f1dee87f18619c946d9d0bcb4",
     "publishDigest": "DR3VpymbSeMFwo6uGuc6x4jCF4cFyTNhRrXWMYwNKZNB",
-    "readingsPublishedDigest": "Ad5Fcr6otec41vioS5mTPJGY89GaaKcQPdRUZc2bvbEz"
+    "readingsPublishedDigest": "A6rd1ZeqexVFQsEbbkqZNhrJgVK9NRHRycsaP94Tmc9n",
+    "readingsNote": "Refreshed 2026-06-09 with 30-epoch Walrus blobs (live); prior readings blobs expired."
   },
   "predictManager": "0x630f524dfb52a42fb112c161e03d15772386e1916e2d6f02c4f987bc99b123ac",
   "livePolicyMint": {
@@ -27,5 +28,21 @@
     "createDigest": "AFMA9saypdJ1sc9UbCcgsrh27MxYxR23jKAwL5ofBYH6",
     "withdrawDigest": "7eGTCiTQMsqzZNW519GRRHiv5AUWWu4uyBsuwcsjc8We",
     "note": "GuardedTreasury<SUI> whose withdraw read the live RiskFeed (282bps <= 500bps tolerance) and released funds — proof a protocol consumes the feed."
+  },
+  "agentSupply": {
+    "note": "Autonomous underwriter executed predict::supply on-chain, sized to recommended capacity (2026-06-09 run).",
+    "supplies": [
+      {
+        "amountUsd": 3.6346,
+        "digest": "FvJhWmcTeoTCLEV7AD34nUJMMpMKgJVSnMP2p292jEbZ",
+        "plp": "0x016ad8949cd716c4968374bb58c688f1e6a1660048ef68f0e028919dcaf88f93"
+      },
+      {
+        "amountUsd": 2.0355,
+        "digest": "DGpQxi6YGknP6spkriAnmAUqm73HegwobMy8exGV73z7",
+        "plp": "0xf56a82f1a9ab0bbf2e87f7c4ae589cf8afdbd06e7d2d67d51553feb2ce09554b"
+      }
+    ],
+    "priorSupplyDigest": "EcRYQ3dLuATkef6Kv7P6Rj11B7bkriWHqXkRCLk8ogVa"
   }
 }

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-09T10:38:03.381Z",
+  "generatedAt": "2026-06-09T16:14:34.399Z",
   "decisions": [
     {
       "input": {
@@ -8,44 +8,46 @@
         "expiryMs": "1781251200000",
         "strikeUsd": 56868,
         "referencePriceUsd": 63186.924593082,
-        "impliedCrashProb": 0.058950509,
-        "bidUsd": 48.950457,
-        "premiumUsd": 58.950509,
+        "impliedCrashProb": 0.137568475,
+        "bidUsd": 124.080123,
+        "premiumUsd": 137.568475,
         "sizeUsd": 1000,
         "svi": {
-          "event_digest": "6SHeLrdHtPs1Karve5JaKoDE4vcPqyaz1Wbdhcrsm4oX1",
-          "digest": "6SHeLrdHtPs1Karve5JaKoDE4vcPqyaz1Wbdhcrsm4oX",
+          "event_digest": "BREo7n6Ef4s6QWWzVGhjYuKkXnooJmRBJ6sojZovBMhs1",
+          "digest": "BREo7n6Ef4s6QWWzVGhjYuKkXnooJmRBJ6sojZovBMhs",
           "sender": "0xcca26f7ae2e40604498294e95bacccc4652cc8cb2aa074d7ee608c7e7bdf0c29",
-          "checkpoint": 346293490,
-          "checkpoint_timestamp_ms": 1781001423135,
-          "tx_index": 5,
+          "checkpoint": 346386661,
+          "checkpoint_timestamp_ms": 1781021603310,
+          "tx_index": 7,
           "event_index": 1,
           "package": "f5ea2b3749c65d6e56507cc35388719aadb28f9cab873696a2f8687f5c785138",
           "oracle_id": "0x195833aeee071530d2bdcd2e03916b7458d57c81ed540b82d6e1cb594bdf41f2",
-          "a": 1053158,
-          "b": 16957304,
-          "rho": 225766418,
+          "a": 1206093,
+          "b": 19696967,
+          "rho": 348036342,
           "rho_negative": true,
-          "m": 18333509,
+          "m": 17970629,
           "m_negative": false,
-          "sigma": 26856933,
-          "onchain_timestamp": 1781001423067
+          "sigma": 41134443,
+          "onchain_timestamp": 1781021603310
         }
       },
       "decision": {
         "accept": true,
-        "maxCapacityUsd": 84817,
-        "premiumBps": 737,
-        "rationale": "Rules: implied crash prob 5.90% < 25% threshold; capacity scaled by 1/prob, premium = prob+25% margin.",
+        "maxCapacityUsd": 36346,
+        "premiumBps": 1720,
+        "rationale": "Rules: implied crash prob 13.76% < 25% threshold; capacity scaled by 1/prob, premium = prob+25% margin.",
         "source": "rules"
       },
       "execution": {
-        "executed": false,
-        "reason": "execution disabled (set AGENT_EXECUTE=1 + SUI_PRIVATE_KEY)"
+        "executed": true,
+        "digest": "FvJhWmcTeoTCLEV7AD34nUJMMpMKgJVSnMP2p292jEbZ",
+        "amountUsd": 3.6346,
+        "plpObjectId": "0x016ad8949cd716c4968374bb58c688f1e6a1660048ef68f0e028919dcaf88f93"
       },
-      "timestamp": "2026-06-09T10:37:17.396Z",
-      "walrusBlobId": "KbkEdcUHRPysVwtVHRsjOsgpUqo2fqnMF5XxIfulXds",
-      "walrusUrl": "https://aggregator.walrus-testnet.walrus.space/v1/blobs/KbkEdcUHRPysVwtVHRsjOsgpUqo2fqnMF5XxIfulXds"
+      "timestamp": "2026-06-09T16:13:38.257Z",
+      "walrusBlobId": "PIGlcDWs01erU0XgKhSSu4IcIVFMyjxWzDupNPcK9eI",
+      "walrusUrl": "https://aggregator.walrus-testnet.walrus.space/v1/blobs/PIGlcDWs01erU0XgKhSSu4IcIVFMyjxWzDupNPcK9eI"
     },
     {
       "input": {
@@ -54,44 +56,46 @@
         "expiryMs": "1781856000000",
         "strikeUsd": 56868,
         "referencePriceUsd": 63186.924593082,
-        "impliedCrashProb": 0.156837284,
-        "bidUsd": 142.566082,
-        "premiumUsd": 156.837284,
+        "impliedCrashProb": 0.245644019,
+        "bidUsd": 228.630899,
+        "premiumUsd": 245.644019,
         "sizeUsd": 1000,
         "svi": {
-          "event_digest": "7iMm1GhZc7yHELAci2mrKxCQKihXQZaNB69bfsVibu1Y3",
-          "digest": "7iMm1GhZc7yHELAci2mrKxCQKihXQZaNB69bfsVibu1Y",
+          "event_digest": "549AxkSv5XT71Lk2kTrXftR7vtzKWsZwh7s2bBCvN3pb3",
+          "digest": "549AxkSv5XT71Lk2kTrXftR7vtzKWsZwh7s2bBCvN3pb",
           "sender": "0xcca26f7ae2e40604498294e95bacccc4652cc8cb2aa074d7ee608c7e7bdf0c29",
-          "checkpoint": 346293582,
-          "checkpoint_timestamp_ms": 1781001443043,
-          "tx_index": 7,
+          "checkpoint": 346386753,
+          "checkpoint_timestamp_ms": 1781021623175,
+          "tx_index": 6,
           "event_index": 3,
           "package": "f5ea2b3749c65d6e56507cc35388719aadb28f9cab873696a2f8687f5c785138",
           "oracle_id": "0x1368db417891e8c7d4a083e1daa1fed3b52d33d93dfe7324e37c5e15b6b6a872",
-          "a": 2483053,
-          "b": 33434922,
-          "rho": 31943508,
-          "rho_negative": false,
-          "m": 63319380,
+          "a": 3018741,
+          "b": 35438860,
+          "rho": 15451147,
+          "rho_negative": true,
+          "m": 77794980,
           "m_negative": false,
-          "sigma": 59859817,
-          "onchain_timestamp": 1781001443043
+          "sigma": 60907143,
+          "onchain_timestamp": 1781021623175
         }
       },
       "decision": {
         "accept": true,
-        "maxCapacityUsd": 31880,
-        "premiumBps": 1960,
-        "rationale": "Rules: implied crash prob 15.68% < 25% threshold; capacity scaled by 1/prob, premium = prob+25% margin.",
+        "maxCapacityUsd": 20355,
+        "premiumBps": 3071,
+        "rationale": "Rules: implied crash prob 24.56% < 25% threshold; capacity scaled by 1/prob, premium = prob+25% margin.",
         "source": "rules"
       },
       "execution": {
-        "executed": false,
-        "reason": "execution disabled (set AGENT_EXECUTE=1 + SUI_PRIVATE_KEY)"
+        "executed": true,
+        "digest": "DGpQxi6YGknP6spkriAnmAUqm73HegwobMy8exGV73z7",
+        "amountUsd": 2.0355,
+        "plpObjectId": "0xf56a82f1a9ab0bbf2e87f7c4ae589cf8afdbd06e7d2d67d51553feb2ce09554b"
       },
-      "timestamp": "2026-06-09T10:37:39.414Z",
-      "walrusBlobId": "V0-PM-43QMuNoZUB4JezcyC26tFVONBJvPDhH3IwlA8",
-      "walrusUrl": "https://aggregator.walrus-testnet.walrus.space/v1/blobs/V0-PM-43QMuNoZUB4JezcyC26tFVONBJvPDhH3IwlA8"
+      "timestamp": "2026-06-09T16:14:05.110Z",
+      "walrusBlobId": "CpfhkTZ8ecw-SoyH4KCmai3JSUVxzncwkCoH-4ZzQnM",
+      "walrusUrl": "https://aggregator.walrus-testnet.walrus.space/v1/blobs/CpfhkTZ8ecw-SoyH4KCmai3JSUVxzncwkCoH-4ZzQnM"
     },
     {
       "input": {
@@ -100,44 +104,44 @@
         "expiryMs": "1782460800000",
         "strikeUsd": 56868,
         "referencePriceUsd": 63186.924593082,
-        "impliedCrashProb": 0.208471643,
-        "bidUsd": 192.457669,
-        "premiumUsd": 208.471643,
+        "impliedCrashProb": 0.290671837,
+        "bidUsd": 272.679169,
+        "premiumUsd": 290.671837,
         "sizeUsd": 1000,
         "svi": {
-          "event_digest": "HZvRRQ2hsFwh52SC1eXq6PJpnxvwEHnjwBEac6u1ir3D5",
-          "digest": "HZvRRQ2hsFwh52SC1eXq6PJpnxvwEHnjwBEac6u1ir3D",
+          "event_digest": "ADhjrzqTMXRp6uiVQTAifLJdYkPH1fcRhrADhzGZoZ2s5",
+          "digest": "ADhjrzqTMXRp6uiVQTAifLJdYkPH1fcRhrADhzGZoZ2s",
           "sender": "0xcca26f7ae2e40604498294e95bacccc4652cc8cb2aa074d7ee608c7e7bdf0c29",
-          "checkpoint": 346293676,
-          "checkpoint_timestamp_ms": 1781001463088,
-          "tx_index": 6,
+          "checkpoint": 346386931,
+          "checkpoint_timestamp_ms": 1781021661220,
+          "tx_index": 7,
           "event_index": 5,
           "package": "f5ea2b3749c65d6e56507cc35388719aadb28f9cab873696a2f8687f5c785138",
           "oracle_id": "0x5169649f6bf3ba756bbbef3a90a8e0da60883bbd7f0bb0fcb8acc2321ef6d63d",
-          "a": 1772587,
-          "b": 52714970,
-          "rho": 170914964,
+          "a": 1810032,
+          "b": 58081353,
+          "rho": 262916157,
           "rho_negative": true,
-          "m": 29630204,
+          "m": 31575837,
           "m_negative": false,
-          "sigma": 114075224,
-          "onchain_timestamp": 1781001463088
+          "sigma": 120914473,
+          "onchain_timestamp": 1781021661220
         }
       },
       "decision": {
-        "accept": true,
-        "maxCapacityUsd": 23984,
-        "premiumBps": 2606,
-        "rationale": "Rules: implied crash prob 20.85% < 25% threshold; capacity scaled by 1/prob, premium = prob+25% margin.",
+        "accept": false,
+        "maxCapacityUsd": 0,
+        "premiumBps": 3633,
+        "rationale": "Rules: implied crash prob 29.07% >= 25% threshold; declined.",
         "source": "rules"
       },
       "execution": {
         "executed": false,
-        "reason": "execution disabled (set AGENT_EXECUTE=1 + SUI_PRIVATE_KEY)"
+        "reason": "declined — no capital supplied"
       },
-      "timestamp": "2026-06-09T10:37:56.156Z",
-      "walrusBlobId": "xJ26Lar4miuf4-D8U0CgCo-Rk_ojMDmdf4gtdD1wnGY",
-      "walrusUrl": "https://aggregator.walrus-testnet.walrus.space/v1/blobs/xJ26Lar4miuf4-D8U0CgCo-Rk_ojMDmdf4gtdD1wnGY"
+      "timestamp": "2026-06-09T16:14:24.323Z",
+      "walrusBlobId": "HVXIpkRa1sUxLMl2Jmx8SmuJ8dXzzUDMTtVmPXFU9Bk",
+      "walrusUrl": "https://aggregator.walrus-testnet.walrus.space/v1/blobs/HVXIpkRa1sUxLMl2Jmx8SmuJ8dXzzUDMTtVmPXFU9Bk"
     }
   ]
 }

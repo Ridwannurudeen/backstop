@@ -1,0 +1,8 @@
+{
+  "name": "backstop",
+  "private": true,
+  "description": "Backstop — the risk & trust layer for Sui (DeepBook Predict + Walrus)",
+  "scripts": {
+    "verify:public": "node scripts/verify-public.mjs"
+  }
+}

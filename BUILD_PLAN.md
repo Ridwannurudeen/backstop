@@ -4,7 +4,7 @@
 
 One-liner: *"Insure your treasury against a crash in one click — priced by an on-chain options oracle, underwritten by an autonomous agent, settled trustlessly in <400ms."*
 
-- **Tracks:** DeepBook ($35k top) primary; cross-appeal to Agentic Web (AI underwriter) + Walrus (verifiable agent memory).
+- **Tracks:** DeepBook ($35k top) primary; cross-appeal to Agentic Web (AI underwriter) + Walrus (tamper-evident agent memory).
 - **Window:** today → **June 21** submission (~14 days), **solo**.
 - **Prime directive:** a working, demoable product at *every* checkpoint. Risky pillars have explicit fallbacks. We never trade "it works" for "it's bigger."
 - Verified contract constants + signatures live in `spike/ids.ts` and `app/src/lib/predict.ts` (do not re-derive).
@@ -19,7 +19,7 @@ One-liner: *"Insure your treasury against a crash in one click — priced by an 
 "Insure my treasury." Read the wallet's on-chain holdings → compute crash/drawdown exposure → one-click build a **basket** of DOWN-binary policies (e.g. protect against −10%/−20%). Adopter: DAOs, funds, treasuries. Turns a single-binary toy into treasury risk management.
 
 **Pillar 2 — Autonomous AI underwriter** *(technical + agentic wow, cross-track)*
-A Node agent that: monitors active oracles + vault state; prices risk off Predict's on-chain **SVI vol surface**; uses **Claude** (claude-sonnet-4-6 in the loop; consult the `claude-api` skill at implementation) to produce a grounded accept/decline + risk rationale; manages vault exposure caps; and writes every decision (SVI snapshot → reasoning → action) to **Walrus** as verifiable memory. The headline: a *self-driving insurance protocol*.
+A Node agent that: monitors active oracles + vault state; prices risk off Predict's on-chain **SVI vol surface**; uses **Claude** (claude-sonnet-4-6 in the loop; consult the `claude-api` skill at implementation) to produce a grounded accept/decline + risk rationale; manages vault exposure caps; and writes every decision (SVI snapshot → reasoning → action) to **Walrus** as tamper-evident memory. The headline: a *self-driving insurance protocol*.
 
 **Pillar 3 — Live risk terminal** *(visual + technical depth, 20% UX / 20% tech)*
 Real-time vol-surface viz from SVI params (a,b,ρ,m,σ), **implied crash probabilities** per strike (binary price = risk-neutral probability — a genuinely Sui-unique on-chain data product), vault solvency/exposure, premium flow.

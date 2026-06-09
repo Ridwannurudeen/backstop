@@ -47,7 +47,7 @@ Goal: win the 50% real-world axis with a *concrete, live* demo (insure → crash
 ### 3:30–4:30 — Act 4: The risk layer (vision)
 **Do:** Open **Risk terminal** — the live implied-crash-probability curve from Predict. Then show the **`RiskFeed`** on-chain object (a published reading, or the contract + `ReadingPublished` event).
 **Say:**
-> "What you've seen isn't an insurance app — it's a risk-and-trust layer. Predict gives us the price of risk; Walrus gives us verifiable truth. We publish it on-chain as a **RiskFeed** — a probability-of-failure oracle any Sui protocol can read to back its own solvency. **That's how you replace the validator bailout with a market.** Insurance is just the first product on top — next is liquidation backstops, protocol cover, and stablecoin-depeg insurance for the RWA wave."
+> "What you've seen isn't an insurance app — it's a risk-and-trust layer. Predict gives us the price of risk; Walrus gives us tamper-evident decision memory — and a public calibration ledger, comparing predictions to outcomes over time, turns that into trust. We publish it on-chain as a **RiskFeed** — a probability-of-failure oracle any Sui protocol can read to back its own solvency. **That's how you replace the validator bailout with a market.** Insurance is just the first product on top — next is liquidation backstops, protocol cover, and stablecoin-depeg insurance for the RWA wave."
 
 ### 4:30–5:00 — Close
 **On screen:** "Backstop — the Risk & Trust Layer for Sui. DeepBook Predict × Walrus."

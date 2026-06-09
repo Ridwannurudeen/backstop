@@ -10,7 +10,7 @@ export type WalrusResult =
 // envelope with .blobId, readable back via {aggregator}/v1/blobs/{blobId}.
 export async function logToWalrus(
   record: unknown,
-  epochs = 1,
+  epochs = 30,
 ): Promise<WalrusResult> {
   try {
     const r = await fetch(`${WALRUS_PUBLISHER}?epochs=${epochs}`, {
