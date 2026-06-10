@@ -40,6 +40,8 @@ Everything below is deployed and executed on Sui testnet. **Canonical full IDs l
 | **Live insurance mint** — DOWN BTC<$56,901, $10 cover, 0.2886 DUSDC premium | tx `G2X8UFPRjgYf76dA7FBziGg6cyUAkoepGnTuCakzCcBP` |
 | **RiskFeed readings published** — 3 probabilities-of-failure, Walrus-linked | tx `Ad5Fcr6otec41vioS5mTPJGY89GaaKcQPdRUZc2bvbEz` |
 | **Agent capacity-sized supply** — $100k capacity → $10.00 on-chain | tx `EcRYQ3dLuATkef6Kv7P6Rj11B7bkriWHqXkRCLk8ogVa` |
+| CoverPool package | `0x0ebd…6082f` |
+| **Parametric crash payout** — deposit → buy cover → crash → on-chain claim, settled from the pool | tx `6zaXyBYjTduAYXUQGHjE6dAvLHX5t7muKRANTgpH6p2P` |
 
 Explore any digest at `https://testnet.suivision.xyz/txblock/<digest>`; read any Walrus decision at `https://aggregator.walrus-testnet.walrus.space/v1/blobs/<blobId>`.
 
@@ -53,7 +55,9 @@ app/         Vite + React frontend (dapp-kit). Tabs: Buy protection · Insure my
              Risk terminal + AI underwriter are public (read-only, no wallet).
 agent/       Autonomous AI underwriter (Node + tsx). Reads oracles → prices risk →
              Claude/rules decision → supplies on-chain → logs to Walrus.
-contracts/   risk_feed/ — the on-chain RiskFeed Move package (probability-of-failure oracle).
+contracts/   risk_feed/ — on-chain RiskFeed (probability-of-failure oracle).
+             risk_guard/ — a consumer: treasury withdrawals freeze on crash risk.
+             cover_pool/ — native parametric cover pool: LPs underwrite, claims pay from the pool.
 spike/       Runnable verification harness for the Predict PTBs (the verified foundation).
 ```
 

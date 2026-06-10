@@ -29,13 +29,15 @@ Live (testnet): **https://backstop.gudman.xyz** · Repo: `github.com/Ridwannurud
 ```
   [x] Phase 0  Proof .......................... DONE — live testnet, all 4 primitives, proofs fresh
   [x] Phase 1  Risk Oracle (read-only) ........ DONE — RiskFeed + RiskGuard consumer LIVE on-chain
-  [ ] Phase 2  Backstop pool / depeg insurance . mainnet-gated (DeepBook Predict mainnet "later 2026")
+  [~] Phase 2  Backstop pool (capital lane) .... CoverPool LIVE on testnet (parametric deposit→buy→claim);
+                                                 stablecoin depeg insurance still mainnet-gated (BTC-only oracles)
   [ ] Phase 3  Backstop network (liq backstops). mainnet-gated
   [ ] Phase 4  Provenance & trust standard ..... future
   [ ] Phase 5  Agent accountability + cross-chain future (agent bonds, reputation passports, Ika)
 ```
 
-Phases 2+ cannot be *built* on testnet (no mainnet Predict, BTC-only oracles) — they are roadmap, not tasks.
+The capital lane (parametric CoverPool) is now built + proven on testnet. What remains mainnet-gated is
+specifically *depeg* insurance (testnet Predict has BTC-only oracles) and real production capital.
 
 ---
 
@@ -47,10 +49,11 @@ LIVE & PROVEN ON TESTNET                          REMAINING TO SUBMIT (non-code,
   [x] AI underwriter executes predict::supply       [ ] flip repo public (command in section 4G)
   [x] on-chain RiskFeed + fresh readings            [ ] submit form (needs your approval)
   [x] RiskGuard consumer (withdraw reads feed)
-  [x] live risk terminal (read-only, no wallet)    OPTIONAL POLISH
-  [x] app deployed at backstop.gudman.xyz            [ ] in-UI guided demo-spine walkthrough
-  [x] README / DECK / SUBMISSION / AI_USAGE          [ ] set ANTHROPIC_API_KEY -> AI tab shows "claude"
-  [x] verify:public (17/17), 2 move tests
+  [x] CoverPool: parametric crash payout on-chain  OPTIONAL POLISH
+  [x] live risk terminal (read-only, no wallet)      [x] in-UI guided demo-spine walkthrough
+  [x] app deployed at backstop.gudman.xyz            [ ] set ANTHROPIC_API_KEY -> AI tab shows "claude"
+  [x] README / DECK / SUBMISSION / AI_USAGE
+  [x] verify:public (17/17), 8 move tests
 ```
 
 ---
@@ -100,6 +103,16 @@ cd agent
 export SUI_PRIVATE_KEY=$(cat ../spike/.localkey)
 RISK_GUARD_PKG=<riskGuard.package> RISK_FEED_OBJ=<riskFeed.feedObject> \
   GUARD_MARKET="BTC<56901@1780992000000" GUARD_TOL_BPS=500 npx tsx src/demoGuard.ts
+```
+
+### F2. Demo the CoverPool live (deposit → buy → crash → on-chain payout)
+```bash
+cd agent
+export SUI_PRIVATE_KEY=$(cat ../spike/.localkey)
+COVER_POOL_PKG=<coverPool.package> RISK_FEED_PKG=<riskFeed.package> \
+  RISK_FEED_OBJ=<riskFeed.feedObject> PUBLISHER_CAP=<riskFeed.publisherCap> \
+  npx tsx src/demoCoverPool.ts
+# Move tests: cd ../contracts/cover_pool && ../../.tools/sui.exe move test   # 6/6
 ```
 
 ### G. Submission steps (when ready — get explicit approval before the form)

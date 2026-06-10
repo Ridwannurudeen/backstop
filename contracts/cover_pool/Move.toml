@@ -1,0 +1,12 @@
+[package]
+name = "cover_pool"
+edition = "2024.beta"
+
+# Backstop's native parametric cover pool. Depends on the risk_feed package
+# locally for compilation/tests; built against the LIVE feed (risk_feed's
+# Move.toml pins published-at), so on-chain it links to the deployed RiskFeed.
+[dependencies]
+risk_feed = { local = "../risk_feed" }
+
+[addresses]
+cover_pool = "0x0"
