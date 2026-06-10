@@ -19,3 +19,9 @@ export const shortDate = (ms: string | number) =>
 
 export const txUrl = (digest: string) =>
   `https://testnet.suivision.xyz/txblock/${digest}`;
+
+// SUI from mist (1e9), trimmed to at most 4 decimals.
+export const sui = (mist: string | bigint | number) =>
+  `${(Number(BigInt(mist)) / 1e9).toLocaleString("en-US", {
+    maximumFractionDigits: 4,
+  })} SUI`;

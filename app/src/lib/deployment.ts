@@ -15,3 +15,16 @@ export const RISK_FEED_OBJ = hx(
 export const READING_EVENT = `${RISK_FEED_PKG}::risk_feed::ReadingPublished`;
 export const WALRUS_AGGREGATOR =
   "https://aggregator.walrus-testnet.walrus.space/v1/blobs";
+
+// Native parametric CoverPool (Phase 2 capital lane), deployed 2026-06-10.
+export const COVER_POOL_PKG = hx(
+  "0ebde85d88b00ee0f4f1df16a82feb73",
+  "87cde48ac6169d979db4a677de76082f",
+);
+// The public pool the app underwrites/sells against (market BTC-CRASH-30D).
+export const COVER_POOL_OBJ = hx(
+  "2c9b264a131a9c512c68b2ae8b7463f7",
+  "5f114d395aaacc226815b575c7ba2066",
+);
+export const COVER_POOL_MARKET = "BTC-CRASH-30D";
+export const SUI_TYPE = "0x2::sui::SUI";

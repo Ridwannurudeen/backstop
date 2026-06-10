@@ -62,6 +62,15 @@
       "crashReadingDigest": "G3i1X9h5NRV8YCbAZwG2N9HYTJxwjjcxMLbofJRhvzyv",
       "claimDigest": "6zaXyBYjTduAYXUQGHjE6dAvLHX5t7muKRANTgpH6p2P",
       "claimPaidMist": 20000000
+    },
+    "publicPool": {
+      "note": "Clean public pool the app Cover-pool tab underwrites/sells against (calm market, buyable cover).",
+      "market": "BTC-CRASH-30D",
+      "pool": "0x2c9b264a131a9c512c68b2ae8b7463f75f114d395aaacc226815b575c7ba2066",
+      "triggerBps": 3000,
+      "loadingBps": 11000,
+      "seededLpMist": 100000000,
+      "createDigest": "Hef3TNENMGBpNo7Lz7RKnc1zhN5guAv4jN1AbGnAe5Fd"
     }
   }
 }

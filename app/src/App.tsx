@@ -4,18 +4,27 @@ import BuyProtection from "./components/BuyProtection";
 import TreasuryProtect from "./components/TreasuryProtect";
 import Portfolio from "./components/Portfolio";
 import Underwrite from "./components/Underwrite";
+import CoverPool from "./components/CoverPool";
 import RiskTerminal from "./components/RiskTerminal";
 import Underwriter from "./components/Underwriter";
 import OnchainRiskFeed from "./components/OnchainRiskFeed";
 import DemoTour from "./components/DemoTour";
 
-type Tab = "buy" | "treasury" | "portfolio" | "underwrite" | "terminal" | "ai";
+type Tab =
+  | "buy"
+  | "treasury"
+  | "portfolio"
+  | "underwrite"
+  | "cover"
+  | "terminal"
+  | "ai";
 
 const TABS: { id: Tab; label: string; needsWallet: boolean }[] = [
   { id: "buy", label: "Buy protection", needsWallet: true },
   { id: "treasury", label: "Insure my treasury", needsWallet: true },
   { id: "portfolio", label: "My policies", needsWallet: true },
   { id: "underwrite", label: "Underwrite", needsWallet: true },
+  { id: "cover", label: "Cover pool", needsWallet: true },
   { id: "terminal", label: "Risk terminal", needsWallet: false },
   { id: "ai", label: "AI underwriter", needsWallet: false },
 ];
@@ -75,6 +84,7 @@ export default function App() {
       {active === "treasury" && <TreasuryProtect />}
       {active === "portfolio" && <Portfolio />}
       {active === "underwrite" && <Underwrite />}
+      {active === "cover" && <CoverPool />}
       {active === "terminal" && (
         <>
           <RiskTerminal />
