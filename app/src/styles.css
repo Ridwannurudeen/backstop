@@ -51,6 +51,12 @@ header.top {
   margin-top: 2px;
 }
 
+.top-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .tabs {
   display: flex;
   flex-wrap: wrap;

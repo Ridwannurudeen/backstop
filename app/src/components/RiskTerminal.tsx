@@ -104,7 +104,7 @@ export default function RiskTerminal() {
   });
 
   return (
-    <div className="card">
+    <div className="card" id="risk-terminal">
       <h3>Risk terminal — {DEFAULT_SYMBOL} crash surface</h3>
       <p className="muted">
         Live, read-only view of the on-chain volatility surface. The curve is

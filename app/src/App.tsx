@@ -7,6 +7,7 @@ import Underwrite from "./components/Underwrite";
 import RiskTerminal from "./components/RiskTerminal";
 import Underwriter from "./components/Underwriter";
 import OnchainRiskFeed from "./components/OnchainRiskFeed";
+import DemoTour from "./components/DemoTour";
 
 type Tab = "buy" | "treasury" | "portfolio" | "underwrite" | "terminal" | "ai";
 
@@ -22,6 +23,7 @@ const TABS: { id: Tab; label: string; needsWallet: boolean }[] = [
 export default function App() {
   const account = useCurrentAccount();
   const [tab, setTab] = useState<Tab>("buy");
+  const [tourOpen, setTourOpen] = useState(false);
 
   // Risk terminal is public (read-only); everything else needs a wallet.
   const visibleTabs = account ? TABS : TABS.filter((t) => !t.needsWallet);
@@ -39,7 +41,12 @@ export default function App() {
             Crash insurance for crypto, settled in 400ms on DeepBook Predict
           </div>
         </div>
-        <ConnectButton />
+        <div className="top-right">
+          <button className="tour-launch" onClick={() => setTourOpen(true)}>
+            ▶ Guided demo
+          </button>
+          <ConnectButton />
+        </div>
       </header>
 
       <div className="tabs">
@@ -75,6 +82,10 @@ export default function App() {
         </>
       )}
       {active === "ai" && <Underwriter />}
+
+      {tourOpen && (
+        <DemoTour onTab={setTab} onClose={() => setTourOpen(false)} />
+      )}
     </div>
   );
 }

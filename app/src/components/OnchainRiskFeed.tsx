@@ -55,7 +55,7 @@ export default function OnchainRiskFeed() {
   const latest = (data ?? []).filter((r) => r.proof !== "stale");
 
   return (
-    <div className="card">
+    <div className="card" id="onchain-riskfeed">
       <h3>
         On-chain RiskFeed{" "}
         <span className="muted" style={{ fontWeight: 400 }}>
