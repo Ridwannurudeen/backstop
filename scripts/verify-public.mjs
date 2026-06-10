@@ -88,6 +88,10 @@ async function main() {
   const seen = new Set();
   const latest = (ev?.data ?? [])
     .map((e) => e.parsedJson)
+    // Only the agent's BTC-oracle readings (key "BTC<strike@expiry") form the
+    // Walrus-proven calibration ledger; cover-pool markets (e.g. "BTC-CRASH-30D")
+    // are operational oracle inputs, not part of this proof set.
+    .filter((r) => r.market.includes("<") && r.market.includes("@"))
     .filter((r) => (seen.has(r.market) ? false : (seen.add(r.market), true)));
   const maxTs = latest.reduce((m, r) => Math.max(m, Number(r.ts_ms)), 0);
   const recent = latest.filter((r) => Number(r.ts_ms) >= maxTs - 6 * 3600_000);

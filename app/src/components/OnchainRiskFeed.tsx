@@ -22,7 +22,12 @@ export default function OnchainRiskFeed() {
         limit: 25,
         order: "descending",
       });
-      const events = r.data.map((e) => e.parsedJson as ReadingEvent);
+      const events = r.data
+        .map((e) => e.parsedJson as ReadingEvent)
+        // Only the agent's BTC-oracle readings ("BTC<strike@expiry") belong in
+        // this Walrus-proven ledger; cover-pool markets (e.g. "BTC-CRASH-30D")
+        // are operational oracle inputs for the parametric pool, not proofs here.
+        .filter((e) => e.market.includes("<") && e.market.includes("@"));
       // Latest reading per market (events are newest-first).
       const seen = new Set<string>();
       const latest = events.filter((e) =>
