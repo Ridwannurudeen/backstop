@@ -11,3 +11,5 @@ build/
 .env.*
 *.log
 agent/rf.*
+contracts/*/bytecode.json
+contracts/*/build.err

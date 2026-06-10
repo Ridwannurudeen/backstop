@@ -44,5 +44,24 @@
       }
     ],
     "priorSupplyDigest": "EcRYQ3dLuATkef6Kv7P6Rj11B7bkriWHqXkRCLk8ogVa"
+  },
+  "coverPool": {
+    "note": "Native parametric cover pool composing the live RiskFeed. LPs supply SUI, a policyholder buys cover priced off the feed, and a claim pays out from the pool when the market reading crosses the trigger. Proven end-to-end on testnet 2026-06-10 (deposit -> buy -> crash -> on-chain payout).",
+    "package": "0x0ebde85d88b00ee0f4f1df16a82feb7387cde48ac6169d979db4a677de76082f",
+    "consumesRiskFeed": "0xefda410b91a3caec4cdb34f459a87909ad6b89c00f1ca392ce345c292f4cc6ef",
+    "publishDigest": "GfLy7sX2fux9T4CsU3FYaMGb1TjKa4xNWBzpGQw3Cn8w",
+    "demo": {
+      "market": "DEMO-CRASH",
+      "pool": "0x5dfa14b72ecb4813bb1affd464a751362c0d0ea2234ef5caae0efe3962f98f09",
+      "triggerBps": 5000,
+      "loadingBps": 11000,
+      "lpDepositMist": 50000000,
+      "coverMist": 20000000,
+      "premiumMist": 2200000,
+      "buyCoverDigest": "57DzdnoPixuuqtUcGNUoTPFHzEnjCxuPVikEfsLv9KFx",
+      "crashReadingDigest": "G3i1X9h5NRV8YCbAZwG2N9HYTJxwjjcxMLbofJRhvzyv",
+      "claimDigest": "6zaXyBYjTduAYXUQGHjE6dAvLHX5t7muKRANTgpH6p2P",
+      "claimPaidMist": 20000000
+    }
   }
 }
