@@ -1,0 +1,6 @@
+[package]
+name = "accountability"
+edition = "2024.beta"
+
+[addresses]
+accountability = "0x0"

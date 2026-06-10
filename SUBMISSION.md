@@ -34,6 +34,9 @@ Everything below is deployed and executed on Sui testnet. **Canonical full IDs l
 - **On-chain RiskFeed package** (`0xefda…cc6ef`, shared object `0xa48b…1ddf4`) — 3 probability-of-failure readings published, each Walrus-linked · tx `Ad5Fcr6otec41vioS5mTPJGY89GaaKcQPdRUZc2bvbEz`.
 - **RiskFeed consumer** (`risk_guard`) — a `GuardedTreasury<SUI>` (`0x784e…4ddb6`) whose `withdraw` **reads the live feed** (282bps ≤ 500bps tolerance) and releases funds — proof a protocol consumes the feed. Created · tx `AFMA9saypdJ1sc9UbCcgsrh27MxYxR23jKAwL5ofBYH6`; gated withdraw · tx `7eGTCiTQMsqzZNW519GRRHiv5AUWWu4uyBsuwcsjc8We`.
 - **Live risk terminal** — implied-crash-probability curves across strikes, straight from `devInspect` reads.
+- **Native parametric CoverPool** (`cover_pool`) — LPs supply SUI, buyers get crash cover priced live off the RiskFeed, claims settle from the pool. Crash→payout proven on-chain · claim tx `6zaXyBYjTduAYXUQGHjE6dAvLHX5t7muKRANTgpH6p2P`.
+- **Agent accountability** (`accountability`) — a bonded, slashable `AgentPassport` + a public `CalibrationLedger` scoring predictions vs realized outcomes (100% over 2 settled) · register tx `6JCzQfVvrA2dfhEQVnebLPFcTRrFqFzxYCN4SXrisJTo`, settle tx `GAdig2CpDouXXnEpW934F9HpjbWodm7g9GLj5whGqHoP`.
+- **Backstop network** — an on-chain `PoolRegistry` (pool directory) + a `lending_demo` consumer whose reserve is backstopped by a CoverPool claim on a crash · cover_shortfall tx `9ASNW2B4FAthT5aw8x8gpcwwgq75mDm8TtjWoRNLMxqp`.
 
 Verify any digest at `https://testnet.suivision.xyz/txblock/<digest>`; read any Walrus decision at `https://aggregator.walrus-testnet.walrus.space/v1/blobs/<blobId>`.
 
@@ -66,6 +69,6 @@ Node v24 + npm.
 
 ## Honest live-vs-roadmap
 
-**Live now:** live quotes, risk terminal, AI underwriter, Walrus proof (all read-only, no wallet); the on-chain `RiskFeed` oracle + `risk_guard` consumer; the agent executing its own underwriting on-chain; live policy mint. **Roadmap (not shipped):** mutualized capital pool / protocol cover, multi-asset + stablecoin-depeg markets, agent bonding, mainnet deploy once DeepBook Predict ships to mainnet.
+**Live now:** live quotes, risk terminal, AI underwriter, Walrus proof (all read-only, no wallet); the on-chain `RiskFeed` oracle + `risk_guard` consumer; the agent executing its own underwriting on-chain; live policy mint; the native parametric **CoverPool** (mutualized capital + on-chain claims); the **AgentPassport** bond + **CalibrationLedger**; the **PoolRegistry** and the **lending_demo** consumer (protocol cover). **Roadmap (not shipped):** multi-asset + stablecoin-depeg markets, an underwriter marketplace, mainnet deploy once DeepBook Predict ships to mainnet.
 
 Full 6-phase roadmap (Proof → Risk Oracle → Backstop pool → Backstop network → Provenance standard → Agent accountability + cross-chain) in [`ROADMAP.md`](./ROADMAP.md).

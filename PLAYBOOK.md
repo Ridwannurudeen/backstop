@@ -31,13 +31,15 @@ Live (testnet): **https://backstop.gudman.xyz** · Repo: `github.com/Ridwannurud
   [x] Phase 1  Risk Oracle (read-only) ........ DONE — RiskFeed + RiskGuard consumer LIVE on-chain
   [~] Phase 2  Backstop pool (capital lane) .... CoverPool LIVE on testnet (parametric deposit→buy→claim);
                                                  stablecoin depeg insurance still mainnet-gated (BTC-only oracles)
-  [ ] Phase 3  Backstop network (liq backstops). mainnet-gated
-  [ ] Phase 4  Provenance & trust standard ..... future
-  [ ] Phase 5  Agent accountability + cross-chain future (agent bonds, reputation passports, Ika)
+  [~] Phase 3  Backstop network ................ PoolRegistry directory + lending_demo consumer LIVE
+                                                 (reserve backstopped by a pool claim on a crash)
+  [~] Phase 4  Truth / calibration ............. CalibrationLedger LIVE (predictions scored vs outcomes on-chain)
+  [~] Phase 5  Agent accountability ............ AgentPassport bond + reputation LIVE; cross-chain (Ika) future
 ```
 
-The capital lane (parametric CoverPool) is now built + proven on testnet. What remains mainnet-gated is
-specifically *depeg* insurance (testnet Predict has BTC-only oracles) and real production capital.
+Pillars II (calibration/truth) and III (agent accountability) now have live on-chain primitives, and the
+Backstop network has a real pool consumer. What remains mainnet-gated: *depeg* insurance (testnet Predict is
+BTC-only), an underwriter marketplace, and real production capital.
 
 ---
 
@@ -50,10 +52,13 @@ LIVE & PROVEN ON TESTNET                          REMAINING TO SUBMIT (non-code,
   [x] on-chain RiskFeed + fresh readings            [ ] submit form (needs your approval)
   [x] RiskGuard consumer (withdraw reads feed)
   [x] CoverPool: parametric crash payout on-chain  OPTIONAL POLISH
-  [x] live risk terminal (read-only, no wallet)      [x] in-UI guided demo-spine walkthrough
-  [x] app deployed at backstop.gudman.xyz            [ ] set ANTHROPIC_API_KEY -> AI tab shows "claude"
+  [x] AgentPassport bond + CalibrationLedger         [x] in-UI guided demo-spine walkthrough
+  [x] PoolRegistry + lending_demo consumer           [ ] set ANTHROPIC_API_KEY -> AI tab shows "claude"
+  [x] Cover pool + Accountability UI tabs (live)
+  [x] live risk terminal (read-only, no wallet)
+  [x] app deployed at backstop.gudman.xyz
   [x] README / DECK / SUBMISSION / AI_USAGE
-  [x] verify:public (17/17), 8 move tests
+  [x] verify:public (24/24), 19 move tests
 ```
 
 ---

@@ -15,6 +15,8 @@ import {
   fetchMyPolicies,
   fetchMyShares,
 } from "../lib/coverPool";
+import { fetchRegisteredPools } from "../lib/registry";
+import { COVER_POOL_MARKET } from "../lib/deployment";
 import { sui } from "../lib/format";
 import { Notice, type NoticeState } from "./Notice";
 import "./terminal.css";
@@ -55,6 +57,12 @@ export default function CoverPool() {
       return { policies, shares };
     },
     refetchInterval: 15_000,
+  });
+
+  const { data: registered } = useQuery({
+    queryKey: ["registered-pools"],
+    queryFn: () => fetchRegisteredPools(client),
+    refetchInterval: 30_000,
   });
 
   const coverMist = toMist(coverSui);
@@ -236,6 +244,23 @@ export default function CoverPool() {
           </div>
         );
       })}
+
+      <h4 style={{ margin: "18px 0 6px" }}>
+        Backstop network — registered pools
+      </h4>
+      <p className="muted" style={{ marginTop: 0 }}>
+        On-chain directory of cover pools. The actions above target{" "}
+        {COVER_POOL_MARKET}.
+      </p>
+      {(registered ?? []).map((r) => (
+        <div className="quote" key={r.market}>
+          <span className="k">
+            {r.market}
+            {r.market === COVER_POOL_MARKET ? " · active" : ""}
+          </span>
+          <span className="v">trigger {(r.triggerBps / 100).toFixed(0)}%</span>
+        </div>
+      ))}
     </div>
   );
 }

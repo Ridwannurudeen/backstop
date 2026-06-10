@@ -72,5 +72,48 @@
       "seededLpMist": 100000000,
       "createDigest": "Hef3TNENMGBpNo7Lz7RKnc1zhN5guAv4jN1AbGnAe5Fd"
     }
+  },
+  "accountability": {
+    "note": "Pillars II+III: on-chain calibration ledger (predictions vs realized outcomes) + bonded, slashable AgentPassport whose reputation reads the ledger accuracy.",
+    "package": "0x822e1c39527c703b75278e2c607bf4a078e432967a4e8e85bcd0fe4ec0cd8d7e",
+    "calibrationLedger": "0x6c15ce8184d5d8cf267cf3ee8170d03a9298019c844dd9dec4759db3d73a2bb2",
+    "adminCap": "0xfbb310f948cc92048974d5e8ff6742243cf781ae8484be4dc45ff991b1883794",
+    "publishDigest": "DfMrqjgPFy52mXrU8becfEJUxxzQiS9JD1bd83hzVMid",
+    "agentPassport": "0x8a6ef8b27d610af9fcdd2ed0ab16435113406dd04b956a4114e4610abf54c095",
+    "bondSui": 0.05,
+    "proof": {
+      "registerDigest": "6JCzQfVvrA2dfhEQVnebLPFcTRrFqFzxYCN4SXrisJTo",
+      "recordDigest": "85JVqMaCmVCbU54pWkhkaxfDoQnLz7nRKi7DsBkuzEDM",
+      "settleDigest": "GAdig2CpDouXXnEpW934F9HpjbWodm7g9GLj5whGqHoP",
+      "accuracyBps": 10000,
+      "total": 2,
+      "settled": 2
+    }
+  },
+  "poolRegistry": {
+    "note": "Pillar I breadth: on-chain directory of cover pools by market key (CoverPool is key-only so the registry stores IDs+metadata).",
+    "package": "0x94a7a401c2e222769a7c67050ebf50810b8f0df3551ebcd7a60d2d2a64bd0ca2",
+    "registry": "0x8328bc1eeda8cd5a19640e9c61a138a16f3dde54ca8f736a16814b14c7ac042c",
+    "registryCap": "0xef2def3bd662abaf67044f7d788dc003aaee09742f68670b5d6fb2db4f858c32",
+    "publishDigest": "9nK4eoEVw9hnJv2xsRk6TsHci8SFbw2DrqDrWge9Gggs",
+    "registered": [
+      "BTC-CRASH-30D",
+      "DEMO-CRASH"
+    ],
+    "registerDigest": "AASK6nBMDz8oEWPo8JFPMSnACLLVzFRSBctZTEejCnX4"
+  },
+  "lendingDemo": {
+    "note": "Phase 3 consumer: a LendingMarket that buys cover from the live CoverPool and claims the payout into its reserve when the market crashes (bad-debt backstop).",
+    "package": "0x35a64b337fe386147a6faead3a4220ad5254db0a428d4e95295c652bd2d829c7",
+    "publishDigest": "7ftL8upNPt9ePPnBVCBfnaXhV7BSKWcnUaeXDcjcwxrW",
+    "lendPool": "0xab861909367c449cf418b9ec355b03d511142b181af868862f9e8f70587084ff",
+    "lendingMarket": "0x572984c8a1da51f9c74ebe3469143acbcbdd2c1fd6da7b27c40eb2eca0c6590d",
+    "proof": {
+      "market": "LEND-DEMO",
+      "coverMist": 20000000,
+      "insureDigest": "5FSRDYutKcsYrnUoFcFfRvwbQGWN8YU5rzYKcMYNBu9Z",
+      "coverShortfallDigest": "9ASNW2B4FAthT5aw8x8gpcwwgq75mDm8TtjWoRNLMxqp",
+      "payoutMist": 20000000
+    }
   }
 }

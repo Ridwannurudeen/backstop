@@ -95,8 +95,8 @@ It removes the chain's most embarrassing dependency (validator bailouts), it's t
 
 ## 8. Honest real-vs-aspirational
 
-- **Real today:** Predict-as-risk-oracle reads (`pricing.ts`), Walrus-verified logging (round-trip confirmed), crash/depeg pricing, AI underwriter, risk terminal. The read-only risk feed (Pillar I, Phase 1) ships from these with no capital.
-- **Aspirational (labeled):** the capital pool / claims engine (`executeDecision()` is a marked stub needing gated DUSDC + funded signer), multi-asset + protocol cover, the provenance standard, agent bonding. These are extrapolations of working primitives, not yet wired.
+- **Real today (on testnet):** Predict-as-risk-oracle reads (`pricing.ts`), Walrus-verified logging (round-trip confirmed), crash/depeg pricing, AI underwriter, risk terminal; the on-chain `RiskFeed` + `risk_guard` consumer; the agent executing its own underwriting on-chain; the native parametric **CoverPool** (mutualized capital + on-chain claims, crash→payout proven); a bonded **AgentPassport** + a public **CalibrationLedger** (predictions scored vs outcomes); a **PoolRegistry** and a **lending_demo** protocol consumer (bad-debt backstopped by a pool claim).
+- **Aspirational (labeled):** multi-asset + stablecoin-depeg markets (testnet Predict is BTC-only), an underwriter marketplace, the generalized provenance standard, agent reputation passports across chains (Ika), and mainnet deploy once DeepBook Predict ships to mainnet.
 - **Dependencies:** DeepBook Predict is testnet (mainnet "later 2026"); Sui's "verifiable compute" (Nautilus) is AWS-Nitro TEE-attested, **not** cryptographically trustless — we'd document that, not market around it.
 
 ---

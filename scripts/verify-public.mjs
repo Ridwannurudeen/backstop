@@ -123,6 +123,22 @@ async function main() {
     bad(`agent-decisions.json: ${e.message}`);
   }
 
+  console.log("\n[6] widen-scope primitives (accountability / registry / lending)");
+  for (const [obj, label] of [
+    [d.accountability?.calibrationLedger, "CalibrationLedger object"],
+    [d.poolRegistry?.registry, "PoolRegistry object"],
+    [d.lendingDemo?.lendingMarket, "LendingMarket object"],
+  ]) {
+    const o = obj ? await rpc("sui_getObject", [obj, { showType: true }]) : null;
+    o?.data?.objectId
+      ? ok(`${label} ${o.data.objectId.slice(0, 8)}…`)
+      : bad(`${label} not found`);
+  }
+  await txOk(d.accountability?.proof?.registerDigest, "passport register");
+  await txOk(d.accountability?.proof?.settleDigest, "calibration settle");
+  await txOk(d.poolRegistry?.registerDigest, "pool registry register");
+  await txOk(d.lendingDemo?.proof?.coverShortfallDigest, "lending cover_shortfall");
+
   console.log(`\n=== ${pass} passed, ${fail} failed ===`);
   process.exit(fail ? 1 : 0);
 }
