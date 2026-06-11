@@ -115,5 +115,19 @@
       "coverShortfallDigest": "9ASNW2B4FAthT5aw8x8gpcwwgq75mDm8TtjWoRNLMxqp",
       "payoutMist": 20000000
     }
+  },
+  "riskIndex": {
+    "note": "SRX — the Sui Risk Index family (SRX-CRASH/VOL/TAIL). Bonded-publisher index oracle; indices derived off-chain from DeepBook Predict binary CDF (see INDEX.md), published on-chain with Walrus evidence, slashable on challenge.",
+    "package": "0x9ecb5797bb9f2fc627871cd33670605e9a5d52970445f19c64fd755e2d9fe7d6",
+    "riskIndex": "0x639cadf62d68a41651ea5d25f1cba49496522d2fc6e51471934687f2112fe088",
+    "adminCap": "0x1487a8a94a5fb5fd68726142aa5a42e51537d210b38754728c850a459cf92d87",
+    "publishDigest": "7BnTCAtvV9qm6Ho8sGRwgmtzcrmr27EU9wg3LSSvzV6B"
+  },
+  "oraclePool": {
+    "note": "Trustless cover pool: claims settle against DeepBook Predict OWN on-chain oracle (deepbook_predict::oracle::OracleSVI is_settled+settlement_price). No Backstop-controlled value in the settlement path. Bytecode links the LIVE DeepBook packages (vendored, published-at-pinned).",
+    "package": "0x3d055a54a764963059c4b779d266437fa9803353bab39cd6eef1db1607ac7623",
+    "linksDeepbookPredict": "0xf5ea2b3749c65d6e56507cc35388719aadb28f9cab873696a2f8687f5c785138",
+    "publishDigest": "3iLcDKdn4f7tf13ME4BrxfaCvGE4qxnqXXmKTpb2rj6A",
+    "liveClaimProof": "pending — needs a settled DeepBook oracle id (predict-server) + a cover policy"
   }
 }

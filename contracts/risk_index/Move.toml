@@ -1,0 +1,11 @@
+[package]
+name = "risk_index"
+edition = "2024.beta"
+
+# SRX — the Sui Risk Index family. A bonded-publisher index oracle: SRX-CRASH /
+# SRX-VOL / SRX-TAIL derived off-chain from DeepBook Predict's binary CDF (see
+# INDEX.md) and published on-chain with Walrus evidence, slashable on challenge.
+# Self-contained (no external package deps); SUI/std resolve implicitly.
+
+[addresses]
+risk_index = "0x0"
