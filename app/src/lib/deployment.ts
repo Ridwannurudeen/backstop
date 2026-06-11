@@ -51,3 +51,18 @@ export const POOL_REGISTRY_OBJ = hx(
   "6f3dde54ca8f736a16814b14c7ac042c",
 );
 export const REGISTERED_EVENT = `${POOL_REGISTRY_PKG}::pool_registry::PoolRegistered`;
+
+// SRX risk-index oracle + trustless oracle_pool, deployed 2026-06-11.
+export const RISK_INDEX_PKG = hx(
+  "9ecb5797bb9f2fc627871cd33670605e",
+  "9a5d52970445f19c64fd755e2d9fe7d6",
+);
+export const RISK_INDEX_OBJ = hx(
+  "639cadf62d68a41651ea5d25f1cba494",
+  "96522d2fc6e51471934687f2112fe088",
+);
+export const ORACLE_POOL_PKG = hx(
+  "3d055a54a764963059c4b779d266437f",
+  "a9803353bab39cd6eef1db1607ac7623",
+);
+export const SRX_MARKET = "BTC-30D";

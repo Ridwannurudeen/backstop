@@ -8,6 +8,7 @@ import CoverPool from "./components/CoverPool";
 import RiskTerminal from "./components/RiskTerminal";
 import Underwriter from "./components/Underwriter";
 import Accountability from "./components/Accountability";
+import SrxIndex from "./components/SrxIndex";
 import OnchainRiskFeed from "./components/OnchainRiskFeed";
 import DemoTour from "./components/DemoTour";
 
@@ -19,9 +20,11 @@ type Tab =
   | "cover"
   | "terminal"
   | "ai"
-  | "accountability";
+  | "accountability"
+  | "srx";
 
 const TABS: { id: Tab; label: string; needsWallet: boolean }[] = [
+  { id: "srx", label: "SRX Index", needsWallet: false },
   { id: "buy", label: "Buy protection", needsWallet: true },
   { id: "treasury", label: "Insure my treasury", needsWallet: true },
   { id: "portfolio", label: "My policies", needsWallet: true },
@@ -34,7 +37,7 @@ const TABS: { id: Tab; label: string; needsWallet: boolean }[] = [
 
 export default function App() {
   const account = useCurrentAccount();
-  const [tab, setTab] = useState<Tab>("buy");
+  const [tab, setTab] = useState<Tab>("srx");
   const [tourOpen, setTourOpen] = useState(false);
 
   // Risk terminal is public (read-only); everything else needs a wallet.
@@ -83,6 +86,7 @@ export default function App() {
         </div>
       )}
 
+      {active === "srx" && <SrxIndex />}
       {active === "buy" && <BuyProtection />}
       {active === "treasury" && <TreasuryProtect />}
       {active === "portfolio" && <Portfolio />}
