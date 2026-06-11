@@ -150,5 +150,21 @@
       "claimDigest": "BiMJSQJABmRJWcKCqCQAzM58vV7M5pBhSKnX1MwqRADC",
       "payoutMist": 20000000
     }
+  },
+  "arena": {
+    "note": "Proof-of-judgment: competing bonded underwriting agents. Agents stake SUI, quote crash probabilities, are scored on realized outcomes, and are slashable ONLY when on-chain accuracy falls below a threshold (rules-based, not discretionary).",
+    "package": "0xbaf3d06984b1f1d90040ef6d638cf88eeb0946cad2ee4ee6b44234616f765cac",
+    "arena": "0x5c77be6ad4f51eefc721666908c8ee7821b40aebe69b2a916a6b1aed85e0e65f",
+    "adminCap": "0x5ed31ba821c5dc7026b525abc8ec6ab0ecbd694bef1281cb63a5ca0d6c184619",
+    "publishDigest": "3S9SUTiMU5vbQ7sWqTPWkuJBdiwP5ch2eMx4wjMvdjnM",
+    "liveProof": {
+      "note": "Two bonded agents competed over 2 crash rounds; LazyBot (0% accuracy) was slashed on-chain, bond halved 0.01->0.005 SUI. Slash was conditional on accuracy<50%.",
+      "agent1": "Backstop AI (100% accuracy, 2 wins)",
+      "agent2": "LazyBot (0% accuracy, slashed)",
+      "enrollDigest": "Eea75JYYivR8WRxn8wU1ZBefXZytSSDzP97jfagAo4zf",
+      "slashDigest": "CCnhXCxVHdfqLP9r1jJpg3Lsk7YC15ZKe2VUpxoZYQhk",
+      "slashedAmountMist": 5000000,
+      "slashedAccuracyBps": 0
+    }
   }
 }

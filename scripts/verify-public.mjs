@@ -150,6 +150,9 @@ async function main() {
     code === 200 ? ok("SRX cdf evidence live on Walrus") : bad(`SRX cdf blob ${code}`);
   }
   await txOk(d.oraclePool?.liveClaimProof?.claimDigest, "trustless claim (reads DeepBook oracle)");
+  const ar = d.arena?.arena ? await rpc("sui_getObject", [d.arena.arena, { showType: true }]) : null;
+  ar?.data?.objectId ? ok(`Arena object ${ar.data.objectId.slice(0, 8)}…`) : bad("Arena object not found");
+  await txOk(d.arena?.liveProof?.slashDigest, "proof-of-judgment slash");
 
   console.log(`\n=== ${pass} passed, ${fail} failed ===`);
   process.exit(fail ? 1 : 0);

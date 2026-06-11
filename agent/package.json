@@ -8,7 +8,8 @@
     "start": "tsx src/index.ts",
     "once": "tsx src/index.ts --once",
     "publish-feed": "tsx src/publishRiskFeed.ts",
-    "srx": "tsx src/srx.ts"
+    "srx": "tsx src/srx.ts",
+    "drill": "tsx src/drill.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.102.0",

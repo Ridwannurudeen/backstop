@@ -1,0 +1,12 @@
+[package]
+name = "arena"
+edition = "2024.beta"
+
+# arena — a competitive arena of bonded underwriting agents with conditional
+# on-chain slashing ("proof-of-judgment"). Agents stake SUI, quote crash
+# probabilities for markets, get scored on realized outcomes, and are slashable
+# only when their on-chain accuracy falls below a threshold (rules-based, not
+# discretionary). Self-contained; SUI/std resolve implicitly.
+
+[addresses]
+arena = "0x0"
