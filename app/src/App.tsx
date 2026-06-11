@@ -7,6 +7,7 @@ import Underwrite from "./components/Underwrite";
 import CoverPool from "./components/CoverPool";
 import RiskTerminal from "./components/RiskTerminal";
 import Underwriter from "./components/Underwriter";
+import Accountability from "./components/Accountability";
 import OnchainRiskFeed from "./components/OnchainRiskFeed";
 import DemoTour from "./components/DemoTour";
 
@@ -17,7 +18,8 @@ type Tab =
   | "underwrite"
   | "cover"
   | "terminal"
-  | "ai";
+  | "ai"
+  | "accountability";
 
 const TABS: { id: Tab; label: string; needsWallet: boolean }[] = [
   { id: "buy", label: "Buy protection", needsWallet: true },
@@ -27,6 +29,7 @@ const TABS: { id: Tab; label: string; needsWallet: boolean }[] = [
   { id: "cover", label: "Cover pool", needsWallet: true },
   { id: "terminal", label: "Risk terminal", needsWallet: false },
   { id: "ai", label: "AI underwriter", needsWallet: false },
+  { id: "accountability", label: "Accountability", needsWallet: false },
 ];
 
 export default function App() {
@@ -92,6 +95,7 @@ export default function App() {
         </>
       )}
       {active === "ai" && <Underwriter />}
+      {active === "accountability" && <Accountability />}
 
       {tourOpen && (
         <DemoTour onTab={setTab} onClose={() => setTourOpen(false)} />

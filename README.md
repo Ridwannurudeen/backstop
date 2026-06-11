@@ -42,6 +42,9 @@ Everything below is deployed and executed on Sui testnet. **Canonical full IDs l
 | **Agent capacity-sized supply** — $100k capacity → $10.00 on-chain | tx `EcRYQ3dLuATkef6Kv7P6Rj11B7bkriWHqXkRCLk8ogVa` |
 | CoverPool package | `0x0ebd…6082f` |
 | **Parametric crash payout** — deposit → buy cover → crash → on-chain claim, settled from the pool | tx `6zaXyBYjTduAYXUQGHjE6dAvLHX5t7muKRANTgpH6p2P` |
+| Accountability package (passport + calibration) | `0x822e…d8d7e` |
+| **Bonded agent passport + calibration ledger** — predictions settled vs outcome, accuracy on-chain | tx `GAdig2CpDouXXnEpW934F9HpjbWodm7g9GLj5whGqHoP` |
+| **Backstop network** — `PoolRegistry` + `lending_demo` reserve backstopped by a pool claim on a crash | tx `9ASNW2B4FAthT5aw8x8gpcwwgq75mDm8TtjWoRNLMxqp` |
 
 Explore any digest at `https://testnet.suivision.xyz/txblock/<digest>`; read any Walrus decision at `https://aggregator.walrus-testnet.walrus.space/v1/blobs/<blobId>`.
 
@@ -58,6 +61,9 @@ agent/       Autonomous AI underwriter (Node + tsx). Reads oracles → prices ri
 contracts/   risk_feed/ — on-chain RiskFeed (probability-of-failure oracle).
              risk_guard/ — a consumer: treasury withdrawals freeze on crash risk.
              cover_pool/ — native parametric cover pool: LPs underwrite, claims pay from the pool.
+             accountability/ — bonded AgentPassport + public CalibrationLedger (predictions vs outcomes).
+             pool_registry/ — on-chain directory of cover pools by market.
+             lending_demo/ — a protocol that backstops bad debt with a pool claim on a crash.
 spike/       Runnable verification harness for the Predict PTBs (the verified foundation).
 ```
 

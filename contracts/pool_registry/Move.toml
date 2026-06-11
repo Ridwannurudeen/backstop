@@ -1,0 +1,6 @@
+[package]
+name = "pool_registry"
+edition = "2024.beta"
+
+[addresses]
+pool_registry = "0x0"

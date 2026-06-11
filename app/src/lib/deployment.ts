@@ -28,3 +28,26 @@ export const COVER_POOL_OBJ = hx(
 );
 export const COVER_POOL_MARKET = "BTC-CRASH-30D";
 export const SUI_TYPE = "0x2::sui::SUI";
+
+// Accountability (Pillars II+III) + PoolRegistry (Pillar I breadth), deployed 2026-06-10.
+export const ACCOUNTABILITY_PKG = hx(
+  "822e1c39527c703b75278e2c607bf4a0",
+  "78e432967a4e8e85bcd0fe4ec0cd8d7e",
+);
+export const CALIBRATION_LEDGER = hx(
+  "6c15ce8184d5d8cf267cf3ee8170d03a",
+  "9298019c844dd9dec4759db3d73a2bb2",
+);
+export const AGENT_PASSPORT = hx(
+  "8a6ef8b27d610af9fcdd2ed0ab164351",
+  "13406dd04b956a4114e4610abf54c095",
+);
+export const POOL_REGISTRY_PKG = hx(
+  "94a7a401c2e222769a7c67050ebf5081",
+  "0b8f0df3551ebcd7a60d2d2a64bd0ca2",
+);
+export const POOL_REGISTRY_OBJ = hx(
+  "8328bc1eeda8cd5a19640e9c61a138a1",
+  "6f3dde54ca8f736a16814b14c7ac042c",
+);
+export const REGISTERED_EVENT = `${POOL_REGISTRY_PKG}::pool_registry::PoolRegistered`;

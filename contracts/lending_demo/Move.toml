@@ -1,0 +1,10 @@
+[package]
+name = "lending_demo"
+edition = "2024.beta"
+
+[dependencies]
+cover_pool = { local = "../cover_pool" }
+risk_feed = { local = "../risk_feed" }
+
+[addresses]
+lending_demo = "0x0"

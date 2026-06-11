@@ -9,4 +9,4 @@ edition = "2024.beta"
 risk_feed = { local = "../risk_feed" }
 
 [addresses]
-cover_pool = "0x0"
+cover_pool = "0x0ebde85d88b00ee0f4f1df16a82feb7387cde48ac6169d979db4a677de76082f"
