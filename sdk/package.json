@@ -1,0 +1,17 @@
+{
+  "name": "@backstop/sdk",
+  "version": "0.1.0",
+  "description": "Read Sui's on-chain risk layer in a few lines — the SRX fear index, the RiskFeed probability oracle, and parametric cover pools on DeepBook Predict (testnet).",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@mysten/sui": "^1.45.0"
+  },
+  "devDependencies": {
+    "@mysten/sui": "^1.45.2",
+    "typescript": "^6.0.3"
+  }
+}
