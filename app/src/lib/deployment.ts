@@ -66,3 +66,13 @@ export const ORACLE_POOL_PKG = hx(
   "a9803353bab39cd6eef1db1607ac7623",
 );
 export const SRX_MARKET = "BTC-30D";
+
+// Arena — proof-of-judgment (competing bonded agents + slashing), deployed 2026-06-11.
+export const ARENA_PKG = hx(
+  "baf3d06984b1f1d90040ef6d638cf88e",
+  "eb0946cad2ee4ee6b44234616f765cac",
+);
+export const ARENA_OBJ = hx(
+  "5c77be6ad4f51eefc721666908c8ee78",
+  "21b40aebe69b2a916a6b1aed85e0e65f",
+);
