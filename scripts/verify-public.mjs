@@ -139,6 +139,18 @@ async function main() {
   await txOk(d.poolRegistry?.registerDigest, "pool registry register");
   await txOk(d.lendingDemo?.proof?.coverShortfallDigest, "lending cover_shortfall");
 
+  console.log("\n[7] SRX index + trustless settlement");
+  const ri = d.riskIndex?.riskIndex
+    ? await rpc("sui_getObject", [d.riskIndex.riskIndex, { showType: true }])
+    : null;
+  ri?.data?.objectId ? ok(`RiskIndex object ${ri.data.objectId.slice(0, 8)}…`) : bad("RiskIndex object not found");
+  await txOk(d.riskIndex?.live?.publishDigest, "SRX publish");
+  if (d.riskIndex?.live?.cdfWalrusBlob) {
+    const code = await head(`${AGG}/${d.riskIndex.live.cdfWalrusBlob}`);
+    code === 200 ? ok("SRX cdf evidence live on Walrus") : bad(`SRX cdf blob ${code}`);
+  }
+  await txOk(d.oraclePool?.liveClaimProof?.claimDigest, "trustless claim (reads DeepBook oracle)");
+
   console.log(`\n=== ${pass} passed, ${fail} failed ===`);
   process.exit(fail ? 1 : 0);
 }

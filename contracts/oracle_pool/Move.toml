@@ -1,0 +1,14 @@
+[package]
+name = "oracle_pool"
+edition = "2024.beta"
+
+# Trustless cover pool: claims settle directly against DeepBook Predict's own
+# on-chain oracle (deepbook_predict::oracle::OracleSVI) — no Backstop-controlled
+# feed in the settlement path. Depends on the vendored, live-pinned Predict
+# package tree (see contracts/vendor/) so the published bytecode links to the
+# deployed DeepBook packages on testnet.
+[dependencies]
+deepbook_predict = { local = "../vendor/predict" }
+
+[addresses]
+oracle_pool = "0x0"

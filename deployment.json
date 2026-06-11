@@ -115,5 +115,40 @@
       "coverShortfallDigest": "9ASNW2B4FAthT5aw8x8gpcwwgq75mDm8TtjWoRNLMxqp",
       "payoutMist": 20000000
     }
+  },
+  "riskIndex": {
+    "note": "SRX — the Sui Risk Index family (SRX-CRASH/VOL/TAIL). Bonded-publisher index oracle; indices derived off-chain from DeepBook Predict binary CDF (see INDEX.md), published on-chain with Walrus evidence, slashable on challenge.",
+    "package": "0x9ecb5797bb9f2fc627871cd33670605e9a5d52970445f19c64fd755e2d9fe7d6",
+    "riskIndex": "0x639cadf62d68a41651ea5d25f1cba49496522d2fc6e51471934687f2112fe088",
+    "adminCap": "0x1487a8a94a5fb5fd68726142aa5a42e51537d210b38754728c850a459cf92d87",
+    "publishDigest": "7BnTCAtvV9qm6Ho8sGRwgmtzcrmr27EU9wg3LSSvzV6B",
+    "live": {
+      "market": "BTC-30D",
+      "publisher": "Backstop SRX",
+      "bondSui": 0.1,
+      "srxCrashBps": 747,
+      "srxVolBps": 4130,
+      "srxTailBps": 2031,
+      "publishDigest": "EunTxWpqzwQCpr1P6iMer1ePFhAYhST4orXuRD2kKxBX",
+      "cdfWalrusBlob": "xDne5jsNv4y7vBAy48VUm1mzbYa13CBYpU7hA0EPM0s",
+      "note": "First live SRX index from DeepBook Predict CDF (oracle 22d, ref $62744); reads on-chain, Walrus evidence 200."
+    }
+  },
+  "oraclePool": {
+    "note": "Trustless cover pool: claims settle against DeepBook Predict OWN on-chain oracle (deepbook_predict::oracle::OracleSVI is_settled+settlement_price). No Backstop-controlled value in the settlement path. Bytecode links the LIVE DeepBook packages (vendored, published-at-pinned).",
+    "package": "0x3d055a54a764963059c4b779d266437fa9803353bab39cd6eef1db1607ac7623",
+    "linksDeepbookPredict": "0xf5ea2b3749c65d6e56507cc35388719aadb28f9cab873696a2f8687f5c785138",
+    "publishDigest": "3iLcDKdn4f7tf13ME4BrxfaCvGE4qxnqXXmKTpb2rj6A",
+    "liveClaimProof": {
+      "note": "TRUSTLESS claim proven live: bound a pool to a settled DeepBook oracle, claim read oracle settlement_price on-chain (62963068458814=$62963) and paid 0.02 SUI cover. No Backstop value in settlement path.",
+      "settledOracle": "0xfdfcccaa1c503682e4832c06dc13281862c105c82061dda3148ed34c72d5cba5",
+      "settlementPrice": "62963068458814",
+      "strikeUsd": 64963,
+      "pool": "0x7fa27d3aa257ffab9a17ec1da3e22d5566768b079c7d9fd982d8bdce53191253",
+      "createDigest": "CpyhQnUiVd1zarjPn4vrTktmdwHjXDoDsXrYnewSDLGZ",
+      "buyDigest": "EqRgMaqJDcDSGmP6t9XbYmNqFmxvY7qe5YaHohauMdbV",
+      "claimDigest": "BiMJSQJABmRJWcKCqCQAzM58vV7M5pBhSKnX1MwqRADC",
+      "payoutMist": 20000000
+    }
   }
 }
