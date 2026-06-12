@@ -174,4 +174,56 @@ module cover_pool::cover_pool_tests {
         test_utils::destroy(feed);
         test_utils::destroy(cap);
     }
+
+    #[test]
+    fun claim_fresh_pays_when_reading_fresh() {
+        let mut ctx = tx_context::dummy();
+        let (mut feed, cap) = risk_feed::new_for_testing(&mut ctx);
+        let clock = clock::create_for_testing(&mut ctx);
+        publish_prob(&mut feed, &cap, 500, &clock, &ctx);
+
+        let mut pool = new_pool(1000, 10_000, &mut ctx);
+        let lp = cover_pool::deposit_lp(&mut pool, fund(1000, &mut ctx), &mut ctx);
+        let policy = cover_pool::buy_cover(
+            &mut pool, &feed, fund(25, &mut ctx), 500, 1000, &clock, &mut ctx,
+        );
+        publish_prob(&mut feed, &cap, 1200, &clock, &ctx); // crash, just published (ts=0)
+
+        // Reading is current (age 0) within the 1000ms window → claim_fresh pays.
+        let payout = cover_pool::claim_fresh(&mut pool, &feed, policy, &clock, 1000, &mut ctx);
+        assert!(coin::value(&payout) == 500, 0);
+
+        coin::burn_for_testing(payout);
+        test_utils::destroy(lp);
+        clock::destroy_for_testing(clock);
+        test_utils::destroy(pool);
+        test_utils::destroy(feed);
+        test_utils::destroy(cap);
+    }
+
+    #[test]
+    #[expected_failure]
+    fun claim_fresh_aborts_on_stale_reading() {
+        let mut ctx = tx_context::dummy();
+        let (mut feed, cap) = risk_feed::new_for_testing(&mut ctx);
+        let mut clock = clock::create_for_testing(&mut ctx);
+        publish_prob(&mut feed, &cap, 1200, &clock, &ctx); // crash reading at ts=0
+
+        let mut pool = new_pool(1000, 10_000, &mut ctx);
+        let lp = cover_pool::deposit_lp(&mut pool, fund(1000, &mut ctx), &mut ctx);
+        let policy = cover_pool::buy_cover(
+            &mut pool, &feed, fund(25, &mut ctx), 500, 1_000_000, &clock, &mut ctx,
+        );
+
+        // Advance past the freshness window — the reading is now stale → abort (EStale).
+        clock::set_for_testing(&mut clock, 10_000);
+        let payout = cover_pool::claim_fresh(&mut pool, &feed, policy, &clock, 500, &mut ctx);
+
+        coin::burn_for_testing(payout);
+        test_utils::destroy(lp);
+        clock::destroy_for_testing(clock);
+        test_utils::destroy(pool);
+        test_utils::destroy(feed);
+        test_utils::destroy(cap);
+    }
 }
