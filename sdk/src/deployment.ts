@@ -35,3 +35,28 @@ export const ORACLE_POOL_PKG = hx(
 
 export const WALRUS_AGGREGATOR =
   "https://aggregator.walrus-testnet.walrus.space/v1/blobs";
+
+// --- Depeg cover (Sui MAINNET, settled by Pyth) ---
+// The rest of the SDK reads Backstop's testnet risk layer; depeg cover settles on
+// mainnet Pyth, so its reads need a mainnet SuiClient. Pyth State/Wormhole State +
+// the suiUSDe PriceInfoObject verified live 2026-06-12 (stable shared objects).
+export const MAINNET = "mainnet" as const;
+export const HERMES = "https://hermes.pyth.network";
+
+export const PYTH_STATE = hx(
+  "1f9310238ee9298fb703c3419030b35b",
+  "22bb1cc37113e3bb5007c99aec79e5b8",
+);
+export const WORMHOLE_STATE = hx(
+  "aeab97f96cf9877fee2883315d459552",
+  "b2b921edc16d7ceac6eab944dd88919c",
+);
+
+// suiUSDe/USD — the flagship depeg feed (Ethena-backed, live across Sui DeFi).
+// Feed id is chain-agnostic; PriceInfoObject is its on-chain object on Sui mainnet.
+export const SUIUSDE_FEED_ID =
+  "8cead549d0e770dea8fdf5e018a85d59585265cf8bff16ba83962fc7996dbb7f";
+export const SUIUSDE_PRICE_OBJECT = hx(
+  "9b2028bfc829127d2e5ead1691dc3002",
+  "de9e9b8d8076b4915e5ecc7d9b99d63f",
+);

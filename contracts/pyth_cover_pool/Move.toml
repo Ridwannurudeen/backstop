@@ -1,0 +1,19 @@
+[package]
+name = "pyth_cover_pool"
+edition = "2024.beta"
+
+# Backstop's mainnet depeg-cover pool. Settlement is TRUSTLESS: a claim reads a
+# Pyth Network price feed on-chain (pyth::pyth::get_price_no_older_than) and pays
+# iff the insured asset is at/below the pool's depeg threshold. No Backstop-
+# controlled value sits in the settlement path — payouts depend only on Pyth.
+#
+# Pyth + Wormhole are pinned to their Sui MAINNET branches so the published
+# bytecode links the deployed mainnet packages. (Pyth Sui mainnet package is
+# upgraded by the DAO on 2026-07-31; object IDs stay stable, re-pin rev + rebuild
+# if shipping after that date.)
+[dependencies]
+Pyth = { git = "https://github.com/pyth-network/pyth-crosschain.git", subdir = "target_chains/sui/contracts", rev = "sui-contract-mainnet" }
+Wormhole = { git = "https://github.com/wormhole-foundation/wormhole.git", subdir = "sui/wormhole", rev = "sui/mainnet" }
+
+[addresses]
+pyth_cover_pool = "0x0"
