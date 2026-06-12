@@ -189,4 +189,90 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         clock::destroy_for_testing(clock);
         test_utils::destroy(pool);
     }
+
+    #[test]
+    fun latch_then_claim_after_expiry_and_recovery() {
+        let mut ctx = tx_context::dummy();
+        let mut clock = clock::create_for_testing(&mut ctx);
+        let mut pool = new_pool(PREMIUM_BPS, &mut ctx);
+        let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(1000, &mut ctx), &mut ctx);
+        let mut policy = pyth_cover_pool::buy_cover(
+            &mut pool, fund(10, &mut ctx), 500, 1000, &clock, &mut ctx,
+        );
+
+        // Keeper records the breach during the dip (t=0, price below the floor).
+        pyth_cover_pool::latch_at_price_for_testing(&pool, &mut policy, DEPEG, &clock);
+        assert!(pyth_cover_pool::policy_breached(&policy), 0);
+
+        // Price recovers AND the policy expires — the latched claim still pays.
+        clock::set_for_testing(&mut clock, 5000);
+        let payout = pyth_cover_pool::claim_latched(&mut pool, policy, &mut ctx);
+        assert!(coin::value(&payout) == 500, 1);
+        assert!(pyth_cover_pool::total_cover(&pool) == 0, 2);
+
+        coin::burn_for_testing(payout);
+        test_utils::destroy(lp);
+        clock::destroy_for_testing(clock);
+        test_utils::destroy(pool);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = pyth_cover_pool::ENotBreached)]
+    fun claim_latched_aborts_if_never_breached() {
+        let mut ctx = tx_context::dummy();
+        let clock = clock::create_for_testing(&mut ctx);
+        let mut pool = new_pool(PREMIUM_BPS, &mut ctx);
+        let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(1000, &mut ctx), &mut ctx);
+        let policy = pyth_cover_pool::buy_cover(
+            &mut pool, fund(10, &mut ctx), 500, 1000, &clock, &mut ctx,
+        );
+
+        let payout = pyth_cover_pool::claim_latched(&mut pool, policy, &mut ctx);
+
+        coin::burn_for_testing(payout);
+        test_utils::destroy(lp);
+        clock::destroy_for_testing(clock);
+        test_utils::destroy(pool);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = pyth_cover_pool::ENotDepegged)]
+    fun latch_aborts_when_not_depegged() {
+        let mut ctx = tx_context::dummy();
+        let clock = clock::create_for_testing(&mut ctx);
+        let mut pool = new_pool(PREMIUM_BPS, &mut ctx);
+        let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(1000, &mut ctx), &mut ctx);
+        let mut policy = pyth_cover_pool::buy_cover(
+            &mut pool, fund(10, &mut ctx), 500, 1000, &clock, &mut ctx,
+        );
+
+        // Pegged price → nothing to latch.
+        pyth_cover_pool::latch_at_price_for_testing(&pool, &mut policy, PEG, &clock);
+
+        test_utils::destroy(policy);
+        test_utils::destroy(lp);
+        clock::destroy_for_testing(clock);
+        test_utils::destroy(pool);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = pyth_cover_pool::EBreachedCannotExpire)]
+    fun cannot_expire_latched_policy() {
+        let mut ctx = tx_context::dummy();
+        let mut clock = clock::create_for_testing(&mut ctx);
+        let mut pool = new_pool(PREMIUM_BPS, &mut ctx);
+        let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(1000, &mut ctx), &mut ctx);
+        let mut policy = pyth_cover_pool::buy_cover(
+            &mut pool, fund(10, &mut ctx), 500, 1000, &clock, &mut ctx,
+        );
+        pyth_cover_pool::latch_at_price_for_testing(&pool, &mut policy, DEPEG, &clock);
+
+        // A latched policy is claimable, so the LP can't expire it away.
+        clock::set_for_testing(&mut clock, 5000);
+        pyth_cover_pool::expire_policy(&mut pool, policy, &clock);
+
+        test_utils::destroy(lp);
+        clock::destroy_for_testing(clock);
+        test_utils::destroy(pool);
+    }
 }

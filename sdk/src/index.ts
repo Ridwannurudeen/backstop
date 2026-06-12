@@ -334,3 +334,54 @@ export async function buildDepegClaimTx(p: {
   tx.transferObjects([payout], p.owner);
   return tx;
 }
+
+/**
+ * Build a tx to **record a breach** on a policy: refreshes Pyth and stamps the
+ * policy if the feed is below its floor, so it can be claimed later even after the
+ * price recovers or the policy expires (a keeper calls this during the dip).
+ */
+export async function buildDepegRecordBreachTx(p: {
+  client: SuiClient;
+  pkg: string;
+  poolId: string;
+  policyId: string;
+  feedId?: string;
+}): Promise<Transaction> {
+  const feedId = p.feedId ?? SUIUSDE_FEED_ID;
+  const tx = new Transaction();
+  const updates = await new SuiPriceServiceConnection(
+    HERMES,
+  ).getPriceFeedsUpdateData([feedId]);
+  const pyth = new SuiPythClient(p.client, PYTH_STATE, WORMHOLE_STATE);
+  const [priceInfoObjectId] = await pyth.updatePriceFeeds(tx, updates, [
+    feedId,
+  ]);
+  tx.moveCall({
+    target: `${p.pkg}::pyth_cover_pool::record_breach`,
+    typeArguments: [SUI_TYPE],
+    arguments: [
+      tx.object(p.poolId),
+      tx.object(p.policyId),
+      tx.object(priceInfoObjectId),
+      tx.object(CLOCK),
+    ],
+  });
+  return tx;
+}
+
+/** Build a tx to claim a previously-latched policy (no Pyth read needed). */
+export function buildDepegClaimLatchedTx(p: {
+  pkg: string;
+  poolId: string;
+  policyId: string;
+  owner: string;
+}): Transaction {
+  const tx = new Transaction();
+  const payout = tx.moveCall({
+    target: `${p.pkg}::pyth_cover_pool::claim_latched`,
+    typeArguments: [SUI_TYPE],
+    arguments: [tx.object(p.poolId), tx.object(p.policyId)],
+  });
+  tx.transferObjects([payout], p.owner);
+  return tx;
+}

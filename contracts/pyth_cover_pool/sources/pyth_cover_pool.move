@@ -53,6 +53,10 @@ module pyth_cover_pool::pyth_cover_pool {
     const ENegativePrice: u64 = 9;
     /// Computed premium rounds to zero (dust cover) — reject free cover.
     const EZeroPremium: u64 = 10;
+    /// claim_latched on a policy that was never recorded as breached.
+    const ENotBreached: u64 = 11;
+    /// A latched (still-claimable) policy cannot be expired out from under the holder.
+    const EBreachedCannotExpire: u64 = 12;
 
     /// Shared mutualized depeg-cover pool insuring one Pyth feed in coin `T`.
     public struct DepegCoverPool<phantom T> has key {
@@ -93,6 +97,10 @@ module pyth_cover_pool::pyth_cover_pool {
         cover: u64,
         premium_paid: u64,
         expiry_ms: u64,
+        /// Set by `record_breach` when the feed breaches during coverage, so the
+        /// holder can claim later even after the price recovers or the policy expires.
+        breached: bool,
+        breach_price: u64,
     }
 
     public struct PoolCreated has copy, drop {
@@ -112,6 +120,11 @@ module pyth_cover_pool::pyth_cover_pool {
     public struct Claimed has copy, drop {
         pool: ID,
         cover: u64,
+        price: u64,
+    }
+
+    public struct BreachRecorded has copy, drop {
+        pool: ID,
         price: u64,
     }
 
@@ -240,6 +253,8 @@ module pyth_cover_pool::pyth_cover_pool {
             cover,
             premium_paid: paid,
             expiry_ms,
+            breached: false,
+            breach_price: 0,
         }
     }
 
@@ -302,7 +317,7 @@ module pyth_cover_pool::pyth_cover_pool {
     ): Coin<T> {
         assert!(clock::timestamp_ms(clock) <= policy.expiry_ms, EPolicyExpired);
         assert!(price_mag <= pool.threshold, ENotDepegged);
-        let Policy { id, pool_id, cover, premium_paid: _, expiry_ms: _ } = policy;
+        let Policy { id, pool_id, cover, premium_paid: _, expiry_ms: _, breached: _, breach_price: _ } = policy;
         assert!(pool_id == object::id(pool), EWrongPool);
         object::delete(id);
         pool.total_cover = pool.total_cover - cover;
@@ -313,11 +328,60 @@ module pyth_cover_pool::pyth_cover_pool {
     /// Free the liability of an expired, untriggered policy (LP capital releases).
     /// Callable by the policy holder once expiry has passed.
     public fun expire_policy<T>(pool: &mut DepegCoverPool<T>, policy: Policy<T>, clock: &Clock) {
-        let Policy { id, pool_id, cover, premium_paid: _, expiry_ms } = policy;
+        let Policy { id, pool_id, cover, premium_paid: _, expiry_ms, breached, breach_price: _ } = policy;
         assert!(pool_id == object::id(pool), EWrongPool);
         assert!(clock::timestamp_ms(clock) > expiry_ms, ENotExpired);
+        assert!(!breached, EBreachedCannotExpire);
         object::delete(id);
         pool.total_cover = pool.total_cover - cover;
+    }
+
+    // --- Breach latch ---
+    // v1 settlement is "claim while breached" — the holder must claim during the dip.
+    // The latch decouples *detecting* the breach from *collecting* the payout: a
+    // keeper records the breach while the feed is below the floor, and the holder
+    // claims later — even after the price recovers or the policy expires.
+
+    /// Record that the pool's feed breached the threshold during this policy's
+    /// coverage. Reads Pyth on-chain (must be below the floor now, and unexpired).
+    public fun record_breach<T>(
+        pool: &DepegCoverPool<T>,
+        policy: &mut Policy<T>,
+        price_info_object: &PriceInfoObject,
+        clock: &Clock,
+    ) {
+        let price_mag = read_price_magnitude(pool, price_info_object, clock);
+        do_latch(pool, policy, price_mag, clock);
+    }
+
+    fun do_latch<T>(
+        pool: &DepegCoverPool<T>,
+        policy: &mut Policy<T>,
+        price_mag: u64,
+        clock: &Clock,
+    ) {
+        assert!(policy.pool_id == object::id(pool), EWrongPool);
+        assert!(clock::timestamp_ms(clock) <= policy.expiry_ms, EPolicyExpired);
+        assert!(price_mag <= pool.threshold, ENotDepegged);
+        policy.breach_price = price_mag;
+        policy.breached = true;
+        event::emit(BreachRecorded { pool: object::id(pool), price: price_mag });
+    }
+
+    /// Claim a latched policy — pays even after the price recovered or the policy
+    /// expired, because the breach was recorded during coverage. No Pyth read needed.
+    public fun claim_latched<T>(
+        pool: &mut DepegCoverPool<T>,
+        policy: Policy<T>,
+        ctx: &mut TxContext,
+    ): Coin<T> {
+        let Policy { id, pool_id, cover, premium_paid: _, expiry_ms: _, breached, breach_price } = policy;
+        assert!(pool_id == object::id(pool), EWrongPool);
+        assert!(breached, ENotBreached);
+        object::delete(id);
+        pool.total_cover = pool.total_cover - cover;
+        event::emit(Claimed { pool: object::id(pool), cover, price: breach_price });
+        coin::take(&mut pool.funds, cover, ctx)
     }
 
     // --- Views ---
@@ -333,6 +397,7 @@ module pyth_cover_pool::pyth_cover_pool {
     public fun shares<T>(s: &LpShare<T>): u64 { s.shares }
     public fun policy_cover<T>(p: &Policy<T>): u64 { p.cover }
     public fun policy_expiry_ms<T>(p: &Policy<T>): u64 { p.expiry_ms }
+    public fun policy_breached<T>(p: &Policy<T>): bool { p.breached }
 
     #[test_only]
     public fun new_pool_for_testing<T>(
@@ -358,5 +423,16 @@ module pyth_cover_pool::pyth_cover_pool {
         ctx: &mut TxContext,
     ): Coin<T> {
         check_and_settle(pool, price_mag, policy, clock, ctx)
+    }
+
+    #[test_only]
+    /// Latch a breach at a given price magnitude (no Pyth object) for tests.
+    public fun latch_at_price_for_testing<T>(
+        pool: &DepegCoverPool<T>,
+        policy: &mut Policy<T>,
+        price_mag: u64,
+        clock: &Clock,
+    ) {
+        do_latch(pool, policy, price_mag, clock);
     }
 }
