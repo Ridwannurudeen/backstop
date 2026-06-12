@@ -16,6 +16,10 @@ import { Transaction } from "@mysten/sui/transactions";
 import { bcs } from "@mysten/sui/bcs";
 import type { SuiClient } from "@mysten/sui/client";
 import {
+  SuiPythClient,
+  SuiPriceServiceConnection,
+} from "@pythnetwork/pyth-sui-js";
+import {
   RISK_INDEX_PKG,
   RISK_INDEX_OBJ,
   RISK_FEED_PKG,
@@ -25,6 +29,11 @@ import {
   SUI_TYPE,
   CLOCK,
   WALRUS_AGGREGATOR,
+  HERMES,
+  PYTH_STATE,
+  WORMHOLE_STATE,
+  SUIUSDE_FEED_ID,
+  SUIUSDE_PRICE_OBJECT,
 } from "./deployment.js";
 
 export * from "./deployment.js";
@@ -170,6 +179,156 @@ export function buildTrustlessClaimTx(p: {
       tx.object(p.poolId),
       tx.object(p.oracleId),
       tx.object(p.policyId),
+    ],
+  });
+  tx.transferObjects([payout], p.owner);
+  return tx;
+}
+
+// --- Depeg cover (Sui MAINNET, settled by Pyth) ---
+// Pass a MAINNET SuiClient to these (the rest of the SDK is testnet).
+
+export type DepegReading = {
+  priceUsd: number;
+  expo: number;
+  publishMs: number;
+  triggered: boolean; // priceUsd <= thresholdUsd
+  priceObjectId: string;
+};
+
+const i64FromFields = (v: {
+  fields: { negative: boolean; magnitude: string };
+}): number => (v.fields.negative ? -1 : 1) * Number(v.fields.magnitude);
+
+/**
+ * Read a Pyth feed's live on-chain price on Sui mainnet — the exact PriceInfoObject
+ * a depeg pool settles against. Defaults to suiUSDe and a $0.97 depeg floor.
+ */
+export async function readDepegPrice(
+  client: SuiClient,
+  opts: { priceObject?: string; thresholdUsd?: number } = {},
+): Promise<DepegReading> {
+  const priceObjectId = opts.priceObject ?? SUIUSDE_PRICE_OBJECT;
+  const thresholdUsd = opts.thresholdUsd ?? 0.97;
+  const o = await client.getObject({
+    id: priceObjectId,
+    options: { showContent: true },
+  });
+  const pf = (
+    o.data?.content as {
+      fields?: {
+        price_info?: {
+          fields?: { price_feed?: { fields?: { price?: { fields?: any } } } };
+        };
+      };
+    }
+  )?.fields?.price_info?.fields?.price_feed?.fields?.price?.fields;
+  if (!pf) throw new Error("Pyth PriceInfoObject not found / unexpected shape");
+  const expo = i64FromFields(pf.expo);
+  const priceUsd = i64FromFields(pf.price) * Math.pow(10, expo);
+  return {
+    priceUsd,
+    expo,
+    publishMs: Number(pf.timestamp) * 1000,
+    triggered: priceUsd <= thresholdUsd,
+    priceObjectId,
+  };
+}
+
+export type DepegPoolState = {
+  feedIdHex: string;
+  thresholdScaled: bigint; // price magnitude at the pool's exponent
+  expoNeg: boolean;
+  expoMag: number;
+  maxAgeSecs: number;
+  premiumBps: number;
+  fundsMist: bigint;
+  totalCoverMist: bigint;
+};
+
+/** Read a DepegCoverPool's on-chain state (capital, liability, terms). */
+export async function readDepegPool(
+  client: SuiClient,
+  poolId: string,
+): Promise<DepegPoolState> {
+  const o = await client.getObject({
+    id: poolId,
+    options: { showContent: true },
+  });
+  const f = (o.data?.content as { fields?: Record<string, unknown> })?.fields;
+  if (!f) throw new Error("depeg pool not found");
+  const feed = f.feed_id;
+  const feedIdHex = Array.isArray(feed)
+    ? feed.map((n) => Number(n).toString(16).padStart(2, "0")).join("")
+    : String(feed);
+  return {
+    feedIdHex,
+    thresholdScaled: BigInt(f.threshold as string),
+    expoNeg: Boolean(f.expo_neg),
+    expoMag: Number(f.expo_mag),
+    maxAgeSecs: Number(f.max_age_secs),
+    premiumBps: Number(f.premium_bps),
+    fundsMist: BigInt(f.funds as string),
+    totalCoverMist: BigInt(f.total_cover as string),
+  };
+}
+
+/** Build a tx to buy SUI-collateralized depeg cover (premium in MIST). */
+export function buildDepegBuyCoverTx(p: {
+  pkg: string;
+  poolId: string;
+  premiumMist: bigint;
+  coverMist: bigint;
+  expiryMs: bigint;
+  owner: string;
+}): Transaction {
+  const tx = new Transaction();
+  const [prem] = tx.splitCoins(tx.gas, [tx.pure.u64(p.premiumMist)]);
+  const policy = tx.moveCall({
+    target: `${p.pkg}::pyth_cover_pool::buy_cover`,
+    typeArguments: [SUI_TYPE],
+    arguments: [
+      tx.object(p.poolId),
+      prem,
+      tx.pure.u64(p.coverMist),
+      tx.pure.u64(p.expiryMs),
+      tx.object(CLOCK),
+    ],
+  });
+  tx.transferObjects([policy], p.owner);
+  return tx;
+}
+
+/**
+ * Build a tx to claim depeg cover **trustlessly**: it refreshes the Pyth feed and
+ * calls claim in one PTB, so the payout depends only on Pyth, not on Backstop.
+ * Requires a mainnet `client`. Defaults to the suiUSDe feed.
+ */
+export async function buildDepegClaimTx(p: {
+  client: SuiClient;
+  pkg: string;
+  poolId: string;
+  policyId: string;
+  owner: string;
+  feedId?: string;
+}): Promise<Transaction> {
+  const feedId = p.feedId ?? SUIUSDE_FEED_ID;
+  const tx = new Transaction();
+  const updates = await new SuiPriceServiceConnection(
+    HERMES,
+  ).getPriceFeedsUpdateData([feedId]);
+  const pyth = new SuiPythClient(p.client, PYTH_STATE, WORMHOLE_STATE);
+  const [priceInfoObjectId] = await pyth.updatePriceFeeds(tx, updates, [
+    feedId,
+  ]);
+  const payout = tx.moveCall({
+    target: `${p.pkg}::pyth_cover_pool::claim`,
+    typeArguments: [SUI_TYPE],
+    arguments: [
+      tx.object(p.poolId),
+      tx.object(priceInfoObjectId),
+      tx.object(p.policyId),
+      tx.object(CLOCK),
     ],
   });
   tx.transferObjects([payout], p.owner);

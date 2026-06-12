@@ -224,10 +224,37 @@ module cover_pool::cover_pool {
         clock: &Clock,
         ctx: &mut TxContext,
     ): Coin<T> {
+        let prob_bps = risk_feed::probability_bps(feed, policy.market);
+        settle(pool, prob_bps, policy, clock, ctx)
+    }
+
+    /// Like `claim`, but rejects a stale feed reading: the reading must be no older
+    /// than `max_age_ms`. Prefer this in production — a parametric payout must never
+    /// settle on an out-of-date probability.
+    public fun claim_fresh<T>(
+        pool: &mut CoverPool<T>,
+        feed: &RiskFeed,
+        policy: Policy<T>,
+        clock: &Clock,
+        max_age_ms: u64,
+        ctx: &mut TxContext,
+    ): Coin<T> {
+        let prob_bps = risk_feed::probability_bps_fresh(feed, policy.market, clock, max_age_ms);
+        settle(pool, prob_bps, policy, clock, ctx)
+    }
+
+    /// Settlement core: pay `cover` iff the policy is unexpired and `prob_bps` is at
+    /// or above the policy trigger. Shared by `claim` and `claim_fresh`.
+    fun settle<T>(
+        pool: &mut CoverPool<T>,
+        prob_bps: u64,
+        policy: Policy<T>,
+        clock: &Clock,
+        ctx: &mut TxContext,
+    ): Coin<T> {
         let Policy { id, pool_id, market, trigger_bps, cover, premium_paid: _, expiry_ms } = policy;
         assert!(pool_id == object::id(pool), EWrongPool);
         assert!(clock::timestamp_ms(clock) <= expiry_ms, EPolicyExpired);
-        let prob_bps = risk_feed::probability_bps(feed, market);
         assert!(prob_bps >= trigger_bps, ENotTriggered);
         object::delete(id);
         pool.total_cover = pool.total_cover - cover;

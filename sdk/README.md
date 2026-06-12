@@ -41,6 +41,27 @@ const tx = buildBuyCoverTx({
 await client.signAndExecuteTransaction({ signer, transaction: tx });
 ```
 
+## Depeg cover (Sui mainnet, settled by Pyth)
+
+Backstop's mainnet product: SUI-collateralized parametric cover on stablecoin depegs,
+settled **trustlessly** against a Pyth feed. Reads need a **mainnet** client.
+
+```ts
+const mainnet = new SuiClient({ url: getFullnodeUrl("mainnet") });
+
+// Live on-chain Pyth price + the $0.97 depeg trigger (defaults to suiUSDe).
+import { readDepegPrice, buildDepegClaimTx } from "@backstop/sdk";
+const r = await readDepegPrice(mainnet);
+// { priceUsd: 0.99992, expo: -8, triggered: false, priceObjectId, publishMs }
+
+// Claim refreshes Pyth and settles in one PTB — payout depends only on Pyth.
+const tx = await buildDepegClaimTx({ client: mainnet, pkg, poolId, policyId, owner });
+await mainnet.signAndExecuteTransaction({ signer, transaction: tx });
+```
+
+`readDepegPool(client, poolId)` returns the pool's capital, liability, and terms;
+`buildDepegBuyCoverTx({ pkg, poolId, premiumMist, coverMist, expiryMs, owner })` buys cover.
+
 ## Consume the risk layer from your own Move contract
 
 Any Sui contract can read the RiskFeed and gate its own logic — the pattern Backstop's

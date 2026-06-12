@@ -10,6 +10,9 @@
   "peerDependencies": {
     "@mysten/sui": "^1.45.0"
   },
+  "dependencies": {
+    "@pythnetwork/pyth-sui-js": "^3.0.0"
+  },
   "devDependencies": {
     "@mysten/sui": "^1.45.2",
     "typescript": "^6.0.3"

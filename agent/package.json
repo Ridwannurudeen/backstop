@@ -9,11 +9,14 @@
     "once": "tsx src/index.ts --once",
     "publish-feed": "tsx src/publishRiskFeed.ts",
     "srx": "tsx src/srx.ts",
-    "drill": "tsx src/drill.ts"
+    "drill": "tsx src/drill.ts",
+    "pyth-read": "tsx src/pythRead.ts",
+    "pyth-cover": "tsx src/pythCover.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.102.0",
-    "@mysten/sui": "^1.45.2"
+    "@mysten/sui": "^1.45.2",
+    "@pythnetwork/pyth-sui-js": "^3.0.0"
   },
   "devDependencies": {
     "@types/node": "^25.9.2",

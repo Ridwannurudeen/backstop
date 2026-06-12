@@ -9,6 +9,7 @@ import RiskTerminal from "./components/RiskTerminal";
 import Underwriter from "./components/Underwriter";
 import Accountability from "./components/Accountability";
 import SrxIndex from "./components/SrxIndex";
+import DepegCover from "./components/DepegCover";
 import OnchainRiskFeed from "./components/OnchainRiskFeed";
 import DemoTour from "./components/DemoTour";
 
@@ -21,10 +22,12 @@ type Tab =
   | "terminal"
   | "ai"
   | "accountability"
-  | "srx";
+  | "srx"
+  | "depeg";
 
 const TABS: { id: Tab; label: string; needsWallet: boolean }[] = [
   { id: "srx", label: "SRX Index", needsWallet: false },
+  { id: "depeg", label: "Depeg cover", needsWallet: false },
   { id: "buy", label: "Buy protection", needsWallet: true },
   { id: "treasury", label: "Insure my treasury", needsWallet: true },
   { id: "portfolio", label: "My policies", needsWallet: true },
@@ -87,6 +90,7 @@ export default function App() {
       )}
 
       {active === "srx" && <SrxIndex />}
+      {active === "depeg" && <DepegCover />}
       {active === "buy" && <BuyProtection />}
       {active === "treasury" && <TreasuryProtect />}
       {active === "portfolio" && <Portfolio />}

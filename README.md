@@ -58,7 +58,10 @@ app/         Vite + React frontend (dapp-kit). Tabs: Buy protection · Insure my
              Risk terminal + AI underwriter are public (read-only, no wallet).
 agent/       Autonomous AI underwriter (Node + tsx). Reads oracles → prices risk →
              Claude/rules decision → supplies on-chain → logs to Walrus.
-contracts/   risk_feed/ — on-chain RiskFeed (probability-of-failure oracle).
+contracts/   risk_feed/ — on-chain RiskFeed: bonded multi-publisher probability-of-failure
+             oracle with challenge/slash + freshness-enforced reads (probability_bps_fresh).
+             pyth_cover_pool/ — mainnet depeg cover: SUI-collateralized, settled trustlessly
+             against a Pyth price feed (the production settlement path).
              risk_guard/ — a consumer: treasury withdrawals freeze on crash risk.
              cover_pool/ — native parametric cover pool: LPs underwrite, claims pay from the pool.
              accountability/ — bonded AgentPassport + public CalibrationLedger (predictions vs outcomes).
@@ -101,6 +104,8 @@ The signer needs testnet SUI (faucet) and gated DUSDC. With execution enabled, s
 
 ## What's live vs. roadmap
 
-**Live now:** live quotes + risk terminal + AI underwriter + Walrus proof (all read-only, no wallet); buy / underwrite / treasury *transactions* (need gated DUSDC); the `RiskFeed` on-chain oracle; the agent executing its own underwriting on-chain.
+**Live on testnet:** live quotes + risk terminal + AI underwriter + Walrus proof (read-only, no wallet); buy / underwrite / treasury *transactions* (need gated DUSDC); the agent executing its own underwriting on-chain; the native parametric CoverPool (crash → on-chain payout). The on-chain `RiskFeed` is now a **bonded multi-publisher** oracle with challenge/slash and **freshness-enforced reads** (`probability_bps_fresh`) — no single key, and a payout can't settle on a stale reading.
 
-**Roadmap (next, not shipped):** mutualized capital pool / protocol cover, multi-asset + stablecoin-depeg markets (the RWA wave), agent bonding, mainnet deploy once DeepBook Predict ships to mainnet. The depeg framing is why this is a risk *layer*, not a single app.
+**Going to mainnet — Pyth-settled depeg cover (built, proven, deploy-pending):** DeepBook Predict is testnet-only with no committed mainnet date, so the production settlement path moves to **Pyth** (live on Sui mainnet). [`contracts/pyth_cover_pool`](./contracts/pyth_cover_pool) is a SUI-collateralized parametric depeg-cover pool whose claim reads a Pyth feed on-chain (`get_price_no_older_than` — freshness by construction) and pays iff the insured stablecoin breaks its floor. It passes **8/8 tests against the real Pyth mainnet packages**, the **suiUSDe feed is confirmed live on Sui mainnet**, and the settlement read is **proven end-to-end via mainnet `devInspect`** (no funds). The `app` "Depeg cover" tab and `@backstop/sdk` depeg helpers read it live. The one remaining step is a funded mainnet deploy.
+
+**Roadmap (not shipped):** multi-asset markets, an underwriter marketplace, the generalized provenance standard, cross-chain agent reputation. Pricing stays subjective/off-chain; settlement is objective and on-chain — that split is why Backstop is a risk *layer*, not a single app.
