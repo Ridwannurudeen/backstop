@@ -128,11 +128,11 @@ export default function CoverPool() {
   return (
     <div className="card">
       <h3>Cover pool — parametric crash insurance</h3>
-      <p className="muted">
-        A native, fully-collateralized pool on Sui: LPs supply SUI and earn
-        premiums, buyers get crash cover priced live off the on-chain RiskFeed,
-        and claims settle straight from the pool when the market crosses the
-        trigger. Market <b>{s?.market ?? "—"}</b>.
+      <p className="lead">
+        A native, fully-collateralized pool: LPs supply SUI and earn premiums,
+        buyers get crash cover priced live off the on-chain RiskFeed, and claims
+        settle straight from the pool when the market crosses the trigger.
+        Market {s?.market ?? "—"}.
       </p>
 
       <div className="term-grid">
@@ -150,10 +150,7 @@ export default function CoverPool() {
         </div>
         <div className="term-stat">
           <div className="k">Crash prob / trigger</div>
-          <div
-            className="v"
-            style={{ color: triggered ? "var(--bad)" : undefined }}
-          >
+          <div className={`v ${triggered ? "val-bad" : ""}`}>
             {s
               ? `${(prob / 100).toFixed(1)}% / ${(s.triggerBps / 100).toFixed(0)}%`
               : "—"}

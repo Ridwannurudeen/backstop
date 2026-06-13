@@ -168,7 +168,7 @@ export default function Underwriter() {
                   rel="noreferrer"
                   title="On-chain supply into the Predict vault"
                 >
-                  ⚡ supplied {usd(d.execution.amountUsd)} on-chain ↗
+                  supplied {usd(d.execution.amountUsd)} on-chain ↗
                 </a>
               )}
             </div>
