@@ -14,18 +14,13 @@ export default function DepegCover() {
   return (
     <div className="card">
       <h3>
-        Depeg cover{" "}
-        <span className="muted" style={{ fontWeight: 400 }}>
-          · Sui mainnet · settled trustlessly by Pyth
-        </span>
+        Depeg cover <span className="sub">· settled trustlessly by Pyth</span>
       </h3>
-      <p className="muted">
-        Buy parametric cover on your stablecoin exposure. LPs underwrite with
-        SUI; a policy pays out from a fully-collateralized pool the moment{" "}
-        <b>Pyth</b> reports the insured asset at or below{" "}
-        <b>${DEPEG_THRESHOLD.toFixed(2)}</b>. Settlement reads Pyth on-chain
-        with a freshness bound — <b>no one has to trust Backstop to get paid</b>
-        .
+      <p className="lead">
+        Parametric cover on stablecoin exposure. A policy pays from a
+        fully-collateralized pool the moment Pyth reports the asset at or below
+        ${DEPEG_THRESHOLD.toFixed(2)} — settlement reads Pyth on-chain, so no
+        one has to trust Backstop to get paid.
       </p>
 
       {isLoading && <p className="muted">Reading Pyth on Sui mainnet…</p>}
@@ -40,20 +35,12 @@ export default function DepegCover() {
               const ageS = Math.round((Date.now() - r.publishMs) / 1000);
               return (
                 <div className="term-stat" key={r.label}>
-                  <div className="k">
-                    {r.label}
-                    {r.flagship ? " ★" : ""} / USD
-                  </div>
-                  <div
-                    className="v"
-                    style={{
-                      color: r.triggered ? "var(--bad)" : "var(--good)",
-                    }}
-                  >
+                  <div className="k">{r.label} / USD</div>
+                  <div className={`v ${r.triggered ? "val-bad" : "val-good"}`}>
                     ${r.price.toFixed(4)}
                   </div>
-                  <div className="k" style={{ marginTop: 4 }}>
-                    {r.triggered ? "below floor → would pay" : "above floor"} ·{" "}
+                  <div className="k">
+                    {r.triggered ? "below floor — would pay" : "above floor"} ·{" "}
                     {ageS}s old
                   </div>
                 </div>
@@ -61,24 +48,21 @@ export default function DepegCover() {
             })}
           </div>
 
-          <p className="muted" style={{ marginTop: 0 }}>
+          <p className="muted">
             Live on-chain Pyth prices ·{" "}
             <a
               href={`${SUIVISION}/${data.find((r) => r.flagship)?.objId ?? data[0].objId}`}
               target="_blank"
               rel="noreferrer"
-              style={{ color: "var(--accent)", textDecoration: "none" }}
             >
               Inspect the suiUSDe PriceInfoObject ↗
             </a>
           </p>
           <p className="note">
-            ★ suiUSDe is the flagship market (Ethena-backed, live across Sui
-            DeFi). The cover pool (pyth_cover_pool) settles every claim against
-            the exact PriceInfoObject shown above — pricing is set off-chain,
-            settlement is objective and on-chain. Pool deployment to mainnet is
-            pending; the settlement read path is already proven live (see
-            pythCover harness).
+            suiUSDe is the flagship market — Ethena-backed, live across Sui
+            DeFi. Pricing is set off-chain; settlement is objective and
+            on-chain. The mainnet pool deploy is pending; the settlement read
+            path is proven live.
           </p>
         </>
       )}

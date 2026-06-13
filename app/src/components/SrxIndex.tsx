@@ -17,17 +17,14 @@ export default function SrxIndex() {
   return (
     <div className="card">
       <h3>
-        SRX — the Sui Risk Index{" "}
-        <span className="muted" style={{ fontWeight: 400 }}>
-          · on-chain, options-implied
-        </span>
+        SRX · the Sui Risk Index{" "}
+        <span className="sub">· on-chain, options-implied</span>
       </h3>
-      <p className="muted">
-        Crypto's fear indexes are numbers a website prints. SRX is the market's
-        whole risk-neutral distribution, read trustlessly from DeepBook
-        Predict's binary options, published on-chain by a <b>bonded</b>{" "}
-        publisher with Walrus evidence, and <b>slashable</b> on challenge.
-        Market <b>{SRX_MARKET}</b>.
+      <p className="lead">
+        The market's full risk-neutral distribution — read trustlessly from
+        DeepBook Predict's binary options, published on-chain by a bonded
+        publisher with Walrus evidence, and slashable on challenge. Market{" "}
+        {SRX_MARKET}.
       </p>
 
       {isLoading && <p className="muted">Reading the index on-chain…</p>}
@@ -40,26 +37,18 @@ export default function SrxIndex() {
           <div className="term-grid">
             <div className="term-stat">
               <div className="k">SRX-CRASH</div>
-              <div className="v" style={{ color: "var(--bad)" }}>
-                {pct(data.crashBps)}
-              </div>
-              <div className="k" style={{ marginTop: 4 }}>
-                P(≥20% drop)
-              </div>
+              <div className="v">{pct(data.crashBps)}</div>
+              <div className="k">P(≥20% drop)</div>
             </div>
             <div className="term-stat">
               <div className="k">SRX-VOL</div>
               <div className="v">{pct(data.volBps)}</div>
-              <div className="k" style={{ marginTop: 4 }}>
-                model-free implied vol
-              </div>
+              <div className="k">model-free implied vol</div>
             </div>
             <div className="term-stat">
               <div className="k">SRX-TAIL</div>
               <div className="v">{pct(data.tailBps)}</div>
-              <div className="k" style={{ marginTop: 4 }}>
-                expected shortfall (5%)
-              </div>
+              <div className="k">expected shortfall (5%)</div>
             </div>
             <div className="term-stat">
               <div className="k">Reference</div>
@@ -69,25 +58,17 @@ export default function SrxIndex() {
                   maximumFractionDigits: 0,
                 })}
               </div>
-              <div className="k" style={{ marginTop: 4 }}>
-                BTC, ~30d horizon
-              </div>
+              <div className="k">BTC, ~30d horizon</div>
             </div>
           </div>
 
-          <p className="muted" style={{ marginTop: 0 }}>
-            Published by a bonded publisher ·{" "}
-            {data.challenged ? (
-              <span style={{ color: "var(--warn)" }}>under challenge</span>
-            ) : (
-              <span style={{ color: "var(--good)" }}>unchallenged</span>
-            )}
-            {" · "}
+          <p className="muted">
+            Bonded publisher ·{" "}
+            {data.challenged ? "under challenge" : "unchallenged"} ·{" "}
             <a
               href={`${WALRUS_AGGREGATOR}/${data.cdfBlob}`}
               target="_blank"
               rel="noreferrer"
-              style={{ color: "var(--accent)", textDecoration: "none" }}
             >
               Verify the input CDF on Walrus ↗
             </a>

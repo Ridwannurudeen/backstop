@@ -37,16 +37,14 @@ export default function Accountability() {
   return (
     <div className="card">
       <h3>Agent accountability — bonded identity + calibration ledger</h3>
-      <p className="muted">
-        Both ecosystems are betting on an agent economy with no accountability
-        primitive. Backstop's underwriter has one: a{" "}
-        <b>bonded on-chain passport</b> with real skin in the game, and a{" "}
-        <b>public calibration ledger</b> that scores every prediction against
-        the realized outcome — reputation earned and provable, not
-        self-reported.
+      <p className="lead">
+        An agent economy needs accountability. Backstop's underwriter has a
+        bonded on-chain passport with real skin in the game, and a public
+        calibration ledger that scores every prediction against the realized
+        outcome — reputation earned and provable, not self-reported.
       </p>
 
-      <h4 style={{ margin: "8px 0 6px" }}>Agent passport</h4>
+      <h4>Agent passport</h4>
       <div className="term-grid">
         <div className="term-stat">
           <div className="k">Agent</div>
@@ -71,17 +69,12 @@ export default function Accountability() {
       </div>
       <p className="muted" style={{ marginTop: 0 }}>
         Bond is slashable on misbehavior.{" "}
-        <a
-          href={objUrl(AGENT_PASSPORT)}
-          target="_blank"
-          rel="noreferrer"
-          style={{ color: "var(--accent)", textDecoration: "none" }}
-        >
+        <a href={objUrl(AGENT_PASSPORT)} target="_blank" rel="noreferrer">
           View passport on SuiVision ↗
         </a>
       </p>
 
-      <h4 style={{ margin: "18px 0 6px" }}>Calibration ledger</h4>
+      <h4>Calibration ledger</h4>
       <div className="term-grid">
         <div className="term-stat">
           <div className="k">Predictions</div>
@@ -105,21 +98,14 @@ export default function Accountability() {
       <p className="muted" style={{ marginTop: 0 }}>
         Each prediction is recorded then settled against the realized outcome on
         the oracle; accuracy and Brier score accrue on-chain.{" "}
-        <a
-          href={objUrl(CALIBRATION_LEDGER)}
-          target="_blank"
-          rel="noreferrer"
-          style={{ color: "var(--accent)", textDecoration: "none" }}
-        >
+        <a href={objUrl(CALIBRATION_LEDGER)} target="_blank" rel="noreferrer">
           View ledger on SuiVision ↗
         </a>
       </p>
 
-      <h4 style={{ margin: "18px 0 6px" }}>
+      <h4>
         Proof-of-judgment arena{" "}
-        <span className="muted" style={{ fontWeight: 400 }}>
-          · agents bet capital on their calls
-        </span>
+        <span className="sub">· agents bet capital on their calls</span>
       </h4>
       <p className="muted" style={{ marginTop: 0 }}>
         Bonded agents quote crash probabilities and are scored on realized
@@ -140,7 +126,7 @@ export default function Accountability() {
                 <td className="k">
                   {a.name}
                   {a.slashedMist > 0n && (
-                    <span style={{ color: "var(--bad)" }}> · slashed</span>
+                    <span className="val-bad"> · slashed</span>
                   )}
                 </td>
                 <td className="v">
@@ -155,12 +141,7 @@ export default function Accountability() {
         <p className="muted">No agents enrolled yet.</p>
       )}
       <p className="muted" style={{ marginTop: 6 }}>
-        <a
-          href={objUrl(ARENA_OBJ)}
-          target="_blank"
-          rel="noreferrer"
-          style={{ color: "var(--accent)", textDecoration: "none" }}
-        >
+        <a href={objUrl(ARENA_OBJ)} target="_blank" rel="noreferrer">
           View arena on SuiVision ↗
         </a>
       </p>

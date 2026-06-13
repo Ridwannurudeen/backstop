@@ -1,113 +1,166 @@
 import { useState } from "react";
+import type { ReactNode } from "react";
 import { ConnectButton, useCurrentAccount } from "@mysten/dapp-kit";
-import BuyProtection from "./components/BuyProtection";
-import TreasuryProtect from "./components/TreasuryProtect";
-import Portfolio from "./components/Portfolio";
-import Underwrite from "./components/Underwrite";
-import CoverPool from "./components/CoverPool";
-import RiskTerminal from "./components/RiskTerminal";
-import Underwriter from "./components/Underwriter";
-import Accountability from "./components/Accountability";
 import SrxIndex from "./components/SrxIndex";
 import DepegCover from "./components/DepegCover";
+import RiskTerminal from "./components/RiskTerminal";
 import OnchainRiskFeed from "./components/OnchainRiskFeed";
-import DemoTour from "./components/DemoTour";
+import BuyProtection from "./components/BuyProtection";
+import TreasuryProtect from "./components/TreasuryProtect";
+import CoverPool from "./components/CoverPool";
+import Portfolio from "./components/Portfolio";
+import Underwrite from "./components/Underwrite";
+import Underwriter from "./components/Underwriter";
+import Accountability from "./components/Accountability";
+import { Logo, SuiDrop } from "./components/Brand";
 
-type Tab =
+type TabId =
+  | "srx"
+  | "terminal"
+  | "depeg"
   | "buy"
   | "treasury"
+  | "cover"
   | "portfolio"
   | "underwrite"
-  | "cover"
-  | "terminal"
   | "ai"
-  | "accountability"
-  | "srx"
-  | "depeg";
+  | "accountability";
 
-const TABS: { id: Tab; label: string; needsWallet: boolean }[] = [
-  { id: "srx", label: "SRX Index", needsWallet: false },
-  { id: "depeg", label: "Depeg cover", needsWallet: false },
-  { id: "buy", label: "Buy protection", needsWallet: true },
-  { id: "treasury", label: "Insure my treasury", needsWallet: true },
-  { id: "portfolio", label: "My policies", needsWallet: true },
-  { id: "underwrite", label: "Underwrite", needsWallet: true },
-  { id: "cover", label: "Cover pool", needsWallet: true },
-  { id: "terminal", label: "Risk terminal", needsWallet: false },
-  { id: "ai", label: "AI underwriter", needsWallet: false },
-  { id: "accountability", label: "Accountability", needsWallet: false },
+type Group = {
+  id: string;
+  label: string;
+  wallet: boolean;
+  tabs: { id: TabId; label: string }[];
+};
+
+const NAV: Group[] = [
+  {
+    id: "markets",
+    label: "Markets",
+    wallet: false,
+    tabs: [
+      { id: "srx", label: "Risk index" },
+      { id: "terminal", label: "Risk terminal" },
+    ],
+  },
+  {
+    id: "depeg",
+    label: "Depeg cover",
+    wallet: false,
+    tabs: [{ id: "depeg", label: "Depeg cover" }],
+  },
+  {
+    id: "insure",
+    label: "Insure",
+    wallet: true,
+    tabs: [
+      { id: "buy", label: "Buy protection" },
+      { id: "treasury", label: "Treasury" },
+      { id: "cover", label: "Cover pool" },
+      { id: "portfolio", label: "My policies" },
+    ],
+  },
+  {
+    id: "underwrite",
+    label: "Underwrite",
+    wallet: true,
+    tabs: [{ id: "underwrite", label: "Underwrite" }],
+  },
+  {
+    id: "agent",
+    label: "Agent",
+    wallet: false,
+    tabs: [
+      { id: "ai", label: "AI underwriter" },
+      { id: "accountability", label: "Accountability" },
+    ],
+  },
 ];
+
+const VIEW: Record<TabId, () => ReactNode> = {
+  srx: () => <SrxIndex />,
+  terminal: () => (
+    <>
+      <RiskTerminal />
+      <OnchainRiskFeed />
+    </>
+  ),
+  depeg: () => <DepegCover />,
+  buy: () => <BuyProtection />,
+  treasury: () => <TreasuryProtect />,
+  cover: () => <CoverPool />,
+  portfolio: () => <Portfolio />,
+  underwrite: () => <Underwrite />,
+  ai: () => <Underwriter />,
+  accountability: () => <Accountability />,
+};
 
 export default function App() {
   const account = useCurrentAccount();
-  const [tab, setTab] = useState<Tab>("srx");
-  const [tourOpen, setTourOpen] = useState(false);
+  const [groupId, setGroupId] = useState("markets");
+  const [tabId, setTabId] = useState<TabId>("srx");
 
-  // Risk terminal is public (read-only); everything else needs a wallet.
-  const visibleTabs = account ? TABS : TABS.filter((t) => !t.needsWallet);
-  const active =
-    account || !TABS.find((t) => t.id === tab)?.needsWallet ? tab : "terminal";
+  const group = NAV.find((g) => g.id === groupId) ?? NAV[0];
+  const needsWallet = group.wallet && !account;
+
+  const selectGroup = (g: Group) => {
+    setGroupId(g.id);
+    setTabId(g.tabs[0].id);
+  };
 
   return (
     <div className="wrap">
-      <header className="top">
-        <div>
-          <div className="brand">
-            Back<span>stop</span>
-          </div>
-          <div className="tagline">
-            Crash insurance for crypto, settled in 400ms on DeepBook Predict
-          </div>
+      <header className="site-header">
+        <div className="brand">
+          <Logo /> Backstop
         </div>
-        <div className="top-right">
-          <button className="tour-launch" onClick={() => setTourOpen(true)}>
-            ▶ Guided demo
-          </button>
-          <ConnectButton />
-        </div>
+        <nav className="nav">
+          {NAV.map((g) => (
+            <button
+              key={g.id}
+              className={g.id === groupId ? "active" : ""}
+              onClick={() => selectGroup(g)}
+            >
+              {g.label}
+            </button>
+          ))}
+        </nav>
+        <ConnectButton />
       </header>
 
-      <div className="tabs">
-        {visibleTabs.map((t) => (
-          <button
-            key={t.id}
-            className={`tab ${active === t.id ? "active" : ""}`}
-            onClick={() => setTab(t.id)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {!account && (
-        <div className="card">
-          <p className="muted">
-            Connect a Sui wallet (testnet) to buy protection, insure a treasury,
-            or underwrite. The risk terminal below is live and read-only — no
-            wallet required.
-          </p>
+      {group.tabs.length > 1 && (
+        <div className="subnav">
+          {group.tabs.map((t) => (
+            <button
+              key={t.id}
+              className={t.id === tabId ? "active" : ""}
+              onClick={() => setTabId(t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
       )}
 
-      {active === "srx" && <SrxIndex />}
-      {active === "depeg" && <DepegCover />}
-      {active === "buy" && <BuyProtection />}
-      {active === "treasury" && <TreasuryProtect />}
-      {active === "portfolio" && <Portfolio />}
-      {active === "underwrite" && <Underwrite />}
-      {active === "cover" && <CoverPool />}
-      {active === "terminal" && (
-        <>
-          <RiskTerminal />
-          <OnchainRiskFeed />
-        </>
+      {needsWallet ? (
+        <div className="card connect-prompt">
+          <h3>Connect a wallet to {group.label.toLowerCase()}</h3>
+          <p>
+            These actions run on Sui testnet. The Markets, Depeg cover and Agent
+            views are live and read-only — no wallet required.
+          </p>
+          <ConnectButton />
+        </div>
+      ) : (
+        VIEW[tabId]()
       )}
-      {active === "ai" && <Underwriter />}
-      {active === "accountability" && <Accountability />}
 
-      {tourOpen && (
-        <DemoTour onTab={setTab} onClose={() => setTourOpen(false)} />
-      )}
+      <footer className="site-footer">
+        <span>The risk &amp; trust layer for Sui.</span>
+        <span className="built-on-sui">
+          <SuiDrop /> Built on Sui
+        </span>
+      </footer>
     </div>
   );
 }

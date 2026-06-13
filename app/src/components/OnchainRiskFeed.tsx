@@ -60,17 +60,15 @@ export default function OnchainRiskFeed() {
   const latest = (data ?? []).filter((r) => r.proof !== "stale");
 
   return (
-    <div className="card" id="onchain-riskfeed">
+    <div className="card">
       <h3>
         On-chain RiskFeed{" "}
-        <span className="muted" style={{ fontWeight: 400 }}>
-          · probability-of-failure oracle
-        </span>
+        <span className="sub">· probability-of-failure oracle</span>
       </h3>
-      <p className="muted">
-        Backstop publishes each market-implied probability of failure on-chain
-        as a <b>RiskFeed</b> object any Sui contract can read — with a Walrus
-        proof of the inputs. Read live from the deployed package below.
+      <p className="lead">
+        Each market-implied probability of failure is published on-chain as a
+        RiskFeed object any Sui contract can read, with a Walrus proof of the
+        inputs.
       </p>
       {latest.length === 0 ? (
         <p className="muted">No on-chain readings found yet.</p>
@@ -84,11 +82,7 @@ export default function OnchainRiskFeed() {
                 href={`${WALRUS_AGGREGATOR}/${r.walrus_blob}`}
                 target="_blank"
                 rel="noreferrer"
-                style={{
-                  color: "var(--accent)",
-                  textDecoration: "none",
-                  marginLeft: 8,
-                }}
+                style={{ marginLeft: 10 }}
               >
                 proof ↗
               </a>
