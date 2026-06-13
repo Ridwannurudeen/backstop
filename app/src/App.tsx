@@ -95,18 +95,26 @@ const VIEW: Record<TabId, () => ReactNode> = {
   accountability: () => <Accountability />,
 };
 
+function initialState(): { groupId: string; tabId: TabId } {
+  const [g, t] = window.location.hash.replace(/^#/, "").split("/");
+  const group = NAV.find((x) => x.id === g);
+  if (!group) return { groupId: "markets", tabId: "srx" };
+  const tab = group.tabs.find((x) => x.id === t) ?? group.tabs[0];
+  return { groupId: group.id, tabId: tab.id };
+}
+
 export default function App() {
   const account = useCurrentAccount();
-  const [groupId, setGroupId] = useState("markets");
-  const [tabId, setTabId] = useState<TabId>("srx");
+  const [{ groupId, tabId }, setState] = useState(initialState);
 
   const group = NAV.find((g) => g.id === groupId) ?? NAV[0];
   const needsWallet = group.wallet && !account;
 
-  const selectGroup = (g: Group) => {
-    setGroupId(g.id);
-    setTabId(g.tabs[0].id);
+  const go = (groupId: string, tabId: TabId) => {
+    setState({ groupId, tabId });
+    window.location.hash = `${groupId}/${tabId}`;
   };
+  const selectGroup = (g: Group) => go(g.id, g.tabs[0].id);
 
   return (
     <div className="wrap">
@@ -134,7 +142,7 @@ export default function App() {
             <button
               key={t.id}
               className={t.id === tabId ? "active" : ""}
-              onClick={() => setTabId(t.id)}
+              onClick={() => go(groupId, t.id)}
             >
               {t.label}
             </button>

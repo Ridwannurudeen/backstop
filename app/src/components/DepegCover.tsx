@@ -36,7 +36,7 @@ export default function DepegCover() {
               return (
                 <div className="term-stat" key={r.label}>
                   <div className="k">{r.label} / USD</div>
-                  <div className={`v ${r.triggered ? "val-bad" : "val-good"}`}>
+                  <div className={`v ${r.triggered ? "val-bad" : ""}`}>
                     ${r.price.toFixed(4)}
                   </div>
                   <div className="k">
