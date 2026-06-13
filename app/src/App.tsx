@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { ConnectButton, useCurrentAccount } from "@mysten/dapp-kit";
 import Layout from "./components/Layout";
 import Landing from "./pages/Landing";
+import HowItWorks from "./pages/HowItWorks";
 import SrxIndex from "./components/SrxIndex";
 import DepegCover from "./components/DepegCover";
 import RiskTerminal from "./components/RiskTerminal";
@@ -34,6 +35,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
+      <Route path="/how-it-works" element={<HowItWorks />} />
       <Route element={<Layout />}>
         <Route
           path="/markets"

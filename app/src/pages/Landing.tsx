@@ -1,5 +1,8 @@
 import { Link } from "react-router-dom";
-import { Logo, SuiDrop } from "../components/Brand";
+import { SuiDrop } from "../components/Brand";
+import MarketingNav from "../components/MarketingNav";
+import Footer from "../components/Footer";
+import LiveStats from "../components/LiveStats";
 
 const stroke = {
   fill: "none" as const,
@@ -58,22 +61,28 @@ const FEATURES = [
   },
 ];
 
+const STEPS = [
+  {
+    n: "1",
+    title: "Price the risk",
+    body: "DeepBook Predict's on-chain volatility surface becomes a market-implied probability of failure — the RiskFeed any contract can read.",
+  },
+  {
+    n: "2",
+    title: "Buy cover",
+    body: "Protect a treasury or a stablecoin position with parametric cover from a fully-collateralized pool, priced off the live feed.",
+  },
+  {
+    n: "3",
+    title: "Settle trustlessly",
+    body: "When Pyth reports a breach, the policy pays straight from the pool. No claims process, no trust in Backstop.",
+  },
+];
+
 export default function Landing() {
   return (
     <div className="landing">
-      <header className="landing-nav">
-        <Link to="/" className="brand">
-          <Logo /> Backstop
-        </Link>
-        <nav className="landing-links">
-          <Link to="/markets/risk-index">Markets</Link>
-          <Link to="/depeg">Depeg cover</Link>
-          <Link to="/agent/ai">Agent</Link>
-        </nav>
-        <Link to="/depeg" className="btn-sm">
-          Launch app
-        </Link>
-      </header>
+      <MarketingNav />
 
       <section className="hero">
         <div className="hero-badge">
@@ -93,10 +102,32 @@ export default function Landing() {
           <Link to="/depeg" className="btn">
             Launch app
           </Link>
-          <Link to="/markets/risk-index" className="btn ghost">
-            Explore the risk index
+          <Link to="/how-it-works" className="btn ghost">
+            How it works
           </Link>
         </div>
+        <LiveStats />
+      </section>
+
+      <section className="band">
+        <h2>Sui's only backstop today is a validator bailout.</h2>
+        <p>
+          When the $223M Cetus exploit hit in 2025, the "insurance" was a 90.9%
+          validator vote to roll back the chain — governance-by-emergency, not a
+          primitive. Less than 2% of DeFi is insured. Sui can execute and store,
+          but it can't yet price or transfer the risk that wipes people out.
+          Backstop is that missing layer.
+        </p>
+      </section>
+
+      <section className="steps">
+        {STEPS.map((s) => (
+          <div className="step" key={s.n}>
+            <div className="step-n">{s.n}</div>
+            <h3>{s.title}</h3>
+            <p>{s.body}</p>
+          </div>
+        ))}
       </section>
 
       <section className="features">
@@ -109,12 +140,19 @@ export default function Landing() {
         ))}
       </section>
 
-      <footer className="site-footer">
-        <span>The risk &amp; trust layer for Sui.</span>
-        <span className="built-on-sui">
-          <SuiDrop /> Built on Sui
-        </span>
-      </footer>
+      <section className="closing">
+        <h2>Price your risk on Sui.</h2>
+        <div className="hero-cta">
+          <Link to="/depeg" className="btn">
+            Launch app
+          </Link>
+          <Link to="/markets/risk-index" className="btn ghost">
+            Explore the risk index
+          </Link>
+        </div>
+      </section>
+
+      <Footer />
     </div>
   );
 }
