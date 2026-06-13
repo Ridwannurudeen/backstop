@@ -50,7 +50,7 @@
   font-size: 22px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: var(--accent);
+  color: var(--text);
 }
 
 .uw-rationale {
