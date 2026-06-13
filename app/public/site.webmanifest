@@ -1,0 +1,13 @@
+{
+  "name": "Backstop",
+  "short_name": "Backstop",
+  "description": "The risk & trust layer for Sui.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0f16",
+  "theme_color": "#0a0f16",
+  "icons": [
+    { "src": "/favicon.svg", "type": "image/svg+xml", "sizes": "any" },
+    { "src": "/apple-touch-icon.png", "type": "image/png", "sizes": "180x180" }
+  ]
+}
