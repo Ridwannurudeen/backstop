@@ -12,7 +12,8 @@
     "drill": "tsx src/drill.ts",
     "pyth-read": "tsx src/pythRead.ts",
     "pyth-cover": "tsx src/pythCover.ts",
-    "pyth-lending": "tsx src/provisionPythLending.ts"
+    "pyth-lending": "tsx src/provisionPythLending.ts",
+    "deploy-package": "tsx src/deployPackage.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.102.0",

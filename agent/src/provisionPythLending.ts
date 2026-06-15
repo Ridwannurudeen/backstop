@@ -47,7 +47,52 @@ const Price = bcs.struct("Price", {
 const i64Num = (v: { negative: boolean; magnitude: string }): number =>
   (v.negative ? -1 : 1) * Number(v.magnitude);
 
+const SUI = "0x2::sui::SUI";
 const bytes = (s: string) => Array.from(new TextEncoder().encode(s));
+const hexBytes = (h: string) => Array.from(Buffer.from(h, "hex"));
+
+/** Create + share a suiUSDe DepegCoverPool<SUI> (pyth_cover_pool). */
+export function buildCreatePoolTx(opts: {
+  backstopPkg: string;
+  feedId: string;
+  expoMag: number;
+  thresholdUnits: bigint;
+  maxAgeSecs: bigint;
+  premiumBps: bigint;
+}): Transaction {
+  const tx = new Transaction();
+  tx.moveCall({
+    target: `${opts.backstopPkg}::pyth_cover_pool::create_and_share`,
+    typeArguments: [SUI],
+    arguments: [
+      tx.pure.vector("u8", hexBytes(opts.feedId)),
+      tx.pure.bool(true), // USD feeds carry a negative exponent
+      tx.pure.u64(opts.expoMag),
+      tx.pure.u64(opts.thresholdUnits),
+      tx.pure.u64(opts.maxAgeSecs),
+      tx.pure.u64(opts.premiumBps),
+    ],
+  });
+  return tx;
+}
+
+/** Seed the pool with SUI LP capital; the LpShare goes to `recipient`. */
+export function buildDepositLpTx(
+  backstopPkg: string,
+  pool: string,
+  amountMist: bigint,
+  recipient: string,
+): Transaction {
+  const tx = new Transaction();
+  const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(amountMist)]);
+  const share = tx.moveCall({
+    target: `${backstopPkg}::pyth_cover_pool::deposit_lp`,
+    typeArguments: [SUI],
+    arguments: [tx.object(pool), coin],
+  });
+  tx.transferObjects([share], recipient);
+  return tx;
+}
 
 /** Create + share a SUI-reserve lending market labelled `asset`. */
 export function buildCreateMarketTx(
@@ -201,18 +246,24 @@ async function simulate(client: SuiClient): Promise<void> {
     `  trigger          : ${depegged ? "🔴 BREACHED — a claim would settle now" : "🟢 above floor — no payout (correct)"}\n`,
   );
   console.log("  lifecycle a funded wallet runs (--execute):");
-  console.log("    1. create_and_share  → a SUI-reserve LendingMarket");
-  console.log("    2. deposit_reserve   → seed the reserve (optional)");
-  console.log("    3. insure            → buy depeg cover from the pool");
-  console.log("    4. record_shortfall  → refresh Pyth + latch the breach");
   console.log(
-    "    5. cover_shortfall   → claim the latched payout into reserve\n",
+    "    1. create + seed pool → a DepegCoverPool<SUI> (if POOL unset)",
+  );
+  console.log("    2. create_and_share   → a SUI-reserve LendingMarket");
+  console.log("    3. deposit_reserve    → seed the reserve (optional)");
+  console.log("    4. insure             → buy depeg cover from the pool");
+  console.log("    5. record_shortfall   → refresh Pyth + latch the breach");
+  console.log(
+    "    6. cover_shortfall    → claim the latched payout into reserve\n",
   );
   console.log(
-    "  env for --execute: LENDING_PKG, POOL, SUI_PRIVATE_KEY, COVER, PREMIUM",
+    "  env for --execute: LENDING_PKG, SUI_PRIVATE_KEY, COVER, PREMIUM",
   );
   console.log(
-    "                     [MARKET, RESERVE, THRESHOLD_USD]  (deploy gated on a funded mainnet wallet)",
+    "                     + POOL (reuse) OR BACKSTOP_PKG (create+seed a pool)",
+  );
+  console.log(
+    "                     [MARKET, RESERVE, LP_SEED, THRESHOLD_USD]  (needs a funded mainnet wallet)",
   );
 }
 
@@ -223,7 +274,6 @@ async function execute(client: SuiClient): Promise<void> {
     return v;
   };
   const lendPkg = env("LENDING_PKG");
-  const pool = env("POOL");
   const cover = BigInt(env("COVER"));
   const premium = BigInt(env("PREMIUM"));
   const kp = Ed25519Keypair.fromSecretKey(env("SUI_PRIVATE_KEY").trim());
@@ -252,7 +302,34 @@ async function execute(client: SuiClient): Promise<void> {
     return c.objectId as string;
   };
 
-  // 1. market (reuse MARKET if provided)
+  // 1. pool — reuse POOL if provided, else create + seed a suiUSDe pool
+  //    (needs BACKSTOP_PKG = the deployed pyth_cover_pool package).
+  let pool = process.env.POOL ?? "";
+  if (!pool) {
+    const backstopPkg = env("BACKSTOP_PKG");
+    const expoMag = 8; // suiUSDe/USD is expo -8 (verified live on mainnet)
+    const thresholdUnits = BigInt(Math.round(thresholdUsd() * 10 ** expoMag));
+    const out = await run(
+      buildCreatePoolTx({
+        backstopPkg,
+        feedId: SUIUSDE_FEED,
+        expoMag,
+        thresholdUnits,
+        maxAgeSecs: 60n,
+        premiumBps: 200n,
+      }),
+      "create_and_share DepegCoverPool<SUI>",
+    );
+    pool = created(out, /::pyth_cover_pool::DepegCoverPool/);
+    console.log(`   POOL=${pool}`);
+    const lpSeed = BigInt(process.env.LP_SEED ?? "100000000"); // 0.1 SUI
+    await run(
+      buildDepositLpTx(backstopPkg, pool, lpSeed, addr),
+      `deposit_lp ${lpSeed} mist`,
+    );
+  }
+
+  // 2. market (reuse MARKET if provided)
   let market = process.env.MARKET;
   if (!market) {
     const out = await run(
@@ -263,7 +340,7 @@ async function execute(client: SuiClient): Promise<void> {
   }
   console.log(`   MARKET=${market}`);
 
-  // 2. optional reserve seed
+  // 3. optional reserve seed
   if (process.env.RESERVE) {
     await run(
       buildDepositReserveTx(lendPkg, market, BigInt(process.env.RESERVE)),
@@ -271,7 +348,7 @@ async function execute(client: SuiClient): Promise<void> {
     );
   }
 
-  // 3. buy cover
+  // 4. buy cover
   const expiry = BigInt(Date.now() + 30 * 86_400_000);
   await run(
     buildInsureTx({
@@ -285,7 +362,7 @@ async function execute(client: SuiClient): Promise<void> {
     `insure (cover ${cover}, premium ${premium})`,
   );
 
-  // 4/5. settle only if the live feed actually breaches the floor.
+  // 5/6. settle only if the live feed actually breaches the floor.
   const floor = thresholdUsd();
   const { priceUsd } = await readSuiUsde(client);
   if (priceUsd > floor) {
