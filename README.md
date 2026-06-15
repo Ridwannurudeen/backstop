@@ -67,6 +67,8 @@ contracts/   risk_feed/ — on-chain RiskFeed: bonded multi-publisher probabilit
              accountability/ — bonded AgentPassport + public CalibrationLedger (predictions vs outcomes).
              pool_registry/ — on-chain directory of cover pools by market.
              lending_demo/ — a protocol that backstops bad debt with a pool claim on a crash.
+             pyth_lending_demo/ — the production analog: a SUI-reserve market that buys
+             Pyth-settled depeg cover and claims the latched payout into its reserve.
 spike/       Runnable verification harness for the Predict PTBs (the verified foundation).
 ```
 

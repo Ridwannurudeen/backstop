@@ -1,0 +1,16 @@
+[package]
+name = "pyth_lending_demo"
+edition = "2024.beta"
+
+# A production-shaped consumer of Backstop's mainnet DepegCoverPool: a lending
+# market that buys Pyth-settled depeg cover and claims the payout into its reserve.
+# Pyth + Wormhole are pinned to their Sui MAINNET branches (matching pyth_cover_pool)
+# so the published bytecode links the deployed mainnet packages. See
+# pyth_cover_pool/BUILD.md for the Windows symlinked-manifest build note.
+[dependencies]
+pyth_cover_pool = { local = "../pyth_cover_pool" }
+Pyth = { git = "https://github.com/pyth-network/pyth-crosschain.git", subdir = "target_chains/sui/contracts", rev = "sui-contract-mainnet" }
+Wormhole = { git = "https://github.com/wormhole-foundation/wormhole.git", subdir = "sui/wormhole", rev = "sui/mainnet" }
+
+[addresses]
+pyth_lending_demo = "0x0"
