@@ -17,7 +17,15 @@ async function main(): Promise<void> {
     dependencies: string[];
   };
 
-  const client = new SuiClient({ url: getFullnodeUrl(NETWORK) });
+  // Defaults to the repo network (testnet); set DEPLOY_NETWORK=mainnet to publish
+  // the Pyth-settled packages (pyth_cover_pool / pyth_lending_demo) to mainnet.
+  const net = (process.env.DEPLOY_NETWORK ?? NETWORK) as
+    | "mainnet"
+    | "testnet"
+    | "devnet"
+    | "localnet";
+  console.log(`network: ${net}`);
+  const client = new SuiClient({ url: getFullnodeUrl(net) });
   const kp = Ed25519Keypair.fromSecretKey(k.trim());
   const addr = kp.getPublicKey().toSuiAddress();
 
