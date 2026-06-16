@@ -15,7 +15,8 @@ module pyth_lending_demo::pyth_lending_demo_tests {
     const THRESHOLD: u64 = 97_000_000; // $0.97
     const PEG: u64 = 100_000_000;      // $1.00
     const DEPEG: u64 = 95_000_000;     // $0.95
-    const PREMIUM_BPS: u64 = 200;      // 2% per term
+    const PREMIUM_BPS: u64 = 200;      // 2% base rate (0% utilization)
+    const SURGE_BPS: u64 = 800;        // +8% at 100% utilization
     const MAX_AGE: u64 = 60;
     const MAX_CONF_BPS: u64 = 200;
     const DWELL_SECS: u64 = 10;     // a breach must persist 10s before it latches
@@ -31,8 +32,8 @@ module pyth_lending_demo::pyth_lending_demo_tests {
 
     fun new_pool(ctx: &mut TxContext): pyth_cover_pool::DepegCoverPool<SUI> {
         pyth_cover_pool::new_pool_for_testing<SUI>(
-            FEED, true, EXPO_MAG, THRESHOLD, MAX_AGE, PREMIUM_BPS, MAX_CONF_BPS,
-            DWELL_SECS, ACT_SECS, ctx,
+            FEED, true, EXPO_MAG, THRESHOLD, MAX_AGE, PREMIUM_BPS, SURGE_BPS,
+            MAX_CONF_BPS, DWELL_SECS, ACT_SECS, ctx,
         )
     }
 

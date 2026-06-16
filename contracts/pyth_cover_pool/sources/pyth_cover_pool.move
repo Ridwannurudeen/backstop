@@ -84,8 +84,12 @@ module pyth_cover_pool::pyth_cover_pool {
         threshold: u64,
         /// Max Pyth price age (seconds) accepted at settlement.
         max_age_secs: u64,
-        /// Flat premium rate: premium = cover * premium_bps / 10_000.
+        /// Base premium rate (bps) charged at 0% utilization — the floor of the curve.
         premium_bps: u64,
+        /// Additional premium rate (bps) at 100% utilization. The charged rate scales
+        /// linearly: rate = premium_bps + surge_premium_bps * utilization, so capacity
+        /// is rationed (priced up) as the pool fills with cover during a depeg scare.
+        surge_premium_bps: u64,
         /// Reject a settlement read whose Pyth confidence/price ratio exceeds this
         /// (bps) — never settle while the oracle itself signals high uncertainty.
         max_conf_bps: u64,
@@ -173,6 +177,7 @@ module pyth_cover_pool::pyth_cover_pool {
         threshold: u64,
         max_age_secs: u64,
         premium_bps: u64,
+        surge_premium_bps: u64,
         max_conf_bps: u64,
         min_dwell_secs: u64,
         activation_delay_secs: u64,
@@ -186,6 +191,7 @@ module pyth_cover_pool::pyth_cover_pool {
             threshold,
             max_age_secs,
             premium_bps,
+            surge_premium_bps,
             max_conf_bps,
             min_dwell_secs,
             activation_delay_secs,
@@ -203,6 +209,7 @@ module pyth_cover_pool::pyth_cover_pool {
         threshold: u64,
         max_age_secs: u64,
         premium_bps: u64,
+        surge_premium_bps: u64,
         max_conf_bps: u64,
         min_dwell_secs: u64,
         activation_delay_secs: u64,
@@ -210,7 +217,7 @@ module pyth_cover_pool::pyth_cover_pool {
     ) {
         let pool = new_pool<T>(
             feed_id, expo_neg, expo_mag, threshold, max_age_secs, premium_bps,
-            max_conf_bps, min_dwell_secs, activation_delay_secs, ctx,
+            surge_premium_bps, max_conf_bps, min_dwell_secs, activation_delay_secs, ctx,
         );
         event::emit(PoolCreated {
             pool: object::id(&pool),
@@ -262,9 +269,26 @@ module pyth_cover_pool::pyth_cover_pool {
 
     // --- Cover ---
 
-    /// Pool-priced premium for `cover` units: cover * premium_bps / 10_000.
+    /// Utilization-based premium rate (bps) for adding `cover`: the rate rises with
+    /// the post-trade utilization `(total_cover + cover) / pool_value`, so buying cover
+    /// into a pool that is filling up (a depeg scare) costs more — capacity is rationed.
+    /// `rate = premium_bps + surge_premium_bps * utilization` (utilization clamped to 1).
+    public fun premium_rate_bps<T>(pool: &DepegCoverPool<T>, cover: u64): u64 {
+        let value = balance::value(&pool.funds);
+        let util_bps: u128 = if (value == 0) {
+            BPS // no capacity to sell against → price at the curve's ceiling
+        } else {
+            let u = (((pool.total_cover + cover) as u128) * BPS) / (value as u128);
+            if (u > BPS) { BPS } else { u }
+        };
+        let surge_add = ((pool.surge_premium_bps as u128) * util_bps) / BPS;
+        pool.premium_bps + (surge_add as u64)
+    }
+
+    /// Pool-priced premium for `cover` units at the current utilization rate.
     public fun premium_for<T>(pool: &DepegCoverPool<T>, cover: u64): u64 {
-        (((cover as u128) * (pool.premium_bps as u128)) / BPS) as u64
+        let rate_bps = premium_rate_bps(pool, cover);
+        (((cover as u128) * (rate_bps as u128)) / BPS) as u64
     }
 
     /// Buy depeg cover. `premium` must cover the pool-priced premium; any excess
@@ -461,6 +485,7 @@ module pyth_cover_pool::pyth_cover_pool {
     public fun feed_id<T>(pool: &DepegCoverPool<T>): vector<u8> { pool.feed_id }
     public fun threshold<T>(pool: &DepegCoverPool<T>): u64 { pool.threshold }
     public fun premium_bps<T>(pool: &DepegCoverPool<T>): u64 { pool.premium_bps }
+    public fun surge_premium_bps<T>(pool: &DepegCoverPool<T>): u64 { pool.surge_premium_bps }
     public fun max_conf_bps<T>(pool: &DepegCoverPool<T>): u64 { pool.max_conf_bps }
     public fun max_age_secs<T>(pool: &DepegCoverPool<T>): u64 { pool.max_age_secs }
     public fun min_dwell_secs<T>(pool: &DepegCoverPool<T>): u64 { pool.min_dwell_secs }
@@ -482,6 +507,7 @@ module pyth_cover_pool::pyth_cover_pool {
         threshold: u64,
         max_age_secs: u64,
         premium_bps: u64,
+        surge_premium_bps: u64,
         max_conf_bps: u64,
         min_dwell_secs: u64,
         activation_delay_secs: u64,
@@ -489,7 +515,7 @@ module pyth_cover_pool::pyth_cover_pool {
     ): DepegCoverPool<T> {
         new_pool<T>(
             feed_id, expo_neg, expo_mag, threshold, max_age_secs, premium_bps,
-            max_conf_bps, min_dwell_secs, activation_delay_secs, ctx,
+            surge_premium_bps, max_conf_bps, min_dwell_secs, activation_delay_secs, ctx,
         )
     }
 

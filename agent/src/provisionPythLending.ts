@@ -59,6 +59,7 @@ export function buildCreatePoolTx(opts: {
   thresholdUnits: bigint;
   maxAgeSecs: bigint;
   premiumBps: bigint;
+  surgePremiumBps: bigint;
   maxConfBps: bigint;
   minDwellSecs: bigint;
   activationDelaySecs: bigint;
@@ -74,6 +75,7 @@ export function buildCreatePoolTx(opts: {
       tx.pure.u64(opts.thresholdUnits),
       tx.pure.u64(opts.maxAgeSecs),
       tx.pure.u64(opts.premiumBps),
+      tx.pure.u64(opts.surgePremiumBps),
       tx.pure.u64(opts.maxConfBps),
       tx.pure.u64(opts.minDwellSecs),
       tx.pure.u64(opts.activationDelaySecs),
@@ -323,6 +325,7 @@ async function execute(client: SuiClient): Promise<void> {
         thresholdUnits,
         maxAgeSecs: 60n,
         premiumBps: 200n,
+        surgePremiumBps: BigInt(process.env.SURGE_PREMIUM_BPS ?? "800"), // +8% at full utilization
         maxConfBps: 200n,
         minDwellSecs: BigInt(process.env.MIN_DWELL_SECS ?? "600"), // 10-min sustained breach
         activationDelaySecs: BigInt(

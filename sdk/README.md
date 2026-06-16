@@ -70,6 +70,10 @@ await mainnet.signAndExecuteTransaction({ signer, transaction: claim });
 
 `readDepegPool(client, poolId)` returns the pool's capital, liability, and terms;
 `buildDepegBuyCoverTx({ pkg, poolId, premiumMist, coverMist, expiryMs, owner })` buys cover.
+Premiums are **utilization-priced** — `quoteDepegPremium(pool, coverMist)` mirrors the
+on-chain curve (`rate = premiumBps + surgePremiumBps * utilization`), so cover costs
+more as the pool fills during a depeg scare. A policy also has an **activation delay**
+before it can latch a breach (anti-adverse-selection).
 
 ## Consume the risk layer from your own Move contract
 

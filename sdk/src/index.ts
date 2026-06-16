@@ -241,10 +241,35 @@ export type DepegPoolState = {
   expoNeg: boolean;
   expoMag: number;
   maxAgeSecs: number;
+  /** Base premium rate (bps) at 0% utilization; the charged rate is on a curve. */
   premiumBps: number;
+  /** Additional premium rate (bps) at 100% utilization. */
+  surgePremiumBps: number;
   fundsMist: bigint;
   totalCoverMist: bigint;
 };
+
+/**
+ * Quote the utilization-priced premium (MIST) for `coverMist` against a pool's state:
+ * rate = premiumBps + surgePremiumBps * utilization, utilization = (totalCover + cover)
+ * / funds (clamped to 1). Mirrors `pyth_cover_pool::premium_for` on-chain.
+ */
+export function quoteDepegPremium(
+  pool: DepegPoolState,
+  coverMist: bigint,
+): bigint {
+  const BPS = 10_000n;
+  const utilBps =
+    pool.fundsMist === 0n
+      ? BPS
+      : (() => {
+          const u = ((pool.totalCoverMist + coverMist) * BPS) / pool.fundsMist;
+          return u > BPS ? BPS : u;
+        })();
+  const rateBps =
+    BigInt(pool.premiumBps) + (BigInt(pool.surgePremiumBps) * utilBps) / BPS;
+  return (coverMist * rateBps) / BPS;
+}
 
 /** Read a DepegCoverPool's on-chain state (capital, liability, terms). */
 export async function readDepegPool(
@@ -268,6 +293,7 @@ export async function readDepegPool(
     expoMag: Number(f.expo_mag),
     maxAgeSecs: Number(f.max_age_secs),
     premiumBps: Number(f.premium_bps),
+    surgePremiumBps: Number(f.surge_premium_bps),
     fundsMist: BigInt(f.funds as string),
     totalCoverMist: BigInt(f.total_cover as string),
   };
