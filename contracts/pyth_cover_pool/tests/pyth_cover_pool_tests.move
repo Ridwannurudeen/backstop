@@ -16,6 +16,8 @@ module pyth_cover_pool::pyth_cover_pool_tests {
     const DEPEG: u64 = 95_000_000;     // $0.95
     const PREMIUM_BPS: u64 = 200;      // 2% per term
     const MAX_AGE: u64 = 60;
+    const MAX_CONF_BPS: u64 = 200;     // reject reads with conf/price > 2%
+    const CONF: u64 = 1_000_000;       // a $0.01 confidence band
 
     fun fund(amount: u64, ctx: &mut TxContext): coin::Coin<TESTCOIN> {
         coin::from_balance(balance::create_for_testing<TESTCOIN>(amount), ctx)
@@ -23,7 +25,7 @@ module pyth_cover_pool::pyth_cover_pool_tests {
 
     fun new_pool(premium_bps: u64, ctx: &mut TxContext): DepegCoverPool<TESTCOIN> {
         pyth_cover_pool::new_pool_for_testing<TESTCOIN>(
-            FEED, true, EXPO_MAG, THRESHOLD, MAX_AGE, premium_bps, ctx,
+            FEED, true, EXPO_MAG, THRESHOLD, MAX_AGE, premium_bps, MAX_CONF_BPS, ctx,
         )
     }
 
@@ -71,7 +73,7 @@ module pyth_cover_pool::pyth_cover_pool_tests {
 
         // Pyth reports $0.95 — at/below the $0.97 floor → payout.
         let payout = pyth_cover_pool::claim_at_price_for_testing(
-            &mut pool, DEPEG, policy, &clock, &mut ctx,
+            &mut pool, DEPEG, 0, policy, &clock, &mut ctx,
         );
         assert!(coin::value(&payout) == 500, 2);
         assert!(pyth_cover_pool::total_cover(&pool) == 0, 3);
@@ -96,7 +98,7 @@ module pyth_cover_pool::pyth_cover_pool_tests {
 
         // Still pegged at $1.00 → above the $0.97 floor → claim must abort.
         let payout = pyth_cover_pool::claim_at_price_for_testing(
-            &mut pool, PEG, policy, &clock, &mut ctx,
+            &mut pool, PEG, 0, policy, &clock, &mut ctx,
         );
 
         coin::burn_for_testing(payout);
@@ -119,7 +121,7 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         // Depegged, but the policy already expired → claim must abort.
         clock::set_for_testing(&mut clock, 2000);
         let payout = pyth_cover_pool::claim_at_price_for_testing(
-            &mut pool, DEPEG, policy, &clock, &mut ctx,
+            &mut pool, DEPEG, 0, policy, &clock, &mut ctx,
         );
 
         coin::burn_for_testing(payout);
@@ -201,7 +203,7 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         );
 
         // Keeper records the breach during the dip (t=0, price below the floor).
-        pyth_cover_pool::latch_at_price_for_testing(&pool, &mut policy, DEPEG, &clock);
+        pyth_cover_pool::latch_at_price_for_testing(&pool, &mut policy, DEPEG, 0, &clock);
         assert!(pyth_cover_pool::policy_breached(&policy), 0);
 
         // Price recovers AND the policy expires — the latched claim still pays.
@@ -247,7 +249,7 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         );
 
         // Pegged price → nothing to latch.
-        pyth_cover_pool::latch_at_price_for_testing(&pool, &mut policy, PEG, &clock);
+        pyth_cover_pool::latch_at_price_for_testing(&pool, &mut policy, PEG, 0, &clock);
 
         test_utils::destroy(policy);
         test_utils::destroy(lp);
@@ -265,12 +267,53 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         let mut policy = pyth_cover_pool::buy_cover(
             &mut pool, fund(10, &mut ctx), 500, 1000, &clock, &mut ctx,
         );
-        pyth_cover_pool::latch_at_price_for_testing(&pool, &mut policy, DEPEG, &clock);
+        pyth_cover_pool::latch_at_price_for_testing(&pool, &mut policy, DEPEG, 0, &clock);
 
         // A latched policy is claimable, so the LP can't expire it away.
         clock::set_for_testing(&mut clock, 5000);
         pyth_cover_pool::expire_policy(&mut pool, policy, &clock);
 
+        test_utils::destroy(lp);
+        clock::destroy_for_testing(clock);
+        test_utils::destroy(pool);
+    }
+
+    #[test]
+    fun claim_pays_with_tight_confidence() {
+        // $0.95 spot + $0.01 band = $0.96, still at/below the $0.97 floor → pays.
+        let mut ctx = tx_context::dummy();
+        let clock = clock::create_for_testing(&mut ctx);
+        let mut pool = new_pool(PREMIUM_BPS, &mut ctx);
+        let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(1000, &mut ctx), &mut ctx);
+        let policy = pyth_cover_pool::buy_cover(
+            &mut pool, fund(10, &mut ctx), 500, 1000, &clock, &mut ctx,
+        );
+        let payout = pyth_cover_pool::claim_at_price_for_testing(
+            &mut pool, DEPEG, CONF, policy, &clock, &mut ctx,
+        );
+        assert!(coin::value(&payout) == 500, 0);
+        coin::burn_for_testing(payout);
+        test_utils::destroy(lp);
+        clock::destroy_for_testing(clock);
+        test_utils::destroy(pool);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = pyth_cover_pool::ENotDepegged)]
+    fun claim_blocked_when_confidence_straddles_floor() {
+        // $0.95 spot but a wide $0.025 band → upper edge $0.975 is above the $0.97
+        // floor → must not pay (a noisy tick can't force a payout).
+        let mut ctx = tx_context::dummy();
+        let clock = clock::create_for_testing(&mut ctx);
+        let mut pool = new_pool(PREMIUM_BPS, &mut ctx);
+        let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(1000, &mut ctx), &mut ctx);
+        let policy = pyth_cover_pool::buy_cover(
+            &mut pool, fund(10, &mut ctx), 500, 1000, &clock, &mut ctx,
+        );
+        let payout = pyth_cover_pool::claim_at_price_for_testing(
+            &mut pool, DEPEG, 2_500_000, policy, &clock, &mut ctx,
+        );
+        coin::burn_for_testing(payout);
         test_utils::destroy(lp);
         clock::destroy_for_testing(clock);
         test_utils::destroy(pool);

@@ -57,6 +57,8 @@ module pyth_cover_pool::pyth_cover_pool {
     const ENotBreached: u64 = 11;
     /// A latched (still-claimable) policy cannot be expired out from under the holder.
     const EBreachedCannotExpire: u64 = 12;
+    /// Pyth confidence interval too wide vs price — the read is not trustworthy.
+    const EConfTooWide: u64 = 13;
 
     /// Shared mutualized depeg-cover pool insuring one Pyth feed in coin `T`.
     public struct DepegCoverPool<phantom T> has key {
@@ -74,6 +76,9 @@ module pyth_cover_pool::pyth_cover_pool {
         max_age_secs: u64,
         /// Flat premium rate: premium = cover * premium_bps / 10_000.
         premium_bps: u64,
+        /// Reject a settlement read whose Pyth confidence/price ratio exceeds this
+        /// (bps) — never settle while the oracle itself signals high uncertainty.
+        max_conf_bps: u64,
         /// Pooled capital: LP deposits + collected premiums.
         funds: Balance<T>,
         /// Total LP shares outstanding.
@@ -137,6 +142,7 @@ module pyth_cover_pool::pyth_cover_pool {
         threshold: u64,
         max_age_secs: u64,
         premium_bps: u64,
+        max_conf_bps: u64,
         ctx: &mut TxContext,
     ): DepegCoverPool<T> {
         DepegCoverPool {
@@ -147,6 +153,7 @@ module pyth_cover_pool::pyth_cover_pool {
             threshold,
             max_age_secs,
             premium_bps,
+            max_conf_bps,
             funds: balance::zero<T>(),
             total_shares: 0,
             total_cover: 0,
@@ -161,10 +168,12 @@ module pyth_cover_pool::pyth_cover_pool {
         threshold: u64,
         max_age_secs: u64,
         premium_bps: u64,
+        max_conf_bps: u64,
         ctx: &mut TxContext,
     ) {
         let pool = new_pool<T>(
-            feed_id, expo_neg, expo_mag, threshold, max_age_secs, premium_bps, ctx,
+            feed_id, expo_neg, expo_mag, threshold, max_age_secs, premium_bps,
+            max_conf_bps, ctx,
         );
         event::emit(PoolCreated {
             pool: object::id(&pool),
@@ -269,8 +278,8 @@ module pyth_cover_pool::pyth_cover_pool {
         clock: &Clock,
         ctx: &mut TxContext,
     ): Coin<T> {
-        let price_mag = read_price_magnitude(pool, price_info_object, clock);
-        check_and_settle(pool, price_mag, policy, clock, ctx)
+        let (price_mag, conf) = read_price_magnitude(pool, price_info_object, clock);
+        check_and_settle(pool, price_mag, conf, policy, clock, ctx)
     }
 
     /// Read + verify the pool's Pyth feed: matches the insured feed id, is fresh,
@@ -279,7 +288,7 @@ module pyth_cover_pool::pyth_cover_pool {
         pool: &DepegCoverPool<T>,
         price_info_object: &PriceInfoObject,
         clock: &Clock,
-    ): u64 {
+    ): (u64, u64) {
         // 1. The object must carry the feed this pool insures.
         let info = price_info::get_price_info_from_price_info_object(price_info_object);
         let id = price_info::get_price_identifier(&info);
@@ -303,7 +312,15 @@ module pyth_cover_pool::pyth_cover_pool {
         };
         assert!(expo_neg == pool.expo_neg && expo_mag == pool.expo_mag, EBadExpo);
 
-        magnitude
+        // 5. Reject an untrustworthy read: Pyth's `conf` is ~1 std-dev; if the
+        // confidence/price ratio exceeds max_conf_bps we refuse to settle on it.
+        let conf = price::get_conf(&p);
+        assert!(
+            (conf as u128) * 10_000 <= (magnitude as u128) * (pool.max_conf_bps as u128),
+            EConfTooWide,
+        );
+
+        (magnitude, conf)
     }
 
     /// Settlement core: a policy pays iff it is unexpired and `price_mag` is at/below
@@ -311,12 +328,16 @@ module pyth_cover_pool::pyth_cover_pool {
     fun check_and_settle<T>(
         pool: &mut DepegCoverPool<T>,
         price_mag: u64,
+        conf: u64,
         policy: Policy<T>,
         clock: &Clock,
         ctx: &mut TxContext,
     ): Coin<T> {
         assert!(clock::timestamp_ms(clock) <= policy.expiry_ms, EPolicyExpired);
-        assert!(price_mag <= pool.threshold, ENotDepegged);
+        // Adverse-bound settlement: even the optimistic (upper) edge of the Pyth
+        // confidence band must be at/below the floor, so a noisy tick whose band
+        // straddles the peg does not pay.
+        assert!(price_mag + conf <= pool.threshold, ENotDepegged);
         let Policy { id, pool_id, cover, premium_paid: _, expiry_ms: _, breached: _, breach_price: _ } = policy;
         assert!(pool_id == object::id(pool), EWrongPool);
         object::delete(id);
@@ -350,19 +371,21 @@ module pyth_cover_pool::pyth_cover_pool {
         price_info_object: &PriceInfoObject,
         clock: &Clock,
     ) {
-        let price_mag = read_price_magnitude(pool, price_info_object, clock);
-        do_latch(pool, policy, price_mag, clock);
+        let (price_mag, conf) = read_price_magnitude(pool, price_info_object, clock);
+        do_latch(pool, policy, price_mag, conf, clock);
     }
 
     fun do_latch<T>(
         pool: &DepegCoverPool<T>,
         policy: &mut Policy<T>,
         price_mag: u64,
+        conf: u64,
         clock: &Clock,
     ) {
         assert!(policy.pool_id == object::id(pool), EWrongPool);
         assert!(clock::timestamp_ms(clock) <= policy.expiry_ms, EPolicyExpired);
-        assert!(price_mag <= pool.threshold, ENotDepegged);
+        // Adverse-bound: the upper edge of the confidence band must clear the floor.
+        assert!(price_mag + conf <= pool.threshold, ENotDepegged);
         policy.breach_price = price_mag;
         policy.breached = true;
         event::emit(BreachRecorded { pool: object::id(pool), price: price_mag });
@@ -392,6 +415,7 @@ module pyth_cover_pool::pyth_cover_pool {
     public fun feed_id<T>(pool: &DepegCoverPool<T>): vector<u8> { pool.feed_id }
     public fun threshold<T>(pool: &DepegCoverPool<T>): u64 { pool.threshold }
     public fun premium_bps<T>(pool: &DepegCoverPool<T>): u64 { pool.premium_bps }
+    public fun max_conf_bps<T>(pool: &DepegCoverPool<T>): u64 { pool.max_conf_bps }
     public fun max_age_secs<T>(pool: &DepegCoverPool<T>): u64 { pool.max_age_secs }
 
     public fun shares<T>(s: &LpShare<T>): u64 { s.shares }
@@ -407,9 +431,13 @@ module pyth_cover_pool::pyth_cover_pool {
         threshold: u64,
         max_age_secs: u64,
         premium_bps: u64,
+        max_conf_bps: u64,
         ctx: &mut TxContext,
     ): DepegCoverPool<T> {
-        new_pool<T>(feed_id, expo_neg, expo_mag, threshold, max_age_secs, premium_bps, ctx)
+        new_pool<T>(
+            feed_id, expo_neg, expo_mag, threshold, max_age_secs, premium_bps,
+            max_conf_bps, ctx,
+        )
     }
 
     #[test_only]
@@ -418,11 +446,12 @@ module pyth_cover_pool::pyth_cover_pool {
     public fun claim_at_price_for_testing<T>(
         pool: &mut DepegCoverPool<T>,
         price_mag: u64,
+        conf: u64,
         policy: Policy<T>,
         clock: &Clock,
         ctx: &mut TxContext,
     ): Coin<T> {
-        check_and_settle(pool, price_mag, policy, clock, ctx)
+        check_and_settle(pool, price_mag, conf, policy, clock, ctx)
     }
 
     #[test_only]
@@ -431,8 +460,9 @@ module pyth_cover_pool::pyth_cover_pool {
         pool: &DepegCoverPool<T>,
         policy: &mut Policy<T>,
         price_mag: u64,
+        conf: u64,
         clock: &Clock,
     ) {
-        do_latch(pool, policy, price_mag, clock);
+        do_latch(pool, policy, price_mag, conf, clock);
     }
 }
