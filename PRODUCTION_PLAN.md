@@ -196,8 +196,9 @@ Additive, behaviour-preserving where possible; new state fields + new entry func
 - Full unit tests (happy + each abort + adverse-bound + dwell + cooldown + cap +
   pause-exempt-claim) via `.tools/sui.exe move test`.
 - **Sui Prover** proof of `value(funds) >= total_cover` and share accounting.
-- **Acceptance:** all tests green; prover invariant proven; consumers
-  (`pyth_lending_demo`) updated to the v2 API and green.
+- **Acceptance:** all tests green; prover attempt documented until a compatible local
+  prover toolchain is available; consumers (`pyth_lending_demo`) updated to the v2 API
+  and green.
 
 ### Phase 2 — Interactive mainnet app · *buildable now; live txs need a funded wallet*
 - Mainnet `SuiClient` + dapp-kit wallet wiring for the depeg product (reuse the

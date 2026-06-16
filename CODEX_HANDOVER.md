@@ -116,10 +116,12 @@ timelocked parameter kind `10`, SDK pool field, deploy docs, and provisioner def
 `KEEPER_BOUNTY=100000` (0.0001 SUI). Acceptance is green: confirm pays once from
 treasury, empty treasury never blocks latch, and timelocked bounty updates execute.
 
-#### A3 — Sui Prover invariant  *(assurance, optional but in Phase-1 acceptance)*
-Prove `value(funds) >= total_cover` and share accounting with **Sui Prover**. If the
-toolchain isn't available, document the attempt and leave a `#[spec]`/comment stub —
-do not fake it.
+#### A3 — Sui Prover invariant  *(toolchain-blocked, documented)*
+Pinned Sui CLI v1.73.1 has no `move prove` command, and no local `move-prover`,
+`sui-prover`, Boogie, or Z3 executable is installed. The attempt and target
+invariants are documented in `contracts/pyth_cover_pool/PROVER.md`, with a source
+comment stub in `pyth_cover_pool.move`. Do not claim a formal proof until a compatible
+Sui prover toolchain is available and run.
 
 ### B. Phase 0 — backtest + calibration *(no funds; was skipped, acceptance-listed)*
 - Write `agent/src/backtestDepeg.ts` (`npm run backtest-depeg`): pull suiUSDe/USDe Pyth

@@ -14,6 +14,8 @@
 /// design: nobody has to trust Backstop to get paid.
 ///
 /// The pool is always fully collateralized: `value(funds) >= total_cover`.
+/// Formal-prover target: encode that invariant once the Sui prover is available
+/// for this toolchain. See `contracts/pyth_cover_pool/PROVER.md`.
 ///
 /// Settlement requires a SUSTAINED breach (dwell), never a single read — there is no
 /// native on-chain TWAP on Sui, so the dwell is built on the latch: `record_breach`
