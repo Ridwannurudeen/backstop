@@ -10,15 +10,17 @@
 //    proves the update + freshness-read at the heart of record_breach works against
 //    LIVE mainnet Pyth — same PriceInfoObject + get_price_no_older_than the contract
 //    uses.
-//  - `--execute`: first run (no POLICY) buys cover and ARMS the dwell; rerun with
-//    POLICY=.. after min_dwell_secs to CONFIRM + claim. Env-gated, real funds.
+//  - `--execute`: first run (no POLICY) buys cover. A policy can't record a breach
+//    until its activation delay elapses, so rerun with POLICY=.. to ARM the dwell,
+//    then again ≥ min_dwell_secs later with CLAIM=1 to CONFIRM + claim. Real funds.
 //
 // Run (no funds):  npx tsx src/pythCover.ts
-// Run (arm):       BACKSTOP_PKG=.. POOL=.. COIN_TYPE=.. SUI_PRIVATE_KEY=.. \
+// Run (buy):       BACKSTOP_PKG=.. POOL=.. COIN_TYPE=.. SUI_PRIVATE_KEY=.. \
 //                  COVER=.. PREMIUM=.. npx tsx src/pythCover.ts --execute
-// Run (confirm+claim, after dwell):
+// Run (arm, after activation):
 //                  BACKSTOP_PKG=.. POOL=.. SUI_PRIVATE_KEY=.. POLICY=.. \
 //                  npx tsx src/pythCover.ts --execute
+// Run (confirm+claim, after dwell):  …same + CLAIM=1
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { Transaction } from "@mysten/sui/transactions";
@@ -215,7 +217,9 @@ async function execute(client: SuiClient): Promise<void> {
     return out;
   };
 
-  // Phase 2 — confirm the dwell + claim (POLICY already bought and armed earlier).
+  // Phase 2 — advance the dwell (POLICY already bought). record_breach arms on the
+  // first run after activation and confirms on a run ≥ min_dwell_secs later. Set
+  // CLAIM=1 once the dwell is satisfied to also claim_latched in the same run.
   if (process.env.POLICY) {
     const policy = process.env.POLICY;
     const recTx = await buildRecordBreachTx({
@@ -228,20 +232,27 @@ async function execute(client: SuiClient): Promise<void> {
     });
     await send(
       recTx,
-      "record_breach (confirm dwell — needs min_dwell_secs elapsed)",
+      "record_breach (arm or confirm — only if depegged + active)",
     );
-    const claimTx = buildClaimLatchedTx({
-      pkg,
-      pool,
-      coinType,
-      policy,
-      recipient: addr,
-    });
-    await send(claimTx, "claim_latched (pays the latched payout)");
+    if (process.env.CLAIM) {
+      const claimTx = buildClaimLatchedTx({
+        pkg,
+        pool,
+        coinType,
+        policy,
+        recipient: addr,
+      });
+      await send(claimTx, "claim_latched (pays the latched payout)");
+    } else {
+      console.log(
+        "\n  Set CLAIM=1 on a run ≥ min_dwell_secs after arming to confirm + claim.",
+      );
+    }
     return;
   }
 
-  // Phase 1 — buy cover and arm the dwell on the first sub-threshold read.
+  // Phase 1 — buy cover. The policy can't record a breach until its activation
+  // delay elapses, so arming happens on a later run (phase 2), not here.
   const buyTx = buildBuyCoverTx({
     pkg,
     pool,
@@ -259,18 +270,9 @@ async function execute(client: SuiClient): Promise<void> {
     ) as any
   )?.objectId;
   console.log(`  POLICY=${policy}`);
-
-  const armTx = await buildRecordBreachTx({
-    client,
-    pkg,
-    pool,
-    coinType,
-    policy,
-    feedId: SUIUSDE_FEED,
-  });
-  await send(armTx, "record_breach (arm dwell — only if depegged now)");
   console.log(
-    `\n  ✓ armed. Rerun with POLICY=${policy} after min_dwell_secs to confirm + claim.`,
+    `\n  ✓ bought. After activation_delay, rerun with POLICY=${policy} to arm the` +
+      ` dwell;\n    rerun again after min_dwell_secs to confirm + claim.`,
   );
 }
 
