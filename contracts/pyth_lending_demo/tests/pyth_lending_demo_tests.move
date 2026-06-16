@@ -19,8 +19,10 @@ module pyth_lending_demo::pyth_lending_demo_tests {
     const MAX_AGE: u64 = 60;
     const MAX_CONF_BPS: u64 = 200;
     const DWELL_SECS: u64 = 10;     // a breach must persist 10s before it latches
-    const DWELL_MS: u64 = 10_000;
-    const EXPIRY: u64 = 1_000_000;  // far beyond the dwell window
+    const ACT_SECS: u64 = 5;        // cover is not claimable until 5s after purchase
+    const ARM_MS: u64 = 5_000;      // arm at activation (t=0 buy)
+    const CONFIRM_MS: u64 = 15_000; // ARM_MS + DWELL_SECS*1000
+    const EXPIRY: u64 = 1_000_000;  // far beyond activation + dwell
     const ASSET: vector<u8> = b"suiUSDe reserve";
 
     fun fund(amount: u64, ctx: &mut TxContext): coin::Coin<SUI> {
@@ -30,7 +32,7 @@ module pyth_lending_demo::pyth_lending_demo_tests {
     fun new_pool(ctx: &mut TxContext): pyth_cover_pool::DepegCoverPool<SUI> {
         pyth_cover_pool::new_pool_for_testing<SUI>(
             FEED, true, EXPO_MAG, THRESHOLD, MAX_AGE, PREMIUM_BPS, MAX_CONF_BPS,
-            DWELL_SECS, ctx,
+            DWELL_SECS, ACT_SECS, ctx,
         )
     }
 
@@ -52,12 +54,13 @@ module pyth_lending_demo::pyth_lending_demo_tests {
         assert!(pyth_lending_demo::is_insured(&market), 0);
         assert!(pyth_lending_demo::reserve_value(&market) == 0, 1);
 
-        // suiUSDe depegs to $0.95 — a keeper arms the breach, then confirms a dwell
-        // later, once the depeg has persisted.
+        // suiUSDe depegs to $0.95 — after activation a keeper arms the breach, then
+        // confirms a dwell later, once the depeg has persisted.
+        clock::set_for_testing(&mut clock, ARM_MS);
         pyth_lending_demo::record_shortfall_at_price_for_testing(
             &mut market, &pool, DEPEG, &clock,
         );
-        clock::set_for_testing(&mut clock, DWELL_MS);
+        clock::set_for_testing(&mut clock, CONFIRM_MS);
         pyth_lending_demo::record_shortfall_at_price_for_testing(
             &mut market, &pool, DEPEG, &clock,
         );
@@ -84,12 +87,12 @@ module pyth_lending_demo::pyth_lending_demo_tests {
         let mut market = pyth_lending_demo::new_for_testing(string::utf8(ASSET), &mut ctx);
         let premium = pyth_cover_pool::premium_for(&pool, 500);
         pyth_lending_demo::insure(
-            &mut market, &mut pool, fund(premium, &mut ctx), 500, 1000, &clock, &mut ctx,
+            &mut market, &mut pool, fund(premium, &mut ctx), 500, EXPIRY, &clock, &mut ctx,
         );
         // Second insure on an already-insured market must abort.
         let premium2 = pyth_cover_pool::premium_for(&pool, 500);
         pyth_lending_demo::insure(
-            &mut market, &mut pool, fund(premium2, &mut ctx), 500, 1000, &clock, &mut ctx,
+            &mut market, &mut pool, fund(premium2, &mut ctx), 500, EXPIRY, &clock, &mut ctx,
         );
 
         test_utils::destroy(market);
@@ -125,7 +128,7 @@ module pyth_lending_demo::pyth_lending_demo_tests {
         let mut market = pyth_lending_demo::new_for_testing(string::utf8(ASSET), &mut ctx);
         let premium = pyth_cover_pool::premium_for(&pool, 500);
         pyth_lending_demo::insure(
-            &mut market, &mut pool, fund(premium, &mut ctx), 500, 1000, &clock, &mut ctx,
+            &mut market, &mut pool, fund(premium, &mut ctx), 500, EXPIRY, &clock, &mut ctx,
         );
         // Insured but never breached → the latched claim must abort, no free payout.
         pyth_lending_demo::cover_shortfall(&mut market, &mut pool, &mut ctx);

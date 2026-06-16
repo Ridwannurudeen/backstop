@@ -61,6 +61,7 @@ export function buildCreatePoolTx(opts: {
   premiumBps: bigint;
   maxConfBps: bigint;
   minDwellSecs: bigint;
+  activationDelaySecs: bigint;
 }): Transaction {
   const tx = new Transaction();
   tx.moveCall({
@@ -75,6 +76,7 @@ export function buildCreatePoolTx(opts: {
       tx.pure.u64(opts.premiumBps),
       tx.pure.u64(opts.maxConfBps),
       tx.pure.u64(opts.minDwellSecs),
+      tx.pure.u64(opts.activationDelaySecs),
     ],
   });
   return tx;
@@ -323,6 +325,9 @@ async function execute(client: SuiClient): Promise<void> {
         premiumBps: 200n,
         maxConfBps: 200n,
         minDwellSecs: BigInt(process.env.MIN_DWELL_SECS ?? "600"), // 10-min sustained breach
+        activationDelaySecs: BigInt(
+          process.env.ACTIVATION_DELAY_SECS ?? "1800",
+        ), // 30-min anti-adverse-selection
       }),
       "create_and_share DepegCoverPool<SUI>",
     );
@@ -384,8 +389,15 @@ async function execute(client: SuiClient): Promise<void> {
     return;
   }
 
-  // Settlement requires a SUSTAINED breach: arm the dwell, wait min_dwell_secs, then
-  // a confirming read latches it. (Stage the money-shot with a small MIN_DWELL_SECS.)
+  // A policy is not claimable until its activation delay elapses (anti-adverse
+  // selection), then settlement requires a SUSTAINED breach: arm, wait min_dwell_secs,
+  // then a confirming read latches it. (Stage the money-shot with small
+  // ACTIVATION_DELAY_SECS + MIN_DWELL_SECS.)
+  const actSecs = Number(process.env.ACTIVATION_DELAY_SECS ?? "1800");
+  console.log(
+    `   waiting ${actSecs}s for the policy activation delay to elapse…`,
+  );
+  await new Promise((r) => setTimeout(r, (actSecs + 2) * 1000));
   await run(
     await buildRecordShortfallTx({
       client,

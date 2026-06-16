@@ -24,7 +24,7 @@ core is architecturally close to Y2K Finance / Risk Harbor and is the right base
 |---|-----|----------|----------|
 | G1 | Settles on a **single instantaneous** Pyth read — a transient wick or one manipulated update pays out | `do_latch`: `assert!(price_mag <= threshold)` at one moment | Critical — ✅ closed (dwell: two sub-threshold reads `min_dwell_secs` apart) |
 | G2 | **Ignores the Pyth confidence interval** (`conf`) | `read_price_magnitude` reads only `get_price`, never `get_conf` (grep: no `conf`) | High — ✅ closed (PR #25: adverse-bound `price+conf<=threshold` + `max_conf_bps` reject) |
-| G3 | **Flat `premium_bps`** set at pool creation; no utilization curve, no cooldown → adverse selection (buy cover at the moment of depeg) | `premium_for = cover * premium_bps / 10_000` | Critical (economic) |
+| G3 | **Flat `premium_bps`** set at pool creation; no utilization curve, no cooldown → adverse selection (buy cover at the moment of depeg) | `premium_for = cover * premium_bps / 10_000` | Critical (economic) — ⏳ cooldown closed (`activation_delay_secs`: no breach recorded until `buy_ms + delay`); utilization premium still TODO |
 | G4 | **No admin / pause / governance / timelock**; `premium_bps`/`threshold`/`max_age` frozen at creation | grep: no `pause`/`AdminCap`/`owner` | High |
 | G5 | **No treasury fee** — 100% of premium to LPs, protocol not sustainable | — | Medium |
 | G6 | **No exposure caps** (per-policy / per-pool) on a fully-correlated single-feed risk | — | High |
@@ -69,9 +69,11 @@ is already used by the testnet tabs, so the pattern exists.
 - Keep `get_price_no_older_than`; tighten `max_age_secs` to ~30–60s for settlement.
 
 ### 1.2 Economics (closes G3, G5, G6)
-- **Activation delay / cooldown.** A freshly bought policy is **not claimable** until
-  `buy_ms + activation_delay`. Kills "buy cover at the instant of depeg" — the single
-  largest economic hole. (Mirrors Y2K's epoch pre-commitment.)
+- **Activation delay / cooldown.** ✅ **Done** — a freshly bought policy cannot record
+  a breach until `buy_ms + activation_delay_secs` (pool param; `do_latch` asserts
+  `now >= activation_ms`, `buy_cover` rejects `expiry <= activation`). Kills "buy cover
+  at the instant of depeg" — the single largest economic hole. (Mirrors Y2K's epoch
+  pre-commitment.)
 - **Utilization-based premium.** Replace flat `premium_bps` with a Nexus-style curve:
   premium rises with `total_cover / pool_value` and decays toward a floor over time,
   so capacity is rationed as a depeg fear builds. (docs.nexusmutual.io/protocol/pricing

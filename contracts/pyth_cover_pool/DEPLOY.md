@@ -93,12 +93,14 @@ LP_SEED=100000000 RESERVE=0 \
   `PREMIUM ≥ 1000000`. The pool must stay collateralized: `LP_SEED ≥ COVER`.
 - suiUSDe sits near \$1.00, so by default (`THRESHOLD_USD=0.97`) the run stops after
   `insure` with the honest "no depeg → premium retained" outcome.
-- **To stage a live claim now:** set `THRESHOLD_USD=1.05` **and** a small
-  `MIN_DWELL_SECS` (e.g. `5`). The pool floor is created above spot, so the breach is
-  observed immediately; settlement still requires a SUSTAINED breach, so the harness
-  arms the dwell, waits `MIN_DWELL_SECS`, confirms, then `cover_shortfall` lands the
-  payout in the reserve — `buy_cover` has no spot-vs-threshold guard, so this is
-  allowed (unlike the testnet Predict IMM). Production pools use a 5–15 min dwell.
+- **To stage a live claim now:** set `THRESHOLD_USD=1.05` **and** small
+  `ACTIVATION_DELAY_SECS` + `MIN_DWELL_SECS` (e.g. `5` each). The pool floor is created
+  above spot, so the breach is observed immediately; settlement still requires the
+  policy to ACTIVATE and the breach to be SUSTAINED, so the harness waits the
+  activation delay, arms the dwell, waits `MIN_DWELL_SECS`, confirms, then
+  `cover_shortfall` lands the payout in the reserve — `buy_cover` has no
+  spot-vs-threshold guard, so this is allowed (unlike the testnet Predict IMM).
+  Production pools use a 30–60 min activation delay and a 5–15 min dwell.
 - Reuse an existing pool instead of creating one by passing `POOL=0x…` (omit
   `BACKSTOP_PKG`/`LP_SEED`).
 
