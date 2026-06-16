@@ -1,7 +1,7 @@
 // Live, read-only proof that Backstop's depeg-cover settlement path works against
 // REAL Pyth on Sui mainnet — no funds, no deploy. For each candidate stablecoin
 // feed it: (1) resolves the on-chain PriceInfoObject (the exact object
-// pyth_cover_pool::claim reads), (2) reads its on-chain price, (3) cross-checks
+// pyth_cover_pool::record_breach reads), (2) reads its on-chain price, (3) cross-checks
 // against Hermes, and (4) evaluates the $0.97 depeg trigger.
 //
 // Run: npx tsx src/pythRead.ts

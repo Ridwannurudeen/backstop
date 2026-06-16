@@ -50,13 +50,22 @@ settled **trustlessly** against a Pyth feed. Reads need a **mainnet** client.
 const mainnet = new SuiClient({ url: getFullnodeUrl("mainnet") });
 
 // Live on-chain Pyth price + the $0.97 depeg trigger (defaults to suiUSDe).
-import { readDepegPrice, buildDepegClaimTx } from "@backstop/sdk";
+import {
+  readDepegPrice,
+  buildDepegRecordBreachTx,
+  buildDepegClaimLatchedTx,
+} from "@backstop/sdk";
 const r = await readDepegPrice(mainnet);
 // { priceUsd: 0.99992, expo: -8, triggered: false, priceObjectId, publishMs }
 
-// Claim refreshes Pyth and settles in one PTB — payout depends only on Pyth.
-const tx = await buildDepegClaimTx({ client: mainnet, pkg, poolId, policyId, owner });
-await mainnet.signAndExecuteTransaction({ signer, transaction: tx });
+// Settlement needs a SUSTAINED breach (dwell) — never a single read. A keeper
+// refreshes Pyth and records the breach to arm the dwell, then again ≥ min_dwell_secs
+// later to confirm it; each call's payout path depends only on Pyth, not on Backstop.
+const arm = await buildDepegRecordBreachTx({ client: mainnet, pkg, poolId, policyId });
+await mainnet.signAndExecuteTransaction({ signer, transaction: arm });
+// …min_dwell_secs later, confirm the breach the same way, then claim:
+const claim = buildDepegClaimLatchedTx({ pkg, poolId, policyId, owner });
+await mainnet.signAndExecuteTransaction({ signer, transaction: claim });
 ```
 
 `readDepegPool(client, poolId)` returns the pool's capital, liability, and terms;

@@ -3,7 +3,7 @@ import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 // Backstop's depeg cover settles on Sui MAINNET Pyth, while the rest of the app
 // runs on testnet — so this panel reads through its own mainnet client. It reads
 // the live Pyth PriceInfoObjects directly (no SDK), the same objects that
-// pyth_cover_pool::claim consumes on-chain.
+// pyth_cover_pool::record_breach consumes on-chain to settle a sustained depeg.
 const mainnet = new SuiClient({ url: getFullnodeUrl("mainnet") });
 
 // A pool insuring "stablecoin < $0.97".

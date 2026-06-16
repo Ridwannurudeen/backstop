@@ -300,45 +300,12 @@ export function buildDepegBuyCoverTx(p: {
 }
 
 /**
- * Build a tx to claim depeg cover **trustlessly**: it refreshes the Pyth feed and
- * calls claim in one PTB, so the payout depends only on Pyth, not on Backstop.
- * Requires a mainnet `client`. Defaults to the suiUSDe feed.
- */
-export async function buildDepegClaimTx(p: {
-  client: SuiClient;
-  pkg: string;
-  poolId: string;
-  policyId: string;
-  owner: string;
-  feedId?: string;
-}): Promise<Transaction> {
-  const feedId = p.feedId ?? SUIUSDE_FEED_ID;
-  const tx = new Transaction();
-  const updates = await new SuiPriceServiceConnection(
-    HERMES,
-  ).getPriceFeedsUpdateData([feedId]);
-  const pyth = new SuiPythClient(p.client, PYTH_STATE, WORMHOLE_STATE);
-  const [priceInfoObjectId] = await pyth.updatePriceFeeds(tx, updates, [
-    feedId,
-  ]);
-  const payout = tx.moveCall({
-    target: `${p.pkg}::pyth_cover_pool::claim`,
-    typeArguments: [SUI_TYPE],
-    arguments: [
-      tx.object(p.poolId),
-      tx.object(priceInfoObjectId),
-      tx.object(p.policyId),
-      tx.object(CLOCK),
-    ],
-  });
-  tx.transferObjects([payout], p.owner);
-  return tx;
-}
-
-/**
- * Build a tx to **record a breach** on a policy: refreshes Pyth and stamps the
- * policy if the feed is below its floor, so it can be claimed later even after the
- * price recovers or the policy expires (a keeper calls this during the dip).
+ * Build a tx to **record a sub-threshold observation** on a policy: refreshes Pyth
+ * and, if the feed is below its floor, advances the policy's dwell latch. Settlement
+ * requires a SUSTAINED breach, so a keeper calls this twice — once to arm the dwell,
+ * then again at least `min_dwell_secs` later to confirm — after which the policy is
+ * claimable via {@link buildDepegClaimLatchedTx}, even once the price recovers or the
+ * policy expires. There is no single-read instant claim. Requires a mainnet `client`.
  */
 export async function buildDepegRecordBreachTx(p: {
   client: SuiClient;

@@ -60,6 +60,7 @@ export function buildCreatePoolTx(opts: {
   maxAgeSecs: bigint;
   premiumBps: bigint;
   maxConfBps: bigint;
+  minDwellSecs: bigint;
 }): Transaction {
   const tx = new Transaction();
   tx.moveCall({
@@ -73,6 +74,7 @@ export function buildCreatePoolTx(opts: {
       tx.pure.u64(opts.maxAgeSecs),
       tx.pure.u64(opts.premiumBps),
       tx.pure.u64(opts.maxConfBps),
+      tx.pure.u64(opts.minDwellSecs),
     ],
   });
   return tx;
@@ -320,6 +322,7 @@ async function execute(client: SuiClient): Promise<void> {
         maxAgeSecs: 60n,
         premiumBps: 200n,
         maxConfBps: 200n,
+        minDwellSecs: BigInt(process.env.MIN_DWELL_SECS ?? "600"), // 10-min sustained breach
       }),
       "create_and_share DepegCoverPool<SUI>",
     );
@@ -381,14 +384,33 @@ async function execute(client: SuiClient): Promise<void> {
     return;
   }
 
-  const recTx = await buildRecordShortfallTx({
-    client,
-    lendPkg,
-    market,
-    pool,
-    feedId: SUIUSDE_FEED,
-  });
-  await run(recTx, "record_shortfall (refresh Pyth + latch breach)");
+  // Settlement requires a SUSTAINED breach: arm the dwell, wait min_dwell_secs, then
+  // a confirming read latches it. (Stage the money-shot with a small MIN_DWELL_SECS.)
+  await run(
+    await buildRecordShortfallTx({
+      client,
+      lendPkg,
+      market,
+      pool,
+      feedId: SUIUSDE_FEED,
+    }),
+    "record_shortfall #1 (refresh Pyth + arm dwell)",
+  );
+  const dwellSecs = Number(process.env.MIN_DWELL_SECS ?? "600");
+  console.log(
+    `   dwell armed — waiting ${dwellSecs}s for the sustained-breach window…`,
+  );
+  await new Promise((r) => setTimeout(r, (dwellSecs + 2) * 1000));
+  await run(
+    await buildRecordShortfallTx({
+      client,
+      lendPkg,
+      market,
+      pool,
+      feedId: SUIUSDE_FEED,
+    }),
+    "record_shortfall #2 (confirm dwell → latch)",
+  );
   const out = await run(
     buildCoverShortfallTx(lendPkg, market, pool),
     "cover_shortfall (claim payout into reserve)",
