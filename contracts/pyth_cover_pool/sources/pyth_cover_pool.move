@@ -73,6 +73,27 @@ module pyth_cover_pool::pyth_cover_pool {
     const EPolicyCoverCap: u64 = 16;
     /// Requested cover would push the pool's total cover past its aggregate cap.
     const EPoolCoverCap: u64 = 17;
+    /// Pool is paused — new deposits and cover purchases are halted (claims are not).
+    const EPaused: u64 = 18;
+    /// AdminCap does not govern this pool.
+    const EWrongAdminCap: u64 = 19;
+    /// Proposed parameter kind is not recognised.
+    const EBadParamKind: u64 = 20;
+    /// No pending parameter update to execute or cancel.
+    const ENoPendingUpdate: u64 = 21;
+    /// The governance timelock on the pending update has not elapsed yet.
+    const ETimelockNotElapsed: u64 = 22;
+
+    // Parameter kinds for timelocked updates.
+    const K_THRESHOLD: u8 = 0;
+    const K_PREMIUM_BPS: u8 = 1;
+    const K_SURGE_PREMIUM_BPS: u8 = 2;
+    const K_MAX_AGE_SECS: u8 = 3;
+    const K_MAX_CONF_BPS: u8 = 4;
+    const K_MIN_DWELL_SECS: u8 = 5;
+    const K_ACTIVATION_DELAY_SECS: u8 = 6;
+    const K_MAX_COVER_PER_POLICY: u8 = 7;
+    const K_MAX_TOTAL_COVER: u8 = 8;
 
     /// Shared mutualized depeg-cover pool insuring one Pyth feed in coin `T`.
     public struct DepegCoverPool<phantom T> has key {
@@ -109,12 +130,34 @@ module pyth_cover_pool::pyth_cover_pool {
         /// Max aggregate `total_cover` the pool will underwrite (0 = bounded only by
         /// full collateralization). A hard ceiling on the pool's correlated exposure.
         max_total_cover: u64,
+        /// When true, `deposit_lp` and `buy_cover` are halted (a guardian emergency
+        /// lever). The claim / settlement path is pause-EXEMPT — payouts never block.
+        paused: bool,
+        /// Governance delay (seconds) a proposed parameter update must wait before it
+        /// can be executed — no silent live changes under LPs/holders.
+        timelock_secs: u64,
+        /// The single in-flight timelocked parameter update, if any.
+        pending: Option<PendingParamUpdate>,
         /// Pooled capital: LP deposits + collected premiums.
         funds: Balance<T>,
         /// Total LP shares outstanding.
         total_shares: u64,
         /// Sum of cover on active policies — the pool's outstanding liability.
         total_cover: u64,
+    }
+
+    /// Governs one pool: pause toggle + timelocked parameter updates. Minted to the
+    /// pool creator at `create_and_share`. Not phantom-typed — it carries `pool_id`.
+    public struct AdminCap has key, store {
+        id: UID,
+        pool_id: ID,
+    }
+
+    /// A proposed parameter change waiting out the pool's governance timelock.
+    public struct PendingParamUpdate has copy, drop, store {
+        kind: u8,
+        value: u64,
+        eta_ms: u64,
     }
 
     /// An LP's claim on the pool, redeemable for a proportional slice of `funds`.
@@ -159,6 +202,29 @@ module pyth_cover_pool::pyth_cover_pool {
         expiry_ms: u64,
     }
 
+    public struct PausedSet has copy, drop {
+        pool: ID,
+        paused: bool,
+    }
+
+    public struct ParamUpdateProposed has copy, drop {
+        pool: ID,
+        kind: u8,
+        value: u64,
+        eta_ms: u64,
+    }
+
+    public struct ParamUpdateExecuted has copy, drop {
+        pool: ID,
+        kind: u8,
+        value: u64,
+    }
+
+    public struct ParamUpdateCancelled has copy, drop {
+        pool: ID,
+        kind: u8,
+    }
+
     public struct Claimed has copy, drop {
         pool: ID,
         cover: u64,
@@ -193,6 +259,7 @@ module pyth_cover_pool::pyth_cover_pool {
         activation_delay_secs: u64,
         max_cover_per_policy: u64,
         max_total_cover: u64,
+        timelock_secs: u64,
         ctx: &mut TxContext,
     ): DepegCoverPool<T> {
         DepegCoverPool {
@@ -209,13 +276,17 @@ module pyth_cover_pool::pyth_cover_pool {
             activation_delay_secs,
             max_cover_per_policy,
             max_total_cover,
+            paused: false,
+            timelock_secs,
+            pending: option::none(),
             funds: balance::zero<T>(),
             total_shares: 0,
             total_cover: 0,
         }
     }
 
-    /// Create and share a depeg-cover pool insuring `feed_id` below `threshold`.
+    /// Create and share a depeg-cover pool insuring `feed_id` below `threshold`, and
+    /// transfer its `AdminCap` (pause + timelocked governance) to the creator.
     public entry fun create_and_share<T>(
         feed_id: vector<u8>,
         expo_neg: bool,
@@ -229,19 +300,22 @@ module pyth_cover_pool::pyth_cover_pool {
         activation_delay_secs: u64,
         max_cover_per_policy: u64,
         max_total_cover: u64,
+        timelock_secs: u64,
         ctx: &mut TxContext,
     ) {
         let pool = new_pool<T>(
             feed_id, expo_neg, expo_mag, threshold, max_age_secs, premium_bps,
             surge_premium_bps, max_conf_bps, min_dwell_secs, activation_delay_secs,
-            max_cover_per_policy, max_total_cover, ctx,
+            max_cover_per_policy, max_total_cover, timelock_secs, ctx,
         );
+        let pool_id = object::id(&pool);
         event::emit(PoolCreated {
-            pool: object::id(&pool),
+            pool: pool_id,
             feed_id: pool.feed_id,
             threshold,
             premium_bps,
         });
+        transfer::transfer(AdminCap { id: object::new(ctx), pool_id }, ctx.sender());
         transfer::share_object(pool);
     }
 
@@ -254,6 +328,7 @@ module pyth_cover_pool::pyth_cover_pool {
         coin: Coin<T>,
         ctx: &mut TxContext,
     ): LpShare<T> {
+        assert!(!pool.paused, EPaused);
         let amount = coin::value(&coin);
         assert!(amount > 0, EZeroAmount);
         let value_before = balance::value(&pool.funds);
@@ -319,6 +394,7 @@ module pyth_cover_pool::pyth_cover_pool {
         clock: &Clock,
         ctx: &mut TxContext,
     ): Policy<T> {
+        assert!(!pool.paused, EPaused);
         assert!(cover > 0, EZeroAmount);
         assert!(expiry_ms > clock::timestamp_ms(clock), EPolicyExpired);
         let activation_ms = clock::timestamp_ms(clock) + pool.activation_delay_secs * 1000;
@@ -500,6 +576,73 @@ module pyth_cover_pool::pyth_cover_pool {
         settle(pool, policy, ctx)
     }
 
+    // --- Governance (AdminCap-gated) ---
+    // Pause is an immediate emergency lever; it halts new deposits/cover but NEVER the
+    // claim path. Parameter changes go through the pool's timelock so LPs and holders
+    // can see them coming.
+
+    fun assert_admin<T>(pool: &DepegCoverPool<T>, cap: &AdminCap) {
+        assert!(cap.pool_id == object::id(pool), EWrongAdminCap);
+    }
+
+    /// Pause or unpause new deposits and cover purchases (claims stay open).
+    public fun set_paused<T>(pool: &mut DepegCoverPool<T>, cap: &AdminCap, paused: bool) {
+        assert_admin(pool, cap);
+        pool.paused = paused;
+        event::emit(PausedSet { pool: object::id(pool), paused });
+    }
+
+    /// Propose a timelocked parameter update; replaces any pending one. `kind` selects
+    /// the field (see the K_* constants), `value` is the new u64 value.
+    public fun propose_param_update<T>(
+        pool: &mut DepegCoverPool<T>,
+        cap: &AdminCap,
+        kind: u8,
+        value: u64,
+        clock: &Clock,
+    ) {
+        assert_admin(pool, cap);
+        assert!(kind <= K_MAX_TOTAL_COVER, EBadParamKind);
+        let eta_ms = clock::timestamp_ms(clock) + pool.timelock_secs * 1000;
+        pool.pending = option::some(PendingParamUpdate { kind, value, eta_ms });
+        event::emit(ParamUpdateProposed { pool: object::id(pool), kind, value, eta_ms });
+    }
+
+    /// Execute the pending parameter update once its timelock has elapsed.
+    public fun execute_param_update<T>(
+        pool: &mut DepegCoverPool<T>,
+        cap: &AdminCap,
+        clock: &Clock,
+    ) {
+        assert_admin(pool, cap);
+        assert!(option::is_some(&pool.pending), ENoPendingUpdate);
+        let u = *option::borrow(&pool.pending);
+        assert!(clock::timestamp_ms(clock) >= u.eta_ms, ETimelockNotElapsed);
+        apply_param(pool, u.kind, u.value);
+        pool.pending = option::none();
+        event::emit(ParamUpdateExecuted { pool: object::id(pool), kind: u.kind, value: u.value });
+    }
+
+    /// Cancel the pending parameter update without applying it.
+    public fun cancel_param_update<T>(pool: &mut DepegCoverPool<T>, cap: &AdminCap) {
+        assert_admin(pool, cap);
+        assert!(option::is_some(&pool.pending), ENoPendingUpdate);
+        let u = option::extract(&mut pool.pending);
+        event::emit(ParamUpdateCancelled { pool: object::id(pool), kind: u.kind });
+    }
+
+    fun apply_param<T>(pool: &mut DepegCoverPool<T>, kind: u8, value: u64) {
+        if (kind == K_THRESHOLD) { pool.threshold = value }
+        else if (kind == K_PREMIUM_BPS) { pool.premium_bps = value }
+        else if (kind == K_SURGE_PREMIUM_BPS) { pool.surge_premium_bps = value }
+        else if (kind == K_MAX_AGE_SECS) { pool.max_age_secs = value }
+        else if (kind == K_MAX_CONF_BPS) { pool.max_conf_bps = value }
+        else if (kind == K_MIN_DWELL_SECS) { pool.min_dwell_secs = value }
+        else if (kind == K_ACTIVATION_DELAY_SECS) { pool.activation_delay_secs = value }
+        else if (kind == K_MAX_COVER_PER_POLICY) { pool.max_cover_per_policy = value }
+        else { pool.max_total_cover = value } // K_MAX_TOTAL_COVER (kind validated on propose)
+    }
+
     // --- Views ---
 
     public fun pool_value<T>(pool: &DepegCoverPool<T>): u64 { balance::value(&pool.funds) }
@@ -515,6 +658,9 @@ module pyth_cover_pool::pyth_cover_pool {
     public fun activation_delay_secs<T>(pool: &DepegCoverPool<T>): u64 { pool.activation_delay_secs }
     public fun max_cover_per_policy<T>(pool: &DepegCoverPool<T>): u64 { pool.max_cover_per_policy }
     public fun max_total_cover<T>(pool: &DepegCoverPool<T>): u64 { pool.max_total_cover }
+    public fun is_paused<T>(pool: &DepegCoverPool<T>): bool { pool.paused }
+    public fun timelock_secs<T>(pool: &DepegCoverPool<T>): u64 { pool.timelock_secs }
+    public fun has_pending_update<T>(pool: &DepegCoverPool<T>): bool { option::is_some(&pool.pending) }
 
     public fun shares<T>(s: &LpShare<T>): u64 { s.shares }
     public fun policy_cover<T>(p: &Policy<T>): u64 { p.cover }
@@ -538,13 +684,24 @@ module pyth_cover_pool::pyth_cover_pool {
         activation_delay_secs: u64,
         max_cover_per_policy: u64,
         max_total_cover: u64,
+        timelock_secs: u64,
         ctx: &mut TxContext,
     ): DepegCoverPool<T> {
         new_pool<T>(
             feed_id, expo_neg, expo_mag, threshold, max_age_secs, premium_bps,
             surge_premium_bps, max_conf_bps, min_dwell_secs, activation_delay_secs,
-            max_cover_per_policy, max_total_cover, ctx,
+            max_cover_per_policy, max_total_cover, timelock_secs, ctx,
         )
+    }
+
+    #[test_only]
+    /// Mint an AdminCap for a pool in tests (production caps are minted only at
+    /// `create_and_share`).
+    public fun new_admin_cap_for_testing<T>(
+        pool: &DepegCoverPool<T>,
+        ctx: &mut TxContext,
+    ): AdminCap {
+        AdminCap { id: object::new(ctx), pool_id: object::id(pool) }
     }
 
     #[test_only]

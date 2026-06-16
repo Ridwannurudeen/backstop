@@ -22,6 +22,7 @@ module pyth_cover_pool::pyth_cover_pool_tests {
     const DWELL_SECS: u64 = 10;        // a breach must persist 10s before it latches
     const ACT_SECS: u64 = 5;           // cover is not claimable until 5s after purchase
     const ACT_MS: u64 = 5_000;         // ACT_SECS in ms (first claimable instant)
+    const TIMELOCK_SECS: u64 = 100;    // governance delay on parameter updates
     const ARM_MS: u64 = ACT_MS;        // arm at activation (t=0 buy)
     const CONFIRM_MS: u64 = 15_000;    // ARM_MS + DWELL_SECS*1000
     const EXPIRY: u64 = 1_000_000;     // far beyond activation + dwell
@@ -33,7 +34,7 @@ module pyth_cover_pool::pyth_cover_pool_tests {
     fun new_pool(premium_bps: u64, ctx: &mut TxContext): DepegCoverPool<TESTCOIN> {
         pyth_cover_pool::new_pool_for_testing<TESTCOIN>(
             FEED, true, EXPO_MAG, THRESHOLD, MAX_AGE, premium_bps, SURGE_BPS,
-            MAX_CONF_BPS, DWELL_SECS, ACT_SECS, 0, 0, ctx,
+            MAX_CONF_BPS, DWELL_SECS, ACT_SECS, 0, 0, TIMELOCK_SECS, ctx,
         )
     }
 
@@ -44,7 +45,8 @@ module pyth_cover_pool::pyth_cover_pool_tests {
     ): DepegCoverPool<TESTCOIN> {
         pyth_cover_pool::new_pool_for_testing<TESTCOIN>(
             FEED, true, EXPO_MAG, THRESHOLD, MAX_AGE, PREMIUM_BPS, SURGE_BPS,
-            MAX_CONF_BPS, DWELL_SECS, ACT_SECS, max_cover_per_policy, max_total_cover, ctx,
+            MAX_CONF_BPS, DWELL_SECS, ACT_SECS, max_cover_per_policy, max_total_cover,
+            TIMELOCK_SECS, ctx,
         )
     }
 
@@ -470,5 +472,124 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         test_utils::destroy(lp);
         clock::destroy_for_testing(clock);
         test_utils::destroy(pool);
+    }
+
+    // --- Governance ---
+
+    #[test]
+    #[expected_failure(abort_code = pyth_cover_pool::EPaused)]
+    fun paused_blocks_buy() {
+        let mut ctx = tx_context::dummy();
+        let clock = clock::create_for_testing(&mut ctx);
+        let mut pool = new_pool(PREMIUM_BPS, &mut ctx);
+        let cap = pyth_cover_pool::new_admin_cap_for_testing(&pool, &mut ctx);
+        let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(1000, &mut ctx), &mut ctx);
+
+        pyth_cover_pool::set_paused(&mut pool, &cap, true);
+        assert!(pyth_cover_pool::is_paused(&pool), 0);
+        let policy = buy(&mut pool, 500, EXPIRY, &clock, &mut ctx);
+
+        test_utils::destroy(policy);
+        test_utils::destroy(lp);
+        test_utils::destroy(cap);
+        clock::destroy_for_testing(clock);
+        test_utils::destroy(pool);
+    }
+
+    #[test]
+    fun claim_works_while_paused() {
+        // The key safety property: a guardian pause never blocks payouts.
+        let mut ctx = tx_context::dummy();
+        let mut clock = clock::create_for_testing(&mut ctx);
+        let mut pool = new_pool(PREMIUM_BPS, &mut ctx);
+        let cap = pyth_cover_pool::new_admin_cap_for_testing(&pool, &mut ctx);
+        let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(1000, &mut ctx), &mut ctx);
+        let mut policy = buy(&mut pool, 500, EXPIRY, &clock, &mut ctx);
+
+        clock::set_for_testing(&mut clock, ARM_MS);
+        pyth_cover_pool::latch_at_price_for_testing(&pool, &mut policy, DEPEG, 0, &clock);
+        clock::set_for_testing(&mut clock, CONFIRM_MS);
+        pyth_cover_pool::latch_at_price_for_testing(&pool, &mut policy, DEPEG, 0, &clock);
+
+        // Pause the pool, then claim anyway — settlement is pause-exempt.
+        pyth_cover_pool::set_paused(&mut pool, &cap, true);
+        let payout = pyth_cover_pool::claim_latched(&mut pool, policy, &mut ctx);
+        assert!(coin::value(&payout) == 500, 0);
+
+        coin::burn_for_testing(payout);
+        test_utils::destroy(lp);
+        test_utils::destroy(cap);
+        clock::destroy_for_testing(clock);
+        test_utils::destroy(pool);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = pyth_cover_pool::ETimelockNotElapsed)]
+    fun param_update_blocked_before_timelock() {
+        let mut ctx = tx_context::dummy();
+        let clock = clock::create_for_testing(&mut ctx);
+        let mut pool = new_pool(PREMIUM_BPS, &mut ctx);
+        let cap = pyth_cover_pool::new_admin_cap_for_testing(&pool, &mut ctx);
+
+        // Propose lowering the threshold; executing immediately must abort.
+        pyth_cover_pool::propose_param_update(&mut pool, &cap, 0, 90_000_000, &clock);
+        assert!(pyth_cover_pool::has_pending_update(&pool), 0);
+        pyth_cover_pool::execute_param_update(&mut pool, &cap, &clock);
+
+        test_utils::destroy(cap);
+        clock::destroy_for_testing(clock);
+        test_utils::destroy(pool);
+    }
+
+    #[test]
+    fun param_update_executes_after_timelock() {
+        let mut ctx = tx_context::dummy();
+        let mut clock = clock::create_for_testing(&mut ctx);
+        let mut pool = new_pool(PREMIUM_BPS, &mut ctx);
+        let cap = pyth_cover_pool::new_admin_cap_for_testing(&pool, &mut ctx);
+
+        pyth_cover_pool::propose_param_update(&mut pool, &cap, 0, 90_000_000, &clock);
+        clock::set_for_testing(&mut clock, TIMELOCK_SECS * 1000);
+        pyth_cover_pool::execute_param_update(&mut pool, &cap, &clock);
+        assert!(pyth_cover_pool::threshold(&pool) == 90_000_000, 0);
+        assert!(!pyth_cover_pool::has_pending_update(&pool), 1);
+
+        test_utils::destroy(cap);
+        clock::destroy_for_testing(clock);
+        test_utils::destroy(pool);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = pyth_cover_pool::ENoPendingUpdate)]
+    fun cancelled_update_cannot_execute() {
+        let mut ctx = tx_context::dummy();
+        let mut clock = clock::create_for_testing(&mut ctx);
+        let mut pool = new_pool(PREMIUM_BPS, &mut ctx);
+        let cap = pyth_cover_pool::new_admin_cap_for_testing(&pool, &mut ctx);
+
+        pyth_cover_pool::propose_param_update(&mut pool, &cap, 1, 500, &clock);
+        pyth_cover_pool::cancel_param_update(&mut pool, &cap);
+        clock::set_for_testing(&mut clock, TIMELOCK_SECS * 1000);
+        // Nothing pending → execute aborts.
+        pyth_cover_pool::execute_param_update(&mut pool, &cap, &clock);
+
+        test_utils::destroy(cap);
+        clock::destroy_for_testing(clock);
+        test_utils::destroy(pool);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = pyth_cover_pool::EWrongAdminCap)]
+    fun wrong_admin_cap_rejected() {
+        let mut ctx = tx_context::dummy();
+        let mut poola = new_pool(PREMIUM_BPS, &mut ctx);
+        let mut poolb = new_pool(PREMIUM_BPS, &mut ctx);
+        // A cap minted for pool A cannot govern pool B.
+        let cap_a = pyth_cover_pool::new_admin_cap_for_testing(&poola, &mut ctx);
+        pyth_cover_pool::set_paused(&mut poolb, &cap_a, true);
+
+        test_utils::destroy(cap_a);
+        test_utils::destroy(poola);
+        test_utils::destroy(poolb);
     }
 }
