@@ -72,6 +72,8 @@ backstop.gudman.xyz.
   claim-exempt `set_paused`, timelocked `propose/execute/cancel_param_update`.
 - **G5** treasury fee — paid premiums are split into LP net premium + protocol
   treasury, admin-only treasury withdrawal, and timelocked `treasury_fee_bps`.
+- **G8** keeper bounty — breach-confirming keepers are paid a fixed bounty from the
+  treasury when funded; an empty treasury never blocks the latch.
 
 Current `pyth_cover_pool` public API (for reference when building UI/SDK):
 `new_pool`, `create_and_share` (entry), `deposit_lp`, `withdraw_lp`, `premium_rate_bps`,
@@ -81,18 +83,18 @@ Current `pyth_cover_pool` public API (for reference when building UI/SDK):
 plus views (`pool_value`, `total_cover`, `total_shares`, `threshold`, `premium_bps`,
 `surge_premium_bps`, `max_conf_bps`, `max_age_secs`, `min_dwell_secs`,
 `activation_delay_secs`, `max_cover_per_policy`, `max_total_cover`, `is_paused`,
-`treasury_value`, `treasury_fee_bps`, `timelock_secs`, `has_pending_update`, and
-`policy_*` / `shares`).
+`treasury_value`, `treasury_fee_bps`, `keeper_bounty`, `timelock_secs`,
+`has_pending_update`, and `policy_*` / `shares`).
 
 `create_and_share` arg order (positional): `feed_id, expo_neg, expo_mag, threshold,
 max_age_secs, premium_bps, surge_premium_bps, max_conf_bps, min_dwell_secs,
 activation_delay_secs, max_cover_per_policy, max_total_cover, timelock_secs,
-treasury_fee_bps, ctx`.
+treasury_fee_bps, keeper_bounty, ctx`.
 
 SDK depeg exports: `readDepegPrice`, `readDepegPool`, `quoteDepegPremium`,
 `buildDepegBuyCoverTx`, `buildDepegRecordBreachTx`, `buildDepegClaimLatchedTx`.
 
-Tests today: `pyth_cover_pool` 31/31, `pyth_lending_demo` 4/4 (both green).
+Tests today: `pyth_cover_pool` 34/34, `pyth_lending_demo` 4/4 (both green).
 
 ---
 
@@ -107,20 +109,12 @@ ripple, SDK pool fields, deploy docs, and 500 bps default in the provisioner.
 Acceptance is green: fee skim, LP net premium, admin withdrawal, wrong cap,
 post-fee collateralization, and timelocked fee update tests.
 
-#### A2 — G8 Keeper bounty  *(touches `record_breach` signature)*
-Reward whoever posts the Pyth update + arms/confirms the dwell (Pyth is pull-based).
-- Add pool field `keeper_bounty: u64` (coin units), paid from `treasury` (preferred) to
-  `ctx.sender()` **once**, on the CONFIRM transition (when `breached` flips true).
-- This requires `record_breach` to take `&mut DepegCoverPool` + `ctx` (currently `&` +
-  no ctx). **Ripple to handle:** the SDK `buildDepegRecordBreachTx` moveCall args are
-  unchanged (the pool object is already passed; `&`→`&mut` is transparent to the PTB,
-  but `ctx` is implicit so no new arg) — verify; `pyth_lending_demo::record_shortfall`
-  must pass `&mut pool` + `ctx` and so must its callers/tests; `do_latch` likewise.
-- Guard: pay only if `treasury` has funds (else pay 0 / skip — never abort the latch).
-  Keep it a fixed bounty; gas-rebate sizing is a Phase-5 refinement.
-- Ctor gains `keeper_bounty` (ripple). Timelockable (optional).
-- **Acceptance:** test that a confirm pays the keeper exactly once from treasury and
-  the latch still works when treasury is empty. All suites green.
+#### A2 — G8 Keeper bounty  *(done)*
+Implemented in branch `feat/pyth-keeper-bounty`: `keeper_bounty`, confirm-only
+treasury payout to `ctx.sender()`, `record_breach`/consumer mutable-pool ripple,
+timelocked parameter kind `10`, SDK pool field, deploy docs, and provisioner default
+`KEEPER_BOUNTY=100000` (0.0001 SUI). Acceptance is green: confirm pays once from
+treasury, empty treasury never blocks latch, and timelocked bounty updates execute.
 
 #### A3 — Sui Prover invariant  *(assurance, optional but in Phase-1 acceptance)*
 Prove `value(funds) >= total_cover` and share accounting with **Sui Prover**. If the

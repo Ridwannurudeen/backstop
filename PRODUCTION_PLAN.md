@@ -29,7 +29,7 @@ core is architecturally close to Y2K Finance / Risk Harbor and is the right base
 | G5 | **No treasury fee** — 100% of premium to LPs, protocol not sustainable | — | Medium — ✅ closed (`treasury_fee_bps` premium skim + admin-only treasury withdrawal) |
 | G6 | **No exposure caps** (per-policy / per-pool) on a fully-correlated single-feed risk | — | High — ✅ closed (`max_cover_per_policy` + `max_total_cover` pool caps, 0 = uncapped; full collateralization kept) |
 | G7 | **UpgradeCap** would sit in a hot EOA (the deployer) | `deployPackage.ts` transfers UpgradeCap to sender | High |
-| G8 | **No keeper incentive** to record a breach during the dip (Pyth is pull-based) | `record_breach` is permissionless but unrewarded | Medium |
+| G8 | **No keeper incentive** to record a breach during the dip (Pyth is pull-based) | `record_breach` is permissionless but unrewarded | Medium — ✅ closed (`keeper_bounty` paid from treasury on confirm) |
 | G9 | **Not deployed to mainnet, no audit, no formal verification** | `deployment.json` has no pyth/mainnet entry | Gating |
 | G10 | **Agent can overwrite the live public feed with `[]`** on an empty/all-failed cycle | `index.ts:162`+`:246` `persist()` writes unconditionally | High (live demo) |
 | G11 | **Risk terminal defaults to soonest/0d term** → no curve on load; term options labeled by ambiguous `Nd` | `RiskTerminal.tsx:46` (idx 0); `predict.ts:202` soonest-first, no quoteability filter | Medium |
@@ -89,6 +89,8 @@ is already used by the testnet tabs, so the pattern exists.
 - **Treasury fee.** ✅ **Done** — `treasury_fee_bps` splits a protocol fee off each
   paid premium into a treasury balance for sustainability + keeper funding, while LPs
   receive the net premium and full collateralization is re-checked after the skim.
+- **Keeper bounty.** ✅ **Done** — `keeper_bounty` pays the confirming keeper from the
+  treasury once when a breach latches; if treasury is empty, the latch still succeeds.
 
 ### 1.3 Safety & governance (closes G4, G7)
 - **AdminCap + pause** — ✅ **Done**. `AdminCap` (carries `pool_id`) is minted to the
@@ -109,9 +111,9 @@ is already used by the testnet tabs, so the pattern exists.
   are already private — keep new ones so.
 
 ### 1.4 Keeper (closes G8)
-- Pay a **keeper bounty / gas rebate** from the treasury (or a slice of the pool) to
-  whoever posts the fresh Pyth update and arms the dwell latch, so breaches are
-  reliably recorded during the dip.
+- **Keeper bounty.** ✅ **Done** — a fixed `keeper_bounty` is paid from treasury to the
+  confirming caller when the dwell latches. The payout is best-effort: insufficient
+  treasury skips the bounty and never blocks settlement.
 
 ### 1.5 Interactive mainnet app (the explicit requirement)
 The product becomes a **wallet-connected mainnet dApp**, not a read-only display:
@@ -190,7 +192,7 @@ Additive, behaviour-preserving where possible; new state fields + new entry func
 - Utilization premium curve replacing flat `premium_bps` (G3).
 - Per-policy + per-pool exposure caps (G6).
 - `AdminCap` + pause (claim-exempt) + timelocked param setters (G4).
-- Treasury fee split ✅ + keeper bounty (G5 closed, G8 remains).
+- Treasury fee split ✅ + keeper bounty ✅ (G5/G8 closed).
 - Full unit tests (happy + each abort + adverse-bound + dwell + cooldown + cap +
   pause-exempt-claim) via `.tools/sui.exe move test`.
 - **Sui Prover** proof of `value(funds) >= total_cover` and share accounting.
@@ -246,7 +248,7 @@ Additive, behaviour-preserving where possible; new state fields + new entry func
 | premium curve | utilization slope + daily decay + floor | Nexus template: +0.2%/1% capacity, −2%/day |
 | `max_cover_per_policy`, global cap | exposure limits | size to seeded capital |
 | treasury fee | sustainability | 5–10% of premium |
-| keeper bounty | breach-recording incentive | small fixed + gas rebate |
+| keeper bounty | breach-recording incentive | 100000 MIST provisioner default; calibrate |
 
 All starting points are **templates from cited protocols, not tuned for Sui** —
 Phase 0 backtesting fixes them.

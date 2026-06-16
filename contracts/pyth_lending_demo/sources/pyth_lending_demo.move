@@ -78,13 +78,14 @@ module pyth_lending_demo::pyth_lending_demo {
     /// (via `record_breach`) unless the feed is at/below the pool floor and unexpired.
     public fun record_shortfall(
         m: &mut LendingMarket,
-        pool: &DepegCoverPool<SUI>,
+        pool: &mut DepegCoverPool<SUI>,
         price_info_object: &PriceInfoObject,
         clock: &Clock,
+        ctx: &mut TxContext,
     ) {
         assert!(option::is_some(&m.policy), ENotInsured);
         pyth_cover_pool::record_breach(
-            pool, option::borrow_mut(&mut m.policy), price_info_object, clock,
+            pool, option::borrow_mut(&mut m.policy), price_info_object, clock, ctx,
         );
     }
 
@@ -118,13 +119,14 @@ module pyth_lending_demo::pyth_lending_demo {
     /// object), so the consumer's claim path is unit-testable without a live feed.
     public fun record_shortfall_at_price_for_testing(
         m: &mut LendingMarket,
-        pool: &DepegCoverPool<SUI>,
+        pool: &mut DepegCoverPool<SUI>,
         price_mag: u64,
         clock: &Clock,
+        ctx: &mut TxContext,
     ) {
         assert!(option::is_some(&m.policy), ENotInsured);
         pyth_cover_pool::latch_at_price_for_testing(
-            pool, option::borrow_mut(&mut m.policy), price_mag, 0, clock,
+            pool, option::borrow_mut(&mut m.policy), price_mag, 0, clock, ctx,
         );
     }
 }

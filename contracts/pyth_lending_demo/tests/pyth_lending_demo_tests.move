@@ -18,6 +18,7 @@ module pyth_lending_demo::pyth_lending_demo_tests {
     const PREMIUM_BPS: u64 = 200;      // 2% base rate (0% utilization)
     const SURGE_BPS: u64 = 800;        // +8% at 100% utilization
     const TREASURY_FEE_BPS: u64 = 500; // 5% protocol fee on paid premiums
+    const KEEPER_BOUNTY: u64 = 2;
     const MAX_AGE: u64 = 60;
     const MAX_CONF_BPS: u64 = 200;
     const DWELL_SECS: u64 = 10;     // a breach must persist 10s before it latches
@@ -34,7 +35,8 @@ module pyth_lending_demo::pyth_lending_demo_tests {
     fun new_pool(ctx: &mut TxContext): pyth_cover_pool::DepegCoverPool<SUI> {
         pyth_cover_pool::new_pool_for_testing<SUI>(
             FEED, true, EXPO_MAG, THRESHOLD, MAX_AGE, PREMIUM_BPS, SURGE_BPS,
-            MAX_CONF_BPS, DWELL_SECS, ACT_SECS, 0, 0, 0, TREASURY_FEE_BPS, ctx,
+            MAX_CONF_BPS, DWELL_SECS, ACT_SECS, 0, 0, 0, TREASURY_FEE_BPS,
+            KEEPER_BOUNTY, ctx,
         )
     }
 
@@ -60,11 +62,11 @@ module pyth_lending_demo::pyth_lending_demo_tests {
         // confirms a dwell later, once the depeg has persisted.
         clock::set_for_testing(&mut clock, ARM_MS);
         pyth_lending_demo::record_shortfall_at_price_for_testing(
-            &mut market, &pool, DEPEG, &clock,
+            &mut market, &mut pool, DEPEG, &clock, &mut ctx,
         );
         clock::set_for_testing(&mut clock, CONFIRM_MS);
         pyth_lending_demo::record_shortfall_at_price_for_testing(
-            &mut market, &pool, DEPEG, &clock,
+            &mut market, &mut pool, DEPEG, &clock, &mut ctx,
         );
 
         // The backstop claims the latched payout into the reserve.

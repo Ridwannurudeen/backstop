@@ -67,6 +67,7 @@ export function buildCreatePoolTx(opts: {
   maxTotalCover: bigint;
   timelockSecs: bigint;
   treasuryFeeBps: bigint;
+  keeperBountyMist: bigint;
 }): Transaction {
   const tx = new Transaction();
   tx.moveCall({
@@ -87,6 +88,7 @@ export function buildCreatePoolTx(opts: {
       tx.pure.u64(opts.maxTotalCover),
       tx.pure.u64(opts.timelockSecs),
       tx.pure.u64(opts.treasuryFeeBps),
+      tx.pure.u64(opts.keeperBountyMist),
     ],
   });
   return tx;
@@ -279,7 +281,7 @@ async function simulate(client: SuiClient): Promise<void> {
     "                     + POOL (reuse) OR BACKSTOP_PKG (create+seed a pool)",
   );
   console.log(
-    "                     [MARKET, RESERVE, LP_SEED, THRESHOLD_USD]  (needs a funded mainnet wallet)",
+    "                     [MARKET, RESERVE, LP_SEED, THRESHOLD_USD, KEEPER_BOUNTY]  (needs a funded mainnet wallet)",
   );
 }
 
@@ -343,6 +345,7 @@ async function execute(client: SuiClient): Promise<void> {
         maxTotalCover: BigInt(process.env.MAX_TOTAL_COVER ?? "0"), // 0 = uncapped
         timelockSecs: BigInt(process.env.TIMELOCK_SECS ?? "86400"), // 24h governance delay
         treasuryFeeBps: BigInt(process.env.TREASURY_FEE_BPS ?? "500"), // 5% protocol fee
+        keeperBountyMist: BigInt(process.env.KEEPER_BOUNTY ?? "100000"), // 0.0001 SUI keeper reward
       }),
       "create_and_share DepegCoverPool<SUI>",
     );

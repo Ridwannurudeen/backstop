@@ -84,7 +84,7 @@ LENDING_PKG=<step 3 PACKAGE> \
 BACKSTOP_PKG=<step 1 PACKAGE> \
 SUI_PRIVATE_KEY=suiprivkey1… \
 COVER=50000000 PREMIUM=1000000 \
-LP_SEED=100000000 RESERVE=0 \
+LP_SEED=100000000 RESERVE=0 KEEPER_BOUNTY=100000 \
   npm run pyth-lending -- --execute
 ```
 
@@ -97,6 +97,9 @@ LP_SEED=100000000 RESERVE=0 \
   the pool re-checks collateralization after the skim. The pool must stay
   collateralized: `LP_SEED ≥ COVER`. Tune the curve with `SURGE_PREMIUM_BPS` (default
   800 = +8% at full utilization).
+- `KEEPER_BOUNTY` is in MIST and defaults to `100000` (0.0001 SUI). It is paid from
+  the protocol treasury to the keeper that confirms the dwell latch; if treasury is
+  empty or below the bounty, settlement still latches and the bounty is skipped.
 - suiUSDe sits near \$1.00, so by default (`THRESHOLD_USD=0.97`) the run stops after
   `insure` with the honest "no depeg → premium retained" outcome.
 - **To stage a live claim now:** set `THRESHOLD_USD=1.05` **and** small

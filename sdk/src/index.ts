@@ -251,6 +251,8 @@ export type DepegPoolState = {
   maxTotalCoverMist: bigint;
   /** Protocol fee skimmed from each paid premium, in basis points. */
   treasuryFeeBps: number;
+  /** Fixed keeper reward in MIST, paid from treasury on breach confirmation. */
+  keeperBountyMist: bigint;
   /** Protocol-owned premium fees in MIST. */
   treasuryMist: bigint;
   /** When true, new deposits/cover are halted (claims are still allowed). */
@@ -309,6 +311,7 @@ export async function readDepegPool(
     maxCoverPerPolicyMist: BigInt(f.max_cover_per_policy as string),
     maxTotalCoverMist: BigInt(f.max_total_cover as string),
     treasuryFeeBps: Number(f.treasury_fee_bps),
+    keeperBountyMist: BigInt(f.keeper_bounty as string),
     treasuryMist: BigInt(f.treasury as string),
     paused: Boolean(f.paused),
     timelockSecs: Number(f.timelock_secs),
