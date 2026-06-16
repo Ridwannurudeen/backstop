@@ -1,16 +1,24 @@
 // Off-chain PTB harness for Backstop's Pyth-settled depeg cover (Sui MAINNET).
 //
-//  - buildBuyCoverTx / buildClaimTx: the transactions a funded wallet runs to buy
-//    cover and to settle a claim. `claim` is the trustless path: it pulls a fresh
-//    Pyth update (updatePriceFeeds) and calls pyth_cover_pool::claim in the same PTB.
+//  - buildBuyCoverTx / buildRecordBreachTx / buildClaimLatchedTx: the transactions a
+//    funded wallet runs. Settlement requires a SUSTAINED breach (dwell): a keeper
+//    pulls a fresh Pyth update (updatePriceFeeds) and calls pyth_cover_pool::
+//    record_breach to ARM the dwell, then again ≥ min_dwell_secs later to CONFIRM it;
+//    the holder then claim_latched's the payout (no Pyth read needed). There is no
+//    single-read instant claim — a wick cannot pay.
 //  - default CLI (`npx tsx src/pythCover.ts`): a NO-FUNDS, read-only devInspect that
-//    proves the update + freshness-read at the heart of claim works against LIVE
-//    mainnet Pyth — same PriceInfoObject + get_price_no_older_than the contract uses.
-//  - `--execute`: runs buy (+ claim if POLICY set) on mainnet. Env-gated, real funds.
+//    proves the update + freshness-read at the heart of record_breach works against
+//    LIVE mainnet Pyth — same PriceInfoObject + get_price_no_older_than the contract
+//    uses.
+//  - `--execute`: first run (no POLICY) buys cover and ARMS the dwell; rerun with
+//    POLICY=.. after min_dwell_secs to CONFIRM + claim. Env-gated, real funds.
 //
 // Run (no funds):  npx tsx src/pythCover.ts
-// Run (execute):   BACKSTOP_PKG=.. POOL=.. COIN_TYPE=.. SUI_PRIVATE_KEY=.. \
-//                  COVER=.. PREMIUM=.. [POLICY=..] npx tsx src/pythCover.ts --execute
+// Run (arm):       BACKSTOP_PKG=.. POOL=.. COIN_TYPE=.. SUI_PRIVATE_KEY=.. \
+//                  COVER=.. PREMIUM=.. npx tsx src/pythCover.ts --execute
+// Run (confirm+claim, after dwell):
+//                  BACKSTOP_PKG=.. POOL=.. SUI_PRIVATE_KEY=.. POLICY=.. \
+//                  npx tsx src/pythCover.ts --execute
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { Transaction } from "@mysten/sui/transactions";
@@ -71,15 +79,18 @@ export function buildBuyCoverTx(opts: {
   return tx;
 }
 
-/** Settle a claim trustlessly: refresh the Pyth feed, then call claim, in one PTB. */
-export async function buildClaimTx(opts: {
+/**
+ * Record a sub-threshold observation trustlessly: refresh the Pyth feed, then call
+ * record_breach in one PTB. Run once to ARM the dwell and again ≥ min_dwell_secs
+ * later to CONFIRM it; the confirming call latches the policy for claim_latched.
+ */
+export async function buildRecordBreachTx(opts: {
   client: SuiClient;
   pkg: string;
   pool: string;
   coinType: string;
   policy: string;
   feedId: string;
-  recipient: string;
 }): Promise<Transaction> {
   const tx = new Transaction();
   const updates = await new SuiPriceServiceConnection(
@@ -89,15 +100,32 @@ export async function buildClaimTx(opts: {
   const [priceInfoObjectId] = await pyth.updatePriceFeeds(tx, updates, [
     opts.feedId,
   ]);
-  const payout = tx.moveCall({
-    target: `${opts.pkg}::pyth_cover_pool::claim`,
+  tx.moveCall({
+    target: `${opts.pkg}::pyth_cover_pool::record_breach`,
     typeArguments: [opts.coinType],
     arguments: [
       tx.object(opts.pool),
-      tx.object(priceInfoObjectId),
       tx.object(opts.policy),
+      tx.object(priceInfoObjectId),
       tx.object(CLOCK),
     ],
+  });
+  return tx;
+}
+
+/** Claim a latched policy (no Pyth read needed — the breach was already recorded). */
+export function buildClaimLatchedTx(opts: {
+  pkg: string;
+  pool: string;
+  coinType: string;
+  policy: string;
+  recipient: string;
+}): Transaction {
+  const tx = new Transaction();
+  const payout = tx.moveCall({
+    target: `${opts.pkg}::pyth_cover_pool::claim_latched`,
+    typeArguments: [opts.coinType],
+    arguments: [tx.object(opts.pool), tx.object(opts.policy)],
   });
   tx.transferObjects([payout], opts.recipient);
   return tx;
@@ -143,7 +171,7 @@ async function simulate(
   const human = i64Num(p.price) * Math.pow(10, i64Num(p.expo));
 
   console.log(
-    "Backstop · live devInspect of claim's settlement read (Sui mainnet, no funds)\n",
+    "Backstop · live devInspect of the dwell read at the heart of record_breach (Sui mainnet, no funds)\n",
   );
   console.log(`  feed                : ${feedId.slice(0, 10)}…`);
   console.log(`  PriceInfoObject     : ${priceInfoObjectId}`);
@@ -157,7 +185,7 @@ async function simulate(
     `\n  ✓ fresh Pyth update + freshness-bounded read execute on mainnet —`,
   );
   console.log(
-    `    this is the exact path pyth_cover_pool::claim runs before paying out.`,
+    `    this is the exact path pyth_cover_pool::record_breach runs to arm/confirm the dwell.`,
   );
 }
 
@@ -187,6 +215,33 @@ async function execute(client: SuiClient): Promise<void> {
     return out;
   };
 
+  // Phase 2 — confirm the dwell + claim (POLICY already bought and armed earlier).
+  if (process.env.POLICY) {
+    const policy = process.env.POLICY;
+    const recTx = await buildRecordBreachTx({
+      client,
+      pkg,
+      pool,
+      coinType,
+      policy,
+      feedId: SUIUSDE_FEED,
+    });
+    await send(
+      recTx,
+      "record_breach (confirm dwell — needs min_dwell_secs elapsed)",
+    );
+    const claimTx = buildClaimLatchedTx({
+      pkg,
+      pool,
+      coinType,
+      policy,
+      recipient: addr,
+    });
+    await send(claimTx, "claim_latched (pays the latched payout)");
+    return;
+  }
+
+  // Phase 1 — buy cover and arm the dwell on the first sub-threshold read.
   const buyTx = buildBuyCoverTx({
     pkg,
     pool,
@@ -197,27 +252,26 @@ async function execute(client: SuiClient): Promise<void> {
     recipient: addr,
   });
   const bought = await send(buyTx, "buy_cover");
-  const policy =
-    process.env.POLICY ??
-    (
-      (bought.objectChanges ?? []).find(
-        (o: any) =>
-          o.type === "created" &&
-          /::pyth_cover_pool::Policy/.test(o.objectType),
-      ) as any
-    )?.objectId;
+  const policy = (
+    (bought.objectChanges ?? []).find(
+      (o: any) =>
+        o.type === "created" && /::pyth_cover_pool::Policy/.test(o.objectType),
+    ) as any
+  )?.objectId;
   console.log(`  POLICY=${policy}`);
 
-  const claimTx = await buildClaimTx({
+  const armTx = await buildRecordBreachTx({
     client,
     pkg,
     pool,
     coinType,
     policy,
     feedId: SUIUSDE_FEED,
-    recipient: addr,
   });
-  await send(claimTx, "claim (pays only if depegged)");
+  await send(armTx, "record_breach (arm dwell — only if depegged now)");
+  console.log(
+    `\n  ✓ armed. Rerun with POLICY=${policy} after min_dwell_secs to confirm + claim.`,
+  );
 }
 
 async function main(): Promise<void> {

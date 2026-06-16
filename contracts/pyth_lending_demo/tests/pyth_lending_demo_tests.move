@@ -18,6 +18,9 @@ module pyth_lending_demo::pyth_lending_demo_tests {
     const PREMIUM_BPS: u64 = 200;      // 2% per term
     const MAX_AGE: u64 = 60;
     const MAX_CONF_BPS: u64 = 200;
+    const DWELL_SECS: u64 = 10;     // a breach must persist 10s before it latches
+    const DWELL_MS: u64 = 10_000;
+    const EXPIRY: u64 = 1_000_000;  // far beyond the dwell window
     const ASSET: vector<u8> = b"suiUSDe reserve";
 
     fun fund(amount: u64, ctx: &mut TxContext): coin::Coin<SUI> {
@@ -26,14 +29,15 @@ module pyth_lending_demo::pyth_lending_demo_tests {
 
     fun new_pool(ctx: &mut TxContext): pyth_cover_pool::DepegCoverPool<SUI> {
         pyth_cover_pool::new_pool_for_testing<SUI>(
-            FEED, true, EXPO_MAG, THRESHOLD, MAX_AGE, PREMIUM_BPS, MAX_CONF_BPS, ctx,
+            FEED, true, EXPO_MAG, THRESHOLD, MAX_AGE, PREMIUM_BPS, MAX_CONF_BPS,
+            DWELL_SECS, ctx,
         )
     }
 
     #[test]
     fun backstop_covers_depeg_shortfall() {
         let mut ctx = tx_context::dummy();
-        let clock = clock::create_for_testing(&mut ctx);
+        let mut clock = clock::create_for_testing(&mut ctx);
 
         // Pool insuring suiUSDe below $0.97, funded with 1000 SUI.
         let mut pool = new_pool(&mut ctx);
@@ -43,12 +47,17 @@ module pyth_lending_demo::pyth_lending_demo_tests {
         let mut market = pyth_lending_demo::new_for_testing(string::utf8(ASSET), &mut ctx);
         let premium = pyth_cover_pool::premium_for(&pool, 500);
         pyth_lending_demo::insure(
-            &mut market, &mut pool, fund(premium, &mut ctx), 500, 1000, &clock, &mut ctx,
+            &mut market, &mut pool, fund(premium, &mut ctx), 500, EXPIRY, &clock, &mut ctx,
         );
         assert!(pyth_lending_demo::is_insured(&market), 0);
         assert!(pyth_lending_demo::reserve_value(&market) == 0, 1);
 
-        // suiUSDe depegs to $0.95 — a keeper latches the breach during the dip.
+        // suiUSDe depegs to $0.95 — a keeper arms the breach, then confirms a dwell
+        // later, once the depeg has persisted.
+        pyth_lending_demo::record_shortfall_at_price_for_testing(
+            &mut market, &pool, DEPEG, &clock,
+        );
+        clock::set_for_testing(&mut clock, DWELL_MS);
         pyth_lending_demo::record_shortfall_at_price_for_testing(
             &mut market, &pool, DEPEG, &clock,
         );

@@ -72,9 +72,10 @@ module pyth_lending_demo::pyth_lending_demo {
         option::fill(&mut m.policy, policy);
     }
 
-    /// Record the depeg breach on the held policy by reading Pyth on-chain, so the
-    /// payout latches and can be claimed even after the price recovers. Aborts (via
-    /// `record_breach`) unless the feed is at/below the pool floor and unexpired.
+    /// Record a sub-threshold observation on the held policy by reading Pyth on-chain.
+    /// The first call arms the dwell; a confirming call at least `min_dwell_secs` later
+    /// latches the payout, so it can be claimed even after the price recovers. Aborts
+    /// (via `record_breach`) unless the feed is at/below the pool floor and unexpired.
     public fun record_shortfall(
         m: &mut LendingMarket,
         pool: &DepegCoverPool<SUI>,
@@ -113,8 +114,8 @@ module pyth_lending_demo::pyth_lending_demo {
     }
 
     #[test_only]
-    /// Latch a breach on the held policy at a given price magnitude (no Pyth object),
-    /// so the consumer's claim path is unit-testable without a live PriceInfoObject.
+    /// Drive the dwell latch on the held policy at a given price magnitude (no Pyth
+    /// object), so the consumer's claim path is unit-testable without a live feed.
     public fun record_shortfall_at_price_for_testing(
         m: &mut LendingMarket,
         pool: &DepegCoverPool<SUI>,

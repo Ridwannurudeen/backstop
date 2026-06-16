@@ -22,8 +22,8 @@ core is architecturally close to Y2K Finance / Risk Harbor and is the right base
 
 | # | Gap | Evidence | Severity |
 |---|-----|----------|----------|
-| G1 | Settles on a **single instantaneous** Pyth read — a transient wick or one manipulated update pays out | `do_latch`: `assert!(price_mag <= threshold)` at one moment | Critical |
-| G2 | **Ignores the Pyth confidence interval** (`conf`) | `read_price_magnitude` reads only `get_price`, never `get_conf` (grep: no `conf`) | High |
+| G1 | Settles on a **single instantaneous** Pyth read — a transient wick or one manipulated update pays out | `do_latch`: `assert!(price_mag <= threshold)` at one moment | Critical — ✅ closed (dwell: two sub-threshold reads `min_dwell_secs` apart) |
+| G2 | **Ignores the Pyth confidence interval** (`conf`) | `read_price_magnitude` reads only `get_price`, never `get_conf` (grep: no `conf`) | High — ✅ closed (PR #25: adverse-bound `price+conf<=threshold` + `max_conf_bps` reject) |
 | G3 | **Flat `premium_bps`** set at pool creation; no utilization curve, no cooldown → adverse selection (buy cover at the moment of depeg) | `premium_for = cover * premium_bps / 10_000` | Critical (economic) |
 | G4 | **No admin / pause / governance / timelock**; `premium_bps`/`threshold`/`max_age` frozen at creation | grep: no `pause`/`AdminCap`/`owner` | High |
 | G5 | **No treasury fee** — 100% of premium to LPs, protocol not sustainable | — | Medium |
@@ -41,8 +41,8 @@ core is architecturally close to Y2K Finance / Risk Harbor and is the right base
 **interactive** flow (Buy Protection, Treasury, Cover Pool, Underwrite, Claim) is
 on **testnet** and built on DeepBook **Predict**. The **mainnet depeg product has
 no interactive UI at all** — the "Depeg cover" tab is **read-only**. The SDK already
-exposes the write-builders (`buildDepegBuyCoverTx`, `buildDepegClaimTx`,
-`buildDepegRecordBreachTx`, `buildDepegClaimLatchedTx`) — they are simply not wired
+exposes the write-builders (`buildDepegBuyCoverTx`, `buildDepegRecordBreachTx`,
+`buildDepegClaimLatchedTx`) — they are simply not wired
 to a wallet-connected UI. dapp-kit (`ConnectButton`, `useSignAndExecuteTransaction`)
 is already used by the testnet tabs, so the pattern exists.
 
@@ -94,7 +94,7 @@ is already used by the testnet tabs, so the pattern exists.
   (docs.sui.io/build/custom-upgrade-policy.)
 - **Visibility sweep** — audit every `public` fn; keep internal helpers
   `public(package)`/private (the #1 real Sui exploit class — OpenZeppelin Sui bug
-  patterns). Current helpers (`read_price_magnitude`, `do_latch`, `check_and_settle`)
+  patterns). Current helpers (`read_price_magnitude`, `do_latch`, `settle`)
   are already private — keep new ones so.
 
 ### 1.4 Keeper (closes G8)
