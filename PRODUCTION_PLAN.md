@@ -24,7 +24,7 @@ core is architecturally close to Y2K Finance / Risk Harbor and is the right base
 |---|-----|----------|----------|
 | G1 | Settles on a **single instantaneous** Pyth read — a transient wick or one manipulated update pays out | `do_latch`: `assert!(price_mag <= threshold)` at one moment | Critical — ✅ closed (dwell: two sub-threshold reads `min_dwell_secs` apart) |
 | G2 | **Ignores the Pyth confidence interval** (`conf`) | `read_price_magnitude` reads only `get_price`, never `get_conf` (grep: no `conf`) | High — ✅ closed (PR #25: adverse-bound `price+conf<=threshold` + `max_conf_bps` reject) |
-| G3 | **Flat `premium_bps`** set at pool creation; no utilization curve, no cooldown → adverse selection (buy cover at the moment of depeg) | `premium_for = cover * premium_bps / 10_000` | Critical (economic) — ⏳ cooldown closed (`activation_delay_secs`: no breach recorded until `buy_ms + delay`); utilization premium still TODO |
+| G3 | **Flat `premium_bps`** set at pool creation; no utilization curve, no cooldown → adverse selection (buy cover at the moment of depeg) | `premium_for = cover * premium_bps / 10_000` | Critical (economic) — ✅ closed (cooldown via `activation_delay_secs`; utilization curve `rate = premium_bps + surge_premium_bps * (total_cover+cover)/pool_value`) |
 | G4 | **No admin / pause / governance / timelock**; `premium_bps`/`threshold`/`max_age` frozen at creation | grep: no `pause`/`AdminCap`/`owner` | High |
 | G5 | **No treasury fee** — 100% of premium to LPs, protocol not sustainable | — | Medium |
 | G6 | **No exposure caps** (per-policy / per-pool) on a fully-correlated single-feed risk | — | High |
@@ -74,10 +74,13 @@ is already used by the testnet tabs, so the pattern exists.
   `now >= activation_ms`, `buy_cover` rejects `expiry <= activation`). Kills "buy cover
   at the instant of depeg" — the single largest economic hole. (Mirrors Y2K's epoch
   pre-commitment.)
-- **Utilization-based premium.** Replace flat `premium_bps` with a Nexus-style curve:
-  premium rises with `total_cover / pool_value` and decays toward a floor over time,
-  so capacity is rationed as a depeg fear builds. (docs.nexusmutual.io/protocol/pricing
-  — bump per % capacity consumed + linear daily decay; constants must be calibrated.)
+- **Utilization-based premium.** ✅ **Done** — `premium_for` now prices on a curve:
+  `rate = premium_bps + surge_premium_bps * utilization`, where utilization is the
+  post-trade `(total_cover + cover) / pool_value` (clamped to 1). The marginal buyer
+  pays for the capacity they consume, so price rises as the pool fills during a depeg
+  scare and falls again as cover expires/claims free capacity — a state-driven
+  reversion toward the floor (vs. Nexus's wall-clock daily decay; constants
+  calibratable per pool). SDK `quoteDepegPremium` mirrors it off-chain.
 - **Exposure caps.** `max_cover_per_policy` and a global per-pool cap; **keep full
   collateralization** — for a single-feed (fully correlated) depeg, fractional
   leverage is unsafe (every policy triggers at once). Do **not** copy Nexus 2:1
