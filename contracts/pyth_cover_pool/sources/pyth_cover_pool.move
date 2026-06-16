@@ -69,6 +69,10 @@ module pyth_cover_pool::pyth_cover_pool {
     const ENotActive: u64 = 14;
     /// Policy would expire at or before it activates — it could never pay out.
     const EExpiryBeforeActivation: u64 = 15;
+    /// Requested cover exceeds the pool's per-policy cover cap.
+    const EPolicyCoverCap: u64 = 16;
+    /// Requested cover would push the pool's total cover past its aggregate cap.
+    const EPoolCoverCap: u64 = 17;
 
     /// Shared mutualized depeg-cover pool insuring one Pyth feed in coin `T`.
     public struct DepegCoverPool<phantom T> has key {
@@ -99,6 +103,12 @@ module pyth_cover_pool::pyth_cover_pool {
         /// A freshly bought policy cannot record a breach until this many seconds after
         /// purchase — kills buying cover at the instant of a depeg (adverse selection).
         activation_delay_secs: u64,
+        /// Max cover a single policy may buy (0 = no per-policy limit). Caps the blow-up
+        /// from one whale concentrating the pool's correlated risk in one position.
+        max_cover_per_policy: u64,
+        /// Max aggregate `total_cover` the pool will underwrite (0 = bounded only by
+        /// full collateralization). A hard ceiling on the pool's correlated exposure.
+        max_total_cover: u64,
         /// Pooled capital: LP deposits + collected premiums.
         funds: Balance<T>,
         /// Total LP shares outstanding.
@@ -181,6 +191,8 @@ module pyth_cover_pool::pyth_cover_pool {
         max_conf_bps: u64,
         min_dwell_secs: u64,
         activation_delay_secs: u64,
+        max_cover_per_policy: u64,
+        max_total_cover: u64,
         ctx: &mut TxContext,
     ): DepegCoverPool<T> {
         DepegCoverPool {
@@ -195,6 +207,8 @@ module pyth_cover_pool::pyth_cover_pool {
             max_conf_bps,
             min_dwell_secs,
             activation_delay_secs,
+            max_cover_per_policy,
+            max_total_cover,
             funds: balance::zero<T>(),
             total_shares: 0,
             total_cover: 0,
@@ -213,11 +227,14 @@ module pyth_cover_pool::pyth_cover_pool {
         max_conf_bps: u64,
         min_dwell_secs: u64,
         activation_delay_secs: u64,
+        max_cover_per_policy: u64,
+        max_total_cover: u64,
         ctx: &mut TxContext,
     ) {
         let pool = new_pool<T>(
             feed_id, expo_neg, expo_mag, threshold, max_age_secs, premium_bps,
-            surge_premium_bps, max_conf_bps, min_dwell_secs, activation_delay_secs, ctx,
+            surge_premium_bps, max_conf_bps, min_dwell_secs, activation_delay_secs,
+            max_cover_per_policy, max_total_cover, ctx,
         );
         event::emit(PoolCreated {
             pool: object::id(&pool),
@@ -307,6 +324,12 @@ module pyth_cover_pool::pyth_cover_pool {
         let activation_ms = clock::timestamp_ms(clock) + pool.activation_delay_secs * 1000;
         // A policy must outlive its activation delay, or it could never pay out.
         assert!(expiry_ms > activation_ms, EExpiryBeforeActivation);
+        // Exposure caps (0 = uncapped) bound concentrated correlated risk.
+        assert!(pool.max_cover_per_policy == 0 || cover <= pool.max_cover_per_policy, EPolicyCoverCap);
+        assert!(
+            pool.max_total_cover == 0 || pool.total_cover + cover <= pool.max_total_cover,
+            EPoolCoverCap,
+        );
         let required = premium_for(pool, cover);
         assert!(required > 0, EZeroPremium);
         let paid = coin::value(&premium);
@@ -490,6 +513,8 @@ module pyth_cover_pool::pyth_cover_pool {
     public fun max_age_secs<T>(pool: &DepegCoverPool<T>): u64 { pool.max_age_secs }
     public fun min_dwell_secs<T>(pool: &DepegCoverPool<T>): u64 { pool.min_dwell_secs }
     public fun activation_delay_secs<T>(pool: &DepegCoverPool<T>): u64 { pool.activation_delay_secs }
+    public fun max_cover_per_policy<T>(pool: &DepegCoverPool<T>): u64 { pool.max_cover_per_policy }
+    public fun max_total_cover<T>(pool: &DepegCoverPool<T>): u64 { pool.max_total_cover }
 
     public fun shares<T>(s: &LpShare<T>): u64 { s.shares }
     public fun policy_cover<T>(p: &Policy<T>): u64 { p.cover }
@@ -511,11 +536,14 @@ module pyth_cover_pool::pyth_cover_pool {
         max_conf_bps: u64,
         min_dwell_secs: u64,
         activation_delay_secs: u64,
+        max_cover_per_policy: u64,
+        max_total_cover: u64,
         ctx: &mut TxContext,
     ): DepegCoverPool<T> {
         new_pool<T>(
             feed_id, expo_neg, expo_mag, threshold, max_age_secs, premium_bps,
-            surge_premium_bps, max_conf_bps, min_dwell_secs, activation_delay_secs, ctx,
+            surge_premium_bps, max_conf_bps, min_dwell_secs, activation_delay_secs,
+            max_cover_per_policy, max_total_cover, ctx,
         )
     }
 

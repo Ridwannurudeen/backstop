@@ -245,6 +245,10 @@ export type DepegPoolState = {
   premiumBps: number;
   /** Additional premium rate (bps) at 100% utilization. */
   surgePremiumBps: number;
+  /** Max cover per policy in MIST (0 = uncapped). */
+  maxCoverPerPolicyMist: bigint;
+  /** Max aggregate cover in MIST (0 = bounded only by full collateralization). */
+  maxTotalCoverMist: bigint;
   fundsMist: bigint;
   totalCoverMist: bigint;
 };
@@ -294,6 +298,8 @@ export async function readDepegPool(
     maxAgeSecs: Number(f.max_age_secs),
     premiumBps: Number(f.premium_bps),
     surgePremiumBps: Number(f.surge_premium_bps),
+    maxCoverPerPolicyMist: BigInt(f.max_cover_per_policy as string),
+    maxTotalCoverMist: BigInt(f.max_total_cover as string),
     fundsMist: BigInt(f.funds as string),
     totalCoverMist: BigInt(f.total_cover as string),
   };

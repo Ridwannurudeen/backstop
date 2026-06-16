@@ -63,6 +63,8 @@ export function buildCreatePoolTx(opts: {
   maxConfBps: bigint;
   minDwellSecs: bigint;
   activationDelaySecs: bigint;
+  maxCoverPerPolicy: bigint;
+  maxTotalCover: bigint;
 }): Transaction {
   const tx = new Transaction();
   tx.moveCall({
@@ -79,6 +81,8 @@ export function buildCreatePoolTx(opts: {
       tx.pure.u64(opts.maxConfBps),
       tx.pure.u64(opts.minDwellSecs),
       tx.pure.u64(opts.activationDelaySecs),
+      tx.pure.u64(opts.maxCoverPerPolicy),
+      tx.pure.u64(opts.maxTotalCover),
     ],
   });
   return tx;
@@ -331,6 +335,8 @@ async function execute(client: SuiClient): Promise<void> {
         activationDelaySecs: BigInt(
           process.env.ACTIVATION_DELAY_SECS ?? "1800",
         ), // 30-min anti-adverse-selection
+        maxCoverPerPolicy: BigInt(process.env.MAX_COVER_PER_POLICY ?? "0"), // 0 = uncapped
+        maxTotalCover: BigInt(process.env.MAX_TOTAL_COVER ?? "0"), // 0 = uncapped
       }),
       "create_and_share DepegCoverPool<SUI>",
     );
