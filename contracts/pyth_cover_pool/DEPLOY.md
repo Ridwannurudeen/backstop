@@ -92,9 +92,11 @@ LP_SEED=100000000 RESERVE=0 \
   priced**: `rate = premium_bps + SURGE_PREMIUM_BPS * (total_cover+cover)/LP_SEED`, so
   e.g. `COVER=50000000`, `LP_SEED=100000000` → 50% utilization → rate `200 + 800*0.5 =
   600 bps` → `PREMIUM ≥ 3000000`. The provisioner sizes the premium for you; set it
-  manually only if calling `buy_cover` directly. The pool must stay collateralized:
-  `LP_SEED ≥ COVER`. Tune the curve with `SURGE_PREMIUM_BPS` (default 800 = +8% at full
-  utilization).
+  manually only if calling `buy_cover` directly. `TREASURY_FEE_BPS` defaults to `500`
+  (5% of the paid premium); only the net premium after that fee joins LP funds, and
+  the pool re-checks collateralization after the skim. The pool must stay
+  collateralized: `LP_SEED ≥ COVER`. Tune the curve with `SURGE_PREMIUM_BPS` (default
+  800 = +8% at full utilization).
 - suiUSDe sits near \$1.00, so by default (`THRESHOLD_USD=0.97`) the run stops after
   `insure` with the honest "no depeg → premium retained" outcome.
 - **To stage a live claim now:** set `THRESHOLD_USD=1.05` **and** small

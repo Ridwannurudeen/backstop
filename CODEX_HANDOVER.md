@@ -70,24 +70,29 @@ backstop.gudman.xyz.
 - **G6** exposure caps — `max_cover_per_policy` + `max_total_cover` (0 = uncapped).
 - **G4** governance — `AdminCap` (minted to creator at `create_and_share`),
   claim-exempt `set_paused`, timelocked `propose/execute/cancel_param_update`.
+- **G5** treasury fee — paid premiums are split into LP net premium + protocol
+  treasury, admin-only treasury withdrawal, and timelocked `treasury_fee_bps`.
 
 Current `pyth_cover_pool` public API (for reference when building UI/SDK):
 `new_pool`, `create_and_share` (entry), `deposit_lp`, `withdraw_lp`, `premium_rate_bps`,
 `premium_for`, `buy_cover`, `expire_policy`, `record_breach`, `claim_latched`,
+`withdraw_treasury`,
 `set_paused`, `propose_param_update`, `execute_param_update`, `cancel_param_update`,
 plus views (`pool_value`, `total_cover`, `total_shares`, `threshold`, `premium_bps`,
 `surge_premium_bps`, `max_conf_bps`, `max_age_secs`, `min_dwell_secs`,
 `activation_delay_secs`, `max_cover_per_policy`, `max_total_cover`, `is_paused`,
-`timelock_secs`, `has_pending_update`, and `policy_*` / `shares`).
+`treasury_value`, `treasury_fee_bps`, `timelock_secs`, `has_pending_update`, and
+`policy_*` / `shares`).
 
 `create_and_share` arg order (positional): `feed_id, expo_neg, expo_mag, threshold,
 max_age_secs, premium_bps, surge_premium_bps, max_conf_bps, min_dwell_secs,
-activation_delay_secs, max_cover_per_policy, max_total_cover, timelock_secs, ctx`.
+activation_delay_secs, max_cover_per_policy, max_total_cover, timelock_secs,
+treasury_fee_bps, ctx`.
 
 SDK depeg exports: `readDepegPrice`, `readDepegPool`, `quoteDepegPremium`,
 `buildDepegBuyCoverTx`, `buildDepegRecordBreachTx`, `buildDepegClaimLatchedTx`.
 
-Tests today: `pyth_cover_pool` 26/26, `pyth_lending_demo` 4/4 (both green).
+Tests today: `pyth_cover_pool` 31/31, `pyth_lending_demo` 4/4 (both green).
 
 ---
 
@@ -95,22 +100,12 @@ Tests today: `pyth_cover_pool` 26/26, `pyth_lending_demo` 4/4 (both green).
 
 ### A. Sprint 2 leftovers — contract, no funds (do these next)
 
-#### A1 — G5 Treasury fee  *(small, self-contained)*
-Split a protocol fee off each premium into a treasury balance for sustainability +
-keeper funding.
-- Add pool fields `treasury_fee_bps: u64` and `treasury: Balance<T>`.
-- In `buy_cover`, after validating the paid premium, skim
-  `fee = paid * treasury_fee_bps / 10_000` into `pool.treasury`; join only
-  `paid - fee` into `pool.funds`. Re-check `value(funds) >= total_cover + cover` AFTER
-  the skim (collateralization must still hold).
-- `withdraw_treasury(pool, &AdminCap, amount, ctx): Coin<T>` — admin-only, cannot touch
-  `funds`.
-- Make `treasury_fee_bps` a timelocked param (add a `K_TREASURY_FEE_BPS` kind, extend
-  the `kind <= …` bound and `apply_param`).
-- Views: `treasury_value`, `treasury_fee_bps`. Ctor gains `treasury_fee_bps` (ripple).
-- **Acceptance:** new tests (fee skimmed to treasury; LP still earns `paid-fee`; admin
-  withdraw works + non-admin/`EWrongAdminCap`; collateralization still holds). All
-  suites green; SDK `readDepegPool` exposes the two fields. Start ~5% (`500` bps).
+#### A1 — G5 Treasury fee  *(done)*
+Implemented in branch `feat/pyth-treasury-fee`: `treasury_fee_bps`, `treasury`,
+admin-only `withdraw_treasury`, timelocked parameter kind `9`, views, constructor
+ripple, SDK pool fields, deploy docs, and 500 bps default in the provisioner.
+Acceptance is green: fee skim, LP net premium, admin withdrawal, wrong cap,
+post-fee collateralization, and timelocked fee update tests.
 
 #### A2 — G8 Keeper bounty  *(touches `record_breach` signature)*
 Reward whoever posts the Pyth update + arms/confirms the dwell (Pyth is pull-based).

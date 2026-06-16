@@ -26,7 +26,7 @@ core is architecturally close to Y2K Finance / Risk Harbor and is the right base
 | G2 | **Ignores the Pyth confidence interval** (`conf`) | `read_price_magnitude` reads only `get_price`, never `get_conf` (grep: no `conf`) | High — ✅ closed (PR #25: adverse-bound `price+conf<=threshold` + `max_conf_bps` reject) |
 | G3 | **Flat `premium_bps`** set at pool creation; no utilization curve, no cooldown → adverse selection (buy cover at the moment of depeg) | `premium_for = cover * premium_bps / 10_000` | Critical (economic) — ✅ closed (cooldown via `activation_delay_secs`; utilization curve `rate = premium_bps + surge_premium_bps * (total_cover+cover)/pool_value`) |
 | G4 | **No admin / pause / governance / timelock**; `premium_bps`/`threshold`/`max_age` frozen at creation | grep: no `pause`/`AdminCap`/`owner` | High — ✅ closed (`AdminCap` minted at creation; claim-exempt `set_paused`; timelocked propose/execute/cancel param updates) |
-| G5 | **No treasury fee** — 100% of premium to LPs, protocol not sustainable | — | Medium |
+| G5 | **No treasury fee** — 100% of premium to LPs, protocol not sustainable | — | Medium — ✅ closed (`treasury_fee_bps` premium skim + admin-only treasury withdrawal) |
 | G6 | **No exposure caps** (per-policy / per-pool) on a fully-correlated single-feed risk | — | High — ✅ closed (`max_cover_per_policy` + `max_total_cover` pool caps, 0 = uncapped; full collateralization kept) |
 | G7 | **UpgradeCap** would sit in a hot EOA (the deployer) | `deployPackage.ts` transfers UpgradeCap to sender | High |
 | G8 | **No keeper incentive** to record a breach during the dip (Pyth is pull-based) | `record_breach` is permissionless but unrewarded | Medium |
@@ -86,8 +86,9 @@ is already used by the testnet tabs, so the pattern exists.
   collateralization kept** — for a single-feed (fully correlated) depeg, fractional
   leverage is unsafe (every policy triggers at once); Nexus 2:1 leverage is **not**
   copied.
-- **Treasury fee.** Split a protocol fee off each premium into a treasury balance for
-  sustainability + keeper funding.
+- **Treasury fee.** ✅ **Done** — `treasury_fee_bps` splits a protocol fee off each
+  paid premium into a treasury balance for sustainability + keeper funding, while LPs
+  receive the net premium and full collateralization is re-checked after the skim.
 
 ### 1.3 Safety & governance (closes G4, G7)
 - **AdminCap + pause** — ✅ **Done**. `AdminCap` (carries `pool_id`) is minted to the
@@ -189,7 +190,7 @@ Additive, behaviour-preserving where possible; new state fields + new entry func
 - Utilization premium curve replacing flat `premium_bps` (G3).
 - Per-policy + per-pool exposure caps (G6).
 - `AdminCap` + pause (claim-exempt) + timelocked param setters (G4).
-- Treasury fee split + keeper bounty (G5, G8).
+- Treasury fee split ✅ + keeper bounty (G5 closed, G8 remains).
 - Full unit tests (happy + each abort + adverse-bound + dwell + cooldown + cap +
   pause-exempt-claim) via `.tools/sui.exe move test`.
 - **Sui Prover** proof of `value(funds) >= total_cover` and share accounting.
