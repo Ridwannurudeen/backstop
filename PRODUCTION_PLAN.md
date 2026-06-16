@@ -30,7 +30,7 @@ core is architecturally close to Y2K Finance / Risk Harbor and is the right base
 | G6  | **No exposure caps** (per-policy / per-pool) on a fully-correlated single-feed risk                                                   | —                                                                                     | High — ✅ closed (`max_cover_per_policy` + `max_total_cover` pool caps, 0 = uncapped; full collateralization kept)                                                  |
 | G7  | **UpgradeCap** would sit in a hot EOA (the deployer)                                                                                  | `deployPackage.ts` transfers UpgradeCap to sender                                     | High                                                                                                                                                                |
 | G8  | **No keeper incentive** to record a breach during the dip (Pyth is pull-based)                                                        | `record_breach` is permissionless but unrewarded                                      | Medium — ✅ closed (`keeper_bounty` paid from treasury on confirm)                                                                                                  |
-| G9  | **No audit, no formal verification; mainnet custody still hot-keyed**                                                                 | `deployment.json` now has `pythDepeg` mainnet proof                                   | Gating                                                                                                                                                              |
+| G9  | **No audit, no formal verification; admin custody still hot-keyed**                                                                   | `deployment.json` now has `pythDepeg` mainnet proof + upgrade-policy locks            | Gating                                                                                                                                                              |
 | G10 | **Agent can overwrite the live public feed with `[]`** on an empty/all-failed cycle                                                   | `index.ts:162`+`:246` `persist()` writes unconditionally                              | High (live demo)                                                                                                                                                    |
 | G11 | **Risk terminal defaults to soonest/0d term** → no curve on load; term options labeled by ambiguous `Nd`                              | `RiskTerminal.tsx:46` (idx 0); `predict.ts:202` soonest-first, no quoteability filter | Medium                                                                                                                                                              |
 | G12 | **App bundle ~632 kB** (no route-level code splitting)                                                                                | single eager chunk in `App.tsx`                                                       | Medium                                                                                                                                                              |
@@ -147,7 +147,7 @@ The product becomes a **wallet-connected mainnet dApp**, not a read-only display
 - **Dev tooling hardening** — the app is on Vite 8 / `@vitejs/plugin-react` 6 so the
   full app `npm audit` is clean, including dev dependencies. The app build now splits
   React, wallet/Sui, Pyth, crypto, and generic vendor chunks, clearing the previous
-  >500 kB chunk warning.
+  > 500 kB chunk warning.
 - **Mainnet deployer key** — local Sui keystore alias `backstop-mainnet-deployer` was
   created for mainnet deployment. The depeg deploy/provision scripts can sign from
   `SUI_KEY_ALIAS`/`SUI_ADDRESS`, so raw private keys do not need to be exported.
@@ -257,6 +257,12 @@ Additive, behaviour-preserving where possible; new state fields + new entry func
   `DFCpC9cLqDmcNrBMHC4deT98HfX2QFM2337wRAqyS7n3`.
 - Move `AdminCap` custody to a **real Sui multisig** once independent signer
   addresses are available.
+- `npm run verify:custody` verifies both `UpgradeCap` locks and reports current
+  `AdminCap` ownership; set `EXPECTED_ADMIN_OWNER=0x...` after transfer to make
+  multisig custody a hard check.
+- `ADMIN_CAP_RECIPIENT=0x... SUI_KEY_ALIAS=backstop-mainnet-deployer npm run
+transfer:admin-caps` dry-runs the production + staged `AdminCap` transfer; append
+  `-- --execute` only after the recipient is a real independent-signer multisig.
 - Seeded a staged suiUSDe pool and executed first live buy → dwell → claim with a
   threshold-above-spot demo pool, per `DEPLOY.md`.
 - **Acceptance left:** admin caps wired to real multisig and connected-wallet smoke

@@ -34,7 +34,7 @@ Last merged: PR #30 (`37b45ba`).
   local Sui keystore via `SUI_KEY_ALIAS`/`SUI_ADDRESS`; do not export or print private
   keys. A fresh mainnet alias was created locally as `backstop-mainnet-deployer`.
 - **Invariants you must never break:** (1) **full collateralization** `value(funds) >=
-  total_cover` — no leverage on a correlated single-feed risk; (2) the **claim /
+total_cover` — no leverage on a correlated single-feed risk; (2) the **claim /
   settlement path is pause-exempt** (`record_breach`, `claim_latched`, `expire_policy`,
   `withdraw_lp` must never be gated by `paused`); (3) **`buy_cover` / `claim_latched`
   public signatures stay stable** so the SDK and `pyth_lending_demo` don't churn.
@@ -70,7 +70,7 @@ mainnet action panel gated on verified package/pool IDs.
 - **G3** cooldown — `activation_delay_secs`: no breach until `buy_ms + delay`;
   `buy_cover` rejects `expiry <= activation`.
 - **G3** utilization premium — `premium_for` = `premium_bps + surge_premium_bps *
-  utilization` (post-trade `(total_cover+cover)/pool_value`, clamped to 1).
+utilization` (post-trade `(total_cover+cover)/pool_value`, clamped to 1).
 - **G6** exposure caps — `max_cover_per_policy` + `max_total_cover` (0 = uncapped).
 - **G4** governance — `AdminCap` (minted to creator at `create_and_share`),
   claim-exempt `set_paused`, timelocked `propose/execute/cancel_param_update`.
@@ -207,6 +207,12 @@ build` clean, then `bash deploy/deploy.sh` (see gotchas in `deploy/DEPLOY.md`).
 - **Admin custody** — move production/staged `AdminCap`s to a real Sui multisig once
   independent signer addresses are available. A second local keystore key was not used
   because it would not materially improve custody.
+- `npm run verify:custody` checks both `UpgradeCap` locks and reports current
+  `AdminCap` ownership; set `EXPECTED_ADMIN_OWNER=0x...` after multisig transfer to
+  make custody a hard check.
+- `ADMIN_CAP_RECIPIENT=0x... SUI_KEY_ALIAS=backstop-mainnet-deployer npm run
+transfer:admin-caps` dry-runs the production + staged `AdminCap` transfer, and adding
+  `-- --execute` performs it. Use only with a real multisig address.
 - Seeded a staged suiUSDe pool and executed live **buy → dwell → claim** with
   `THRESHOLD_USD=1.05`, `ACTIVATION_DELAY_SECS=5`, and `MIN_DWELL_SECS=5`.
 - **Acceptance left:** admin caps on real multisig and a connected-wallet smoke
