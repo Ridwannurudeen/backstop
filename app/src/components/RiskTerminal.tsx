@@ -29,6 +29,13 @@ function daysTo(ms: bigint) {
   return Math.max(0, Math.round((Number(ms) - Date.now()) / 86_400_000));
 }
 
+function termDate(ms: bigint) {
+  return new Date(Number(ms)).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+}
+
 export default function RiskTerminal() {
   const account = useCurrentAccount();
   const client = useSuiClient();
@@ -43,8 +50,12 @@ export default function RiskTerminal() {
     queryFn: () => fetchReferencePrice(DEFAULT_SYMBOL),
   });
 
-  const [oracleIdx, setOracleIdx] = useState(0);
-  const oracle = oracles?.[oracleIdx];
+  // Default to the first liquid term (>= 1 day out) rather than the soonest, which
+  // is often same-day/illiquid and prices no curve. -1 = auto until the user picks.
+  const [oracleIdx, setOracleIdx] = useState(-1);
+  const autoIdx = (oracles ?? []).findIndex((o) => daysTo(o.expiryMs) >= 1);
+  const effectiveIdx = oracleIdx >= 0 ? oracleIdx : autoIdx >= 0 ? autoIdx : 0;
+  const oracle = oracles?.[effectiveIdx];
 
   const { data: svi } = useQuery({
     queryKey: ["svi", oracle?.oracleId],
@@ -117,12 +128,12 @@ export default function RiskTerminal() {
         <div className="field" style={{ maxWidth: 200 }}>
           <label>Expiry term</label>
           <select
-            value={oracleIdx}
+            value={effectiveIdx}
             onChange={(e) => setOracleIdx(+e.target.value)}
           >
             {(oracles ?? []).map((o, i) => (
               <option key={o.oracleId} value={i}>
-                {daysTo(o.expiryMs)}d
+                {daysTo(o.expiryMs)}d · {termDate(o.expiryMs)}
               </option>
             ))}
           </select>

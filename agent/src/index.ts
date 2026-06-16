@@ -164,7 +164,11 @@ async function runCycle(): Promise<void> {
   }
 
   const results: LoggedDecision[] = [];
-  for (const o of oracles.slice(0, MAX_MARKETS)) {
+  // Scan oracles soonest-first, keeping the soonest-expiry markets that actually
+  // quote, until we have MAX_MARKETS valid decisions (a few unquoteable soonest
+  // markets shouldn't starve the feed).
+  for (const o of oracles) {
+    if (results.length >= MAX_MARKETS) break;
     const strikeUsd = pickCrashStrikeUsd(ref?.priceUsd ?? null, o);
     console.log(
       `\n[market] oracle ${o.oracleId.slice(0, 10)}… expiry ${new Date(
@@ -250,6 +254,15 @@ async function runCycle(): Promise<void> {
 }
 
 async function persist(results: LoggedDecision[]): Promise<void> {
+  // Never overwrite the last good public feed with an empty cycle (no active
+  // oracles, or every soonest market failed to quote). A stale-but-real feed beats
+  // a blank one in the UI; the next successful cycle replaces it.
+  if (results.length === 0) {
+    console.log(
+      "[backstop] no valid decisions this cycle — keeping the last good feed (not overwriting).",
+    );
+    return;
+  }
   const payload = JSON.stringify(
     { generatedAt: new Date().toISOString(), decisions: results },
     null,
