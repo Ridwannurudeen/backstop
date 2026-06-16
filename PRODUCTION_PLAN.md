@@ -27,7 +27,7 @@ core is architecturally close to Y2K Finance / Risk Harbor and is the right base
 | G3 | **Flat `premium_bps`** set at pool creation; no utilization curve, no cooldown → adverse selection (buy cover at the moment of depeg) | `premium_for = cover * premium_bps / 10_000` | Critical (economic) — ✅ closed (cooldown via `activation_delay_secs`; utilization curve `rate = premium_bps + surge_premium_bps * (total_cover+cover)/pool_value`) |
 | G4 | **No admin / pause / governance / timelock**; `premium_bps`/`threshold`/`max_age` frozen at creation | grep: no `pause`/`AdminCap`/`owner` | High |
 | G5 | **No treasury fee** — 100% of premium to LPs, protocol not sustainable | — | Medium |
-| G6 | **No exposure caps** (per-policy / per-pool) on a fully-correlated single-feed risk | — | High |
+| G6 | **No exposure caps** (per-policy / per-pool) on a fully-correlated single-feed risk | — | High — ✅ closed (`max_cover_per_policy` + `max_total_cover` pool caps, 0 = uncapped; full collateralization kept) |
 | G7 | **UpgradeCap** would sit in a hot EOA (the deployer) | `deployPackage.ts` transfers UpgradeCap to sender | High |
 | G8 | **No keeper incentive** to record a breach during the dip (Pyth is pull-based) | `record_breach` is permissionless but unrewarded | Medium |
 | G9 | **Not deployed to mainnet, no audit, no formal verification** | `deployment.json` has no pyth/mainnet entry | Gating |
@@ -81,10 +81,11 @@ is already used by the testnet tabs, so the pattern exists.
   scare and falls again as cover expires/claims free capacity — a state-driven
   reversion toward the floor (vs. Nexus's wall-clock daily decay; constants
   calibratable per pool). SDK `quoteDepegPremium` mirrors it off-chain.
-- **Exposure caps.** `max_cover_per_policy` and a global per-pool cap; **keep full
-  collateralization** — for a single-feed (fully correlated) depeg, fractional
-  leverage is unsafe (every policy triggers at once). Do **not** copy Nexus 2:1
-  leverage here.
+- **Exposure caps.** ✅ **Done** — pool fields `max_cover_per_policy` and
+  `max_total_cover` (0 = uncapped), both enforced in `buy_cover`. **Full
+  collateralization kept** — for a single-feed (fully correlated) depeg, fractional
+  leverage is unsafe (every policy triggers at once); Nexus 2:1 leverage is **not**
+  copied.
 - **Treasury fee.** Split a protocol fee off each premium into a treasury balance for
   sustainability + keeper funding.
 

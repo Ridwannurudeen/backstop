@@ -33,7 +33,18 @@ module pyth_cover_pool::pyth_cover_pool_tests {
     fun new_pool(premium_bps: u64, ctx: &mut TxContext): DepegCoverPool<TESTCOIN> {
         pyth_cover_pool::new_pool_for_testing<TESTCOIN>(
             FEED, true, EXPO_MAG, THRESHOLD, MAX_AGE, premium_bps, SURGE_BPS,
-            MAX_CONF_BPS, DWELL_SECS, ACT_SECS, ctx,
+            MAX_CONF_BPS, DWELL_SECS, ACT_SECS, 0, 0, ctx,
+        )
+    }
+
+    fun new_pool_capped(
+        max_cover_per_policy: u64,
+        max_total_cover: u64,
+        ctx: &mut TxContext,
+    ): DepegCoverPool<TESTCOIN> {
+        pyth_cover_pool::new_pool_for_testing<TESTCOIN>(
+            FEED, true, EXPO_MAG, THRESHOLD, MAX_AGE, PREMIUM_BPS, SURGE_BPS,
+            MAX_CONF_BPS, DWELL_SECS, ACT_SECS, max_cover_per_policy, max_total_cover, ctx,
         )
     }
 
@@ -404,6 +415,58 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         clock::set_for_testing(&mut clock, ARM_MS);
         pyth_cover_pool::latch_at_price_for_testing(&pool, &mut policy, DEPEG, 2_500_000, &clock);
         test_utils::destroy(policy);
+        test_utils::destroy(lp);
+        clock::destroy_for_testing(clock);
+        test_utils::destroy(pool);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = pyth_cover_pool::EPolicyCoverCap)]
+    fun buy_blocked_above_per_policy_cap() {
+        let mut ctx = tx_context::dummy();
+        let clock = clock::create_for_testing(&mut ctx);
+        // Per-policy cap 400; no pool cap.
+        let mut pool = new_pool_capped(400, 0, &mut ctx);
+        let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(1000, &mut ctx), &mut ctx);
+        let policy = buy(&mut pool, 500, EXPIRY, &clock, &mut ctx);
+
+        test_utils::destroy(policy);
+        test_utils::destroy(lp);
+        clock::destroy_for_testing(clock);
+        test_utils::destroy(pool);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = pyth_cover_pool::EPoolCoverCap)]
+    fun buy_blocked_above_pool_cap() {
+        let mut ctx = tx_context::dummy();
+        let clock = clock::create_for_testing(&mut ctx);
+        // Aggregate cap 600; first 400 is fine, a second 300 (total 700) breaches it.
+        let mut pool = new_pool_capped(0, 600, &mut ctx);
+        let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(1000, &mut ctx), &mut ctx);
+        let p1 = buy(&mut pool, 400, EXPIRY, &clock, &mut ctx);
+        let p2 = buy(&mut pool, 300, EXPIRY, &clock, &mut ctx);
+
+        test_utils::destroy(p1);
+        test_utils::destroy(p2);
+        test_utils::destroy(lp);
+        clock::destroy_for_testing(clock);
+        test_utils::destroy(pool);
+    }
+
+    #[test]
+    fun buys_within_caps_ok() {
+        let mut ctx = tx_context::dummy();
+        let clock = clock::create_for_testing(&mut ctx);
+        // Per-policy 400, aggregate 600 — two 300-cover policies fit exactly.
+        let mut pool = new_pool_capped(400, 600, &mut ctx);
+        let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(1000, &mut ctx), &mut ctx);
+        let p1 = buy(&mut pool, 300, EXPIRY, &clock, &mut ctx);
+        let p2 = buy(&mut pool, 300, EXPIRY, &clock, &mut ctx);
+        assert!(pyth_cover_pool::total_cover(&pool) == 600, 0);
+
+        test_utils::destroy(p1);
+        test_utils::destroy(p2);
         test_utils::destroy(lp);
         clock::destroy_for_testing(clock);
         test_utils::destroy(pool);
