@@ -8,6 +8,7 @@ import Landing from "./pages/Landing";
 // bundle stays small (landing + layout + router + wallet core only).
 const HowItWorks = lazy(() => import("./pages/HowItWorks"));
 const SrxIndex = lazy(() => import("./components/SrxIndex"));
+const DepegSimulator = lazy(() => import("./components/DepegSimulator"));
 const DepegCover = lazy(() => import("./components/DepegCover"));
 const RiskTerminal = lazy(() => import("./components/RiskTerminal"));
 const OnchainRiskFeed = lazy(() => import("./components/OnchainRiskFeed"));
@@ -61,7 +62,15 @@ export default function App() {
               </>
             }
           />
-          <Route path="/depeg" element={<DepegCover />} />
+          <Route
+            path="/depeg"
+            element={
+              <>
+                <DepegSimulator />
+                <DepegCover />
+              </>
+            }
+          />
           <Route
             path="/insure"
             element={<Navigate to="/insure/buy" replace />}
