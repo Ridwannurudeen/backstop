@@ -59,6 +59,7 @@ export function buildCreatePoolTx(opts: {
   thresholdUnits: bigint;
   maxAgeSecs: bigint;
   premiumBps: bigint;
+  maxConfBps: bigint;
 }): Transaction {
   const tx = new Transaction();
   tx.moveCall({
@@ -71,6 +72,7 @@ export function buildCreatePoolTx(opts: {
       tx.pure.u64(opts.thresholdUnits),
       tx.pure.u64(opts.maxAgeSecs),
       tx.pure.u64(opts.premiumBps),
+      tx.pure.u64(opts.maxConfBps),
     ],
   });
   return tx;
@@ -317,6 +319,7 @@ async function execute(client: SuiClient): Promise<void> {
         thresholdUnits,
         maxAgeSecs: 60n,
         premiumBps: 200n,
+        maxConfBps: 200n,
       }),
       "create_and_share DepegCoverPool<SUI>",
     );

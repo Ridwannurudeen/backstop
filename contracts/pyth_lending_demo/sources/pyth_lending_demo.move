@@ -123,7 +123,7 @@ module pyth_lending_demo::pyth_lending_demo {
     ) {
         assert!(option::is_some(&m.policy), ENotInsured);
         pyth_cover_pool::latch_at_price_for_testing(
-            pool, option::borrow_mut(&mut m.policy), price_mag, clock,
+            pool, option::borrow_mut(&mut m.policy), price_mag, 0, clock,
         );
     }
 }

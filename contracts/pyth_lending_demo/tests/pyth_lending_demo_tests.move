@@ -17,6 +17,7 @@ module pyth_lending_demo::pyth_lending_demo_tests {
     const DEPEG: u64 = 95_000_000;     // $0.95
     const PREMIUM_BPS: u64 = 200;      // 2% per term
     const MAX_AGE: u64 = 60;
+    const MAX_CONF_BPS: u64 = 200;
     const ASSET: vector<u8> = b"suiUSDe reserve";
 
     fun fund(amount: u64, ctx: &mut TxContext): coin::Coin<SUI> {
@@ -25,7 +26,7 @@ module pyth_lending_demo::pyth_lending_demo_tests {
 
     fun new_pool(ctx: &mut TxContext): pyth_cover_pool::DepegCoverPool<SUI> {
         pyth_cover_pool::new_pool_for_testing<SUI>(
-            FEED, true, EXPO_MAG, THRESHOLD, MAX_AGE, PREMIUM_BPS, ctx,
+            FEED, true, EXPO_MAG, THRESHOLD, MAX_AGE, PREMIUM_BPS, MAX_CONF_BPS, ctx,
         )
     }
 
