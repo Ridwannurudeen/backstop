@@ -3,15 +3,13 @@
 // Expects BYTECODE_JSON = path to `sui move build --dump-bytecode-as-base64` output.
 import { readFileSync } from "node:fs";
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
-import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { Transaction } from "@mysten/sui/transactions";
 import { NETWORK } from "./ids.js";
+import { loadSuiKeypair } from "./suiSigner.js";
 
 async function main(): Promise<void> {
   const f = process.env.BYTECODE_JSON;
   if (!f) throw new Error("Set BYTECODE_JSON");
-  const k = process.env.SUI_PRIVATE_KEY;
-  if (!k) throw new Error("Set SUI_PRIVATE_KEY");
   const { modules, dependencies } = JSON.parse(readFileSync(f, "utf8")) as {
     modules: string[];
     dependencies: string[];
@@ -26,7 +24,7 @@ async function main(): Promise<void> {
     | "localnet";
   console.log(`network: ${net}`);
   const client = new SuiClient({ url: getFullnodeUrl(net) });
-  const kp = Ed25519Keypair.fromSecretKey(k.trim());
+  const kp = loadSuiKeypair();
   const addr = kp.getPublicKey().toSuiAddress();
 
   const tx = new Transaction();

@@ -19,7 +19,14 @@ mainnet faucet — acquire real SUI (exchange or bridge).
 ## Prerequisites
 
 - `.tools/sui.exe` (this repo's pinned CLI) — `sui --version`.
-- A funded mainnet key as `SUI_PRIVATE_KEY` (the `suiprivkey1…` form).
+- A funded mainnet key in the local Sui keystore. Prefer
+  `SUI_KEY_ALIAS=backstop-mainnet-deployer`; `SUI_PRIVATE_KEY` still works for
+  one-off automation but should not be printed or checked into files.
+- Before publishing, confirm the alias resolves and is funded:
+  ```bash
+  cd ../../
+  SUI_KEY_ALIAS=backstop-mainnet-deployer npm run check:deployer
+  ```
 - **Windows only:** Pyth/Wormhole ship `Move.toml` as a git symlink; patch the
   cache once, then build with `--allow-dirty` (see `BUILD.md`):
   ```bash
@@ -38,7 +45,7 @@ cd contracts/pyth_cover_pool
 cd ../../agent
 BYTECODE_JSON=../contracts/pyth_cover_pool/bytecode.json \
 DEPLOY_NETWORK=mainnet \
-SUI_PRIVATE_KEY=suiprivkey1… \
+SUI_KEY_ALIAS=backstop-mainnet-deployer \
   npm run deploy-package
 ```
 
@@ -66,7 +73,7 @@ cd contracts/pyth_lending_demo
 cd ../../agent
 BYTECODE_JSON=../contracts/pyth_lending_demo/bytecode.json \
 DEPLOY_NETWORK=mainnet \
-SUI_PRIVATE_KEY=suiprivkey1… \
+SUI_KEY_ALIAS=backstop-mainnet-deployer \
   npm run deploy-package
 ```
 
@@ -76,15 +83,15 @@ Copy the printed `PACKAGE=0x…` — the live `pyth_lending_demo` id.
 
 `provisionPythLending.ts --execute` creates + seeds a `DepegCoverPool<SUI>` (when no
 `POOL` is given), creates a lending market, buys cover, and — if the live suiUSDe
-feed is at/below the floor — latches the breach and claims into the reserve:
+feed's adverse band is at/below the floor — latches the breach and claims into the reserve:
 
 ```bash
 cd agent
 LENDING_PKG=<step 3 PACKAGE> \
 BACKSTOP_PKG=<step 1 PACKAGE> \
-SUI_PRIVATE_KEY=suiprivkey1… \
-COVER=50000000 PREMIUM=1000000 \
-LP_SEED=100000000 RESERVE=0 \
+SUI_KEY_ALIAS=backstop-mainnet-deployer \
+COVER=50000000 PREMIUM=3000000 \
+LP_SEED=100000000 RESERVE=0 KEEPER_BOUNTY=100000 \
   npm run pyth-lending -- --execute
 ```
 
@@ -92,10 +99,15 @@ LP_SEED=100000000 RESERVE=0 \
   priced**: `rate = premium_bps + SURGE_PREMIUM_BPS * (total_cover+cover)/LP_SEED`, so
   e.g. `COVER=50000000`, `LP_SEED=100000000` → 50% utilization → rate `200 + 800*0.5 =
   600 bps` → `PREMIUM ≥ 3000000`. The provisioner sizes the premium for you; set it
-  manually only if calling `buy_cover` directly. The pool must stay collateralized:
-  `LP_SEED ≥ COVER`. Tune the curve with `SURGE_PREMIUM_BPS` (default 800 = +8% at full
-  utilization).
-- suiUSDe sits near \$1.00, so by default (`THRESHOLD_USD=0.97`) the run stops after
+  manually only if calling `buy_cover` directly. `TREASURY_FEE_BPS` defaults to `500`
+  (5% of the paid premium); only the net premium after that fee joins LP funds, and
+  the pool re-checks collateralization after the skim. The pool must stay
+  collateralized: `LP_SEED ≥ COVER`. Tune the curve with `SURGE_PREMIUM_BPS` (default
+  800 = +8% at full utilization).
+- `KEEPER_BOUNTY` is in MIST and defaults to `100000` (0.0001 SUI). It is paid from
+  the protocol treasury to the keeper that confirms the dwell latch; if treasury is
+  empty or below the bounty, settlement still latches and the bounty is skipped.
+- suiUSDe sits near \$1.00, so by default (`THRESHOLD_USD=0.985`) the run stops after
   `insure` with the honest "no depeg → premium retained" outcome.
 - **To stage a live claim now:** set `THRESHOLD_USD=1.05` **and** small
   `ACTIVATION_DELAY_SECS` + `MIN_DWELL_SECS` (e.g. `5` each). The pool floor is created
@@ -104,7 +116,8 @@ LP_SEED=100000000 RESERVE=0 \
   activation delay, arms the dwell, waits `MIN_DWELL_SECS`, confirms, then
   `cover_shortfall` lands the payout in the reserve — `buy_cover` has no
   spot-vs-threshold guard, so this is allowed (unlike the testnet Predict IMM).
-  Production pools use a 30–60 min activation delay and a 5–15 min dwell.
+  Production launch defaults use a 30 min activation delay and a 10 min dwell; see
+  `DEPEG_CALIBRATION.md`.
 - Reuse an existing pool instead of creating one by passing `POOL=0x…` (omit
   `BACKSTOP_PKG`/`LP_SEED`).
 - **Governance:** `create_and_share` mints an `AdminCap` to the deployer (printed as

@@ -13,6 +13,9 @@
     "pyth-read": "tsx src/pythRead.ts",
     "pyth-cover": "tsx src/pythCover.ts",
     "pyth-lending": "tsx src/provisionPythLending.ts",
+    "backtest-depeg": "tsx src/backtestDepeg.ts",
+    "verify-depeg-integrations": "tsx src/verifyDepegIntegrations.ts",
+    "check-deployer": "tsx src/checkSuiDeployer.ts",
     "deploy-package": "tsx src/deployPackage.ts"
   },
   "dependencies": {

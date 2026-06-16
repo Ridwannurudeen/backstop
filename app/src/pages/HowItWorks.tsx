@@ -46,7 +46,7 @@ export default function HowItWorks() {
           <p>
             Holders buy <b>parametric cover</b> from a fully-collateralized pool
             — crash cover on a treasury, or stablecoin-depeg cover (e.g. suiUSDe
-            below $0.97). LPs supply capital and earn premiums, priced off the
+            below $0.985). LPs supply capital and earn premiums, priced off the
             live feed. The pool is always fully collateralized: it can pay every
             outstanding policy at all times.
           </p>
@@ -83,9 +83,9 @@ export default function HowItWorks() {
               agent arena — deployed and proven over DeepBook Predict.
             </li>
             <li>
-              <b>Built, mainnet-proven, deploy-pending:</b> Pyth-settled
-              stablecoin-depeg cover — the settlement read is proven live on Sui
-              mainnet; the pool deploy is the one remaining funded step.
+              <b>Live on mainnet:</b> Pyth-settled stablecoin-depeg cover — the
+              package, pool, lending consumer, and a staged dwell-latch claim
+              are all proven on Sui mainnet.
             </li>
             <li>
               <b>Roadmap:</b> multi-asset markets, an underwriter marketplace,

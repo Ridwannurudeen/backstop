@@ -35,8 +35,11 @@ const bps = await readCrashProbabilityBps(client, "BTC<56901@1780992000000");
 ```ts
 import { buildBuyCoverTx } from "@backstop/sdk";
 const tx = buildBuyCoverTx({
-  poolId, premiumMist: 4_400_000n, coverMist: 50_000_000n,
-  expiryMs: BigInt(Date.now() + 30 * 86_400_000), owner: address,
+  poolId,
+  premiumMist: 4_400_000n,
+  coverMist: 50_000_000n,
+  expiryMs: BigInt(Date.now() + 30 * 86_400_000),
+  owner: address,
 });
 await client.signAndExecuteTransaction({ signer, transaction: tx });
 ```
@@ -49,22 +52,36 @@ settled **trustlessly** against a Pyth feed. Reads need a **mainnet** client.
 ```ts
 const mainnet = new SuiClient({ url: getFullnodeUrl("mainnet") });
 
-// Live on-chain Pyth price + the $0.97 depeg trigger (defaults to suiUSDe).
+// Live on-chain Pyth price + the calibrated $0.985 adverse-band trigger.
 import {
   readDepegPrice,
+  PYTH_DEPEG_COVER_PKG,
+  PYTH_DEPEG_POOL,
+  buildDepegDepositLpTx,
+  buildDepegWithdrawLpTx,
   buildDepegRecordBreachTx,
   buildDepegClaimLatchedTx,
 } from "@backstop/sdk";
 const r = await readDepegPrice(mainnet);
-// { priceUsd: 0.99992, expo: -8, triggered: false, priceObjectId, publishMs }
+// { priceUsd, confUsd, adversePriceUsd, expo: -8, triggered: false, priceObjectId, publishMs }
 
 // Settlement needs a SUSTAINED breach (dwell) — never a single read. A keeper
 // refreshes Pyth and records the breach to arm the dwell, then again ≥ min_dwell_secs
 // later to confirm it; each call's payout path depends only on Pyth, not on Backstop.
-const arm = await buildDepegRecordBreachTx({ client: mainnet, pkg, poolId, policyId });
+const arm = await buildDepegRecordBreachTx({
+  client: mainnet,
+  pkg: PYTH_DEPEG_COVER_PKG,
+  poolId: PYTH_DEPEG_POOL,
+  policyId,
+});
 await mainnet.signAndExecuteTransaction({ signer, transaction: arm });
 // …min_dwell_secs later, confirm the breach the same way, then claim:
-const claim = buildDepegClaimLatchedTx({ pkg, poolId, policyId, owner });
+const claim = buildDepegClaimLatchedTx({
+  pkg: PYTH_DEPEG_COVER_PKG,
+  poolId: PYTH_DEPEG_POOL,
+  policyId,
+  owner,
+});
 await mainnet.signAndExecuteTransaction({ signer, transaction: claim });
 ```
 
@@ -74,6 +91,10 @@ Premiums are **utilization-priced** — `quoteDepegPremium(pool, coverMist)` mir
 on-chain curve (`rate = premiumBps + surgePremiumBps * utilization`), so cover costs
 more as the pool fills during a depeg scare. A policy also has an **activation delay**
 before it can latch a breach (anti-adverse-selection).
+
+LPs use `buildDepegDepositLpTx({ pkg, poolId, amountMist, owner })` to underwrite
+the pool and `buildDepegWithdrawLpTx({ pkg, poolId, shareId, owner })` to redeem a
+specific `LpShare`.
 
 ## Consume the risk layer from your own Move contract
 
@@ -95,4 +116,5 @@ Point your package's `risk_feed` dependency at the live package id (in
 ## Live ids
 
 All package + object ids are exported from `@backstop/sdk` (and canonical in the repo's
-`deployment.json`). Testnet only today; DeepBook Predict mainnet is later 2026.
+`deployment.json`). The RiskFeed/SRX/Predict surface is on testnet; Pyth-settled
+depeg cover is live on Sui mainnet.

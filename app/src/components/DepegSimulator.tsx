@@ -1,12 +1,16 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ConnectButton } from "@mysten/dapp-kit";
-import { fetchDepeg, DEPEG_THRESHOLD, DEPEG_FEEDS } from "../lib/depeg";
+import {
+  fetchDepeg,
+  DEPEG_THRESHOLD,
+  DEPEG_FEEDS,
+  DEPEG_MAX_CONF_BPS,
+} from "../lib/depeg";
 import { usd } from "../lib/format";
 import "./terminal.css";
 
-// Flat estimate rate for the simulator. The current pool prices a flat premium_bps;
-// production v2 will price on utilization — so this is labelled an estimate in the UI.
+// Simple simulator estimate; the live pool prices on utilization.
 const EST_PREMIUM_RATE = 0.02; // 2% of cover per term
 const TERMS = [7, 30, 90];
 
@@ -25,9 +29,15 @@ export default function DepegSimulator() {
 
   const reading = data?.find((r) => r.label === asset);
   const price = reading?.price ?? null;
-  const triggeredNow = price != null && price <= floor;
+  const adversePrice = reading?.adversePrice ?? null;
+  const triggeredNow =
+    reading != null &&
+    adversePrice != null &&
+    adversePrice <= floor &&
+    reading.confBps <= DEPEG_MAX_CONF_BPS;
   const premium = Math.max(coverage, 0) * EST_PREMIUM_RATE;
   const maxPayout = Math.max(coverage, 0);
+  const floorLabel = `$${floor.toFixed(3)}`;
 
   return (
     <div className="card" id="depeg-simulator">
@@ -68,7 +78,7 @@ export default function DepegSimulator() {
             type="number"
             min={0}
             max={1}
-            step={0.01}
+            step={0.001}
             value={floor}
             onChange={(e) => setFloor(Number(e.target.value))}
           />
@@ -96,9 +106,7 @@ export default function DepegSimulator() {
         <div className="term-stat">
           <div className="k">Max payout</div>
           <div className="v">{usd(maxPayout)}</div>
-          <div className="k">
-            paid if {asset} ≤ {usd(floor)}
-          </div>
+          <div className="k">paid if adverse band at most {floorLabel}</div>
         </div>
         <div className="term-stat">
           <div className="k">{asset} now</div>
@@ -109,8 +117,8 @@ export default function DepegSimulator() {
             {price == null
               ? "reading Pyth…"
               : triggeredNow
-                ? "below floor — would pay"
-                : "above floor"}
+                ? "adverse band below floor"
+                : `adverse ${adversePrice != null ? `$${adversePrice.toFixed(4)}` : "n/a"}`}
           </div>
         </div>
         <div className="term-stat">
@@ -125,8 +133,9 @@ export default function DepegSimulator() {
         premium flows to the pool's liquidity providers.
       </p>
       <p className="note">
-        <strong>2.</strong> If Pyth reports {asset} at or below {usd(floor)}, a
-        keeper records the breach on-chain (reads the live Pyth feed).
+        <strong>2.</strong> If Pyth's price plus confidence is at or below{" "}
+        {floorLabel}, a keeper records the breach on-chain and confirms it after
+        the dwell window.
       </p>
       <p className="note">
         <strong>3.</strong> You claim — the pool pays {usd(maxPayout)} straight
@@ -136,9 +145,8 @@ export default function DepegSimulator() {
       <div style={{ marginTop: 16 }}>
         <ConnectButton />
         <p className="note">
-          Connect to execute. The live mainnet buy ships with the production
-          pool deploy; the premium here is an estimate — the live pool prices on
-          utilization.
+          Connect to execute against the deployed mainnet pool. The premium here
+          is an estimate — the live pool prices on utilization.
         </p>
       </div>
     </div>

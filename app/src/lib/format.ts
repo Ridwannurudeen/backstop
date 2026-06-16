@@ -17,8 +17,15 @@ export const shortDate = (ms: string | number) =>
     day: "numeric",
   });
 
-export const txUrl = (digest: string) =>
-  `https://testnet.suivision.xyz/txblock/${digest}`;
+export type SuiExplorerNetwork = "testnet" | "mainnet";
+
+export const txUrl = (
+  digest: string,
+  network: SuiExplorerNetwork = "testnet",
+) =>
+  network === "mainnet"
+    ? `https://suivision.xyz/txblock/${digest}`
+    : `https://testnet.suivision.xyz/txblock/${digest}`;
 
 // SUI from mist (1e9), trimmed to at most 4 decimals.
 export const sui = (mist: string | bigint | number) =>

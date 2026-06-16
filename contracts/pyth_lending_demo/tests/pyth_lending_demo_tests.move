@@ -1,11 +1,11 @@
 #[test_only]
 module pyth_lending_demo::pyth_lending_demo_tests {
     use std::string;
+    use std::unit_test;
     use sui::clock;
     use sui::coin;
     use sui::balance;
     use sui::sui::SUI;
-    use sui::test_utils;
     use pyth_cover_pool::pyth_cover_pool;
     use pyth_lending_demo::pyth_lending_demo;
 
@@ -13,10 +13,11 @@ module pyth_lending_demo::pyth_lending_demo_tests {
     const FEED: vector<u8> = b"SUIUSDE/USD";
     const EXPO_MAG: u64 = 8;
     const THRESHOLD: u64 = 97_000_000; // $0.97
-    const PEG: u64 = 100_000_000;      // $1.00
     const DEPEG: u64 = 95_000_000;     // $0.95
     const PREMIUM_BPS: u64 = 200;      // 2% base rate (0% utilization)
     const SURGE_BPS: u64 = 800;        // +8% at 100% utilization
+    const TREASURY_FEE_BPS: u64 = 500; // 5% protocol fee on paid premiums
+    const KEEPER_BOUNTY: u64 = 2;
     const MAX_AGE: u64 = 60;
     const MAX_CONF_BPS: u64 = 200;
     const DWELL_SECS: u64 = 10;     // a breach must persist 10s before it latches
@@ -33,7 +34,8 @@ module pyth_lending_demo::pyth_lending_demo_tests {
     fun new_pool(ctx: &mut TxContext): pyth_cover_pool::DepegCoverPool<SUI> {
         pyth_cover_pool::new_pool_for_testing<SUI>(
             FEED, true, EXPO_MAG, THRESHOLD, MAX_AGE, PREMIUM_BPS, SURGE_BPS,
-            MAX_CONF_BPS, DWELL_SECS, ACT_SECS, 0, 0, 0, ctx,
+            MAX_CONF_BPS, DWELL_SECS, ACT_SECS, 0, 0, 0, TREASURY_FEE_BPS,
+            KEEPER_BOUNTY, ctx,
         )
     }
 
@@ -59,11 +61,11 @@ module pyth_lending_demo::pyth_lending_demo_tests {
         // confirms a dwell later, once the depeg has persisted.
         clock::set_for_testing(&mut clock, ARM_MS);
         pyth_lending_demo::record_shortfall_at_price_for_testing(
-            &mut market, &pool, DEPEG, &clock,
+            &mut market, &mut pool, DEPEG, &clock, &mut ctx,
         );
         clock::set_for_testing(&mut clock, CONFIRM_MS);
         pyth_lending_demo::record_shortfall_at_price_for_testing(
-            &mut market, &pool, DEPEG, &clock,
+            &mut market, &mut pool, DEPEG, &clock, &mut ctx,
         );
 
         // The backstop claims the latched payout into the reserve.
@@ -71,10 +73,10 @@ module pyth_lending_demo::pyth_lending_demo_tests {
         assert!(pyth_lending_demo::reserve_value(&market) == 500, 2);
         assert!(!pyth_lending_demo::is_insured(&market), 3);
 
-        test_utils::destroy(market);
-        test_utils::destroy(lp);
+        unit_test::destroy(market);
+        unit_test::destroy(lp);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -96,10 +98,10 @@ module pyth_lending_demo::pyth_lending_demo_tests {
             &mut market, &mut pool, fund(premium2, &mut ctx), 500, EXPIRY, &clock, &mut ctx,
         );
 
-        test_utils::destroy(market);
-        test_utils::destroy(lp);
+        unit_test::destroy(market);
+        unit_test::destroy(lp);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -113,9 +115,9 @@ module pyth_lending_demo::pyth_lending_demo_tests {
         let mut market = pyth_lending_demo::new_for_testing(string::utf8(ASSET), &mut ctx);
         pyth_lending_demo::cover_shortfall(&mut market, &mut pool, &mut ctx);
 
-        test_utils::destroy(market);
-        test_utils::destroy(lp);
-        test_utils::destroy(pool);
+        unit_test::destroy(market);
+        unit_test::destroy(lp);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -134,9 +136,9 @@ module pyth_lending_demo::pyth_lending_demo_tests {
         // Insured but never breached → the latched claim must abort, no free payout.
         pyth_lending_demo::cover_shortfall(&mut market, &mut pool, &mut ctx);
 
-        test_utils::destroy(market);
-        test_utils::destroy(lp);
+        unit_test::destroy(market);
+        unit_test::destroy(lp);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 }

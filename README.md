@@ -12,7 +12,7 @@ The **Risk terminal** and **AI underwriter** tabs are public (no wallet) — the
 
 ## The thesis
 
-In May 2025 a $223M exploit hit Sui's largest DEX. The backstop wasn't insurance — it was a **90.9% validator vote to roll back the chain**. That's governance-by-emergency, and it doesn't scale. Less than 2% of DeFi is insured, and nothing on Sui lets you *price* or *transfer* the risk that actually wipes people out: a crash or a depeg.
+In May 2025 a $223M exploit hit Sui's largest DEX. The backstop wasn't insurance — it was a **90.9% validator vote to roll back the chain**. That's governance-by-emergency, and it doesn't scale. Less than 2% of DeFi is insured, and nothing on Sui lets you _price_ or _transfer_ the risk that actually wipes people out: a crash or a depeg.
 
 Backstop is that missing layer. **DeepBook Predict gives us the price of risk; Walrus gives us tamper-evident decision memory, and a public calibration ledger turns that memory into provable trust.** Insurance is the first product on top.
 
@@ -31,19 +31,19 @@ Four pillars on that foundation:
 
 Everything below is deployed and executed on Sui testnet. **Canonical full IDs live in [`deployment.json`](./deployment.json)** (object IDs abbreviated here).
 
-| Artifact | ID / digest |
-|---|---|
-| Network | `testnet` |
-| RiskFeed package | `0xefda…cc6ef` |
-| RiskFeed shared object | `0xa48b…1ddf4` |
-| Predict manager | `0x630f…123ac` |
-| **Live insurance mint** — DOWN BTC<$56,901, $10 cover, 0.2886 DUSDC premium | tx `G2X8UFPRjgYf76dA7FBziGg6cyUAkoepGnTuCakzCcBP` |
-| **RiskFeed readings published** — 3 probabilities-of-failure, Walrus-linked | tx `Ad5Fcr6otec41vioS5mTPJGY89GaaKcQPdRUZc2bvbEz` |
-| **Agent capacity-sized supply** — $100k capacity → $10.00 on-chain | tx `EcRYQ3dLuATkef6Kv7P6Rj11B7bkriWHqXkRCLk8ogVa` |
-| CoverPool package | `0x0ebd…6082f` |
-| **Parametric crash payout** — deposit → buy cover → crash → on-chain claim, settled from the pool | tx `6zaXyBYjTduAYXUQGHjE6dAvLHX5t7muKRANTgpH6p2P` |
-| Accountability package (passport + calibration) | `0x822e…d8d7e` |
-| **Bonded agent passport + calibration ledger** — predictions settled vs outcome, accuracy on-chain | tx `GAdig2CpDouXXnEpW934F9HpjbWodm7g9GLj5whGqHoP` |
+| Artifact                                                                                              | ID / digest                                       |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| Network                                                                                               | `testnet`                                         |
+| RiskFeed package                                                                                      | `0xefda…cc6ef`                                    |
+| RiskFeed shared object                                                                                | `0xa48b…1ddf4`                                    |
+| Predict manager                                                                                       | `0x630f…123ac`                                    |
+| **Live insurance mint** — DOWN BTC<$56,901, $10 cover, 0.2886 DUSDC premium                           | tx `G2X8UFPRjgYf76dA7FBziGg6cyUAkoepGnTuCakzCcBP` |
+| **RiskFeed readings published** — 3 probabilities-of-failure, Walrus-linked                           | tx `Ad5Fcr6otec41vioS5mTPJGY89GaaKcQPdRUZc2bvbEz` |
+| **Agent capacity-sized supply** — $100k capacity → $10.00 on-chain                                    | tx `EcRYQ3dLuATkef6Kv7P6Rj11B7bkriWHqXkRCLk8ogVa` |
+| CoverPool package                                                                                     | `0x0ebd…6082f`                                    |
+| **Parametric crash payout** — deposit → buy cover → crash → on-chain claim, settled from the pool     | tx `6zaXyBYjTduAYXUQGHjE6dAvLHX5t7muKRANTgpH6p2P` |
+| Accountability package (passport + calibration)                                                       | `0x822e…d8d7e`                                    |
+| **Bonded agent passport + calibration ledger** — predictions settled vs outcome, accuracy on-chain    | tx `GAdig2CpDouXXnEpW934F9HpjbWodm7g9GLj5whGqHoP` |
 | **Backstop network** — `PoolRegistry` + `lending_demo` reserve backstopped by a pool claim on a crash | tx `9ASNW2B4FAthT5aw8x8gpcwwgq75mDm8TtjWoRNLMxqp` |
 
 Explore any digest at `https://testnet.suivision.xyz/txblock/<digest>`; read any Walrus decision at `https://aggregator.walrus-testnet.walrus.space/v1/blobs/<blobId>`.
@@ -79,6 +79,7 @@ spike/       Runnable verification harness for the Predict PTBs (the verified fo
 Node v24 + npm. No pnpm required.
 
 ### Frontend
+
 ```bash
 cd app
 npm install
@@ -86,6 +87,7 @@ npm run dev        # http://localhost:5173 — Risk terminal + AI underwriter wo
 ```
 
 ### AI underwriter agent
+
 ```bash
 cd agent
 npm install
@@ -95,19 +97,19 @@ npm run once       # one cycle: read oracles → price → decide → log to Wal
 
 Optional flags:
 
-| Env var | Effect |
-|---|---|
-| `ANTHROPIC_API_KEY` | Use Claude for the underwriting decision (else deterministic rules; decisions tagged `AI` vs `rules`). |
-| `AGENT_EXECUTE=1` + `SUI_PRIVATE_KEY` | **Execute on-chain** — supply DUSDC into the Predict vault for each accepted market. Off by default (recommend-and-log only). |
-| `AGENT_CAPACITY_BPS` | Fraction of the agent's recommended capacity to commit per call (default `1` = 1bp; raise toward `10000` = 100% with a funded production vault signer). |
-| `AGENT_MAX_SUPPLY_USD` | Per-call safety ceiling (default `25`). |
+| Env var                               | Effect                                                                                                                                                  |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY`                   | Use Claude for the underwriting decision (else deterministic rules; decisions tagged `AI` vs `rules`).                                                  |
+| `AGENT_EXECUTE=1` + `SUI_PRIVATE_KEY` | **Execute on-chain** — supply DUSDC into the Predict vault for each accepted market. Off by default (recommend-and-log only).                           |
+| `AGENT_CAPACITY_BPS`                  | Fraction of the agent's recommended capacity to commit per call (default `1` = 1bp; raise toward `10000` = 100% with a funded production vault signer). |
+| `AGENT_MAX_SUPPLY_USD`                | Per-call safety ceiling (default `25`).                                                                                                                 |
 
 The signer needs testnet SUI (faucet) and gated DUSDC. With execution enabled, supply scales with the agent's risk assessment — proven live: $100k-capacity market → $10.00 supplied, $36,652-capacity → $3.6652, each settled on-chain.
 
 ## What's live vs. roadmap
 
-**Live on testnet:** live quotes + risk terminal + AI underwriter + Walrus proof (read-only, no wallet); buy / underwrite / treasury *transactions* (need gated DUSDC); the agent executing its own underwriting on-chain; the native parametric CoverPool (crash → on-chain payout). The on-chain `RiskFeed` is now a **bonded multi-publisher** oracle with challenge/slash and **freshness-enforced reads** (`probability_bps_fresh`) — no single key, and a payout can't settle on a stale reading.
+**Live on testnet:** live quotes + risk terminal + AI underwriter + Walrus proof (read-only, no wallet); buy / underwrite / treasury _transactions_ (need gated DUSDC); the agent executing its own underwriting on-chain; the native parametric CoverPool (crash → on-chain payout). The on-chain `RiskFeed` is now a **bonded multi-publisher** oracle with challenge/slash and **freshness-enforced reads** (`probability_bps_fresh`) — no single key, and a payout can't settle on a stale reading.
 
-**Going to mainnet — Pyth-settled depeg cover (built, proven, deploy-pending):** DeepBook Predict is testnet-only with no committed mainnet date, so the production settlement path moves to **Pyth** (live on Sui mainnet). [`contracts/pyth_cover_pool`](./contracts/pyth_cover_pool) is a SUI-collateralized parametric depeg-cover pool whose claim reads a Pyth feed on-chain (`get_price_no_older_than` — freshness by construction) and pays iff the insured stablecoin breaks its floor. It passes **8/8 tests against the real Pyth mainnet packages**, the **suiUSDe feed is confirmed live on Sui mainnet**, and the settlement read is **proven end-to-end via mainnet `devInspect`** (no funds). The `app` "Depeg cover" tab and `@backstop/sdk` depeg helpers read it live. The one remaining step is a funded mainnet deploy.
+**Live on mainnet — Pyth-settled depeg cover:** DeepBook Predict is testnet-only with no committed mainnet date, so the production settlement path moves to **Pyth** (live on Sui mainnet). [`contracts/pyth_cover_pool`](./contracts/pyth_cover_pool) is a SUI-collateralized parametric depeg-cover pool whose claim reads a Pyth feed on-chain (`get_price_no_older_than` — freshness by construction) and pays iff the insured stablecoin breaks its floor. The cover pool passes **34/34** Move tests, the lending consumer passes **4/4**, the **suiUSDe feed is confirmed live on Sui mainnet**, and `deployment.json` records the live package IDs, dependency-only upgrade-policy locks, and a staged buy → dwell → claim proof. The `app` "Depeg cover" tab and `@backstop/sdk` depeg helpers now point at the deployed mainnet pool by default.
 
-**Roadmap (not shipped):** multi-asset markets, an underwriter marketplace, the generalized provenance standard, cross-chain agent reputation. Pricing stays subjective/off-chain; settlement is objective and on-chain — that split is why Backstop is a risk *layer*, not a single app.
+**Roadmap (not shipped):** multi-asset markets, an underwriter marketplace, the generalized provenance standard, cross-chain agent reputation. Pricing stays subjective/off-chain; settlement is objective and on-chain — that split is why Backstop is a risk _layer_, not a single app.

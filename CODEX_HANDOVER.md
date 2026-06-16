@@ -30,6 +30,9 @@ Last merged: PR #30 (`37b45ba`).
 - **Full test command (run from the package dir):**
   `./../../.tools/sui.exe move test --allow-dirty`
 - **Typecheck:** agent/sdk are TS — `cd agent && npx tsc --noEmit`; `cd sdk && npm run build`.
+- **Funded Sui signing:** the depeg deploy/provision scripts can now sign from the
+  local Sui keystore via `SUI_KEY_ALIAS`/`SUI_ADDRESS`; do not export or print private
+  keys. A fresh mainnet alias was created locally as `backstop-mainnet-deployer`.
 - **Invariants you must never break:** (1) **full collateralization** `value(funds) >=
   total_cover` — no leverage on a correlated single-feed risk; (2) the **claim /
   settlement path is pause-exempt** (`record_breach`, `claim_latched`, `expire_policy`,
@@ -50,9 +53,9 @@ Last merged: PR #30 (`37b45ba`).
 ## 1. Current state (DONE — do not redo)
 
 Mainnet depeg product = `pyth_cover_pool` (SUI-collateralized, Pyth-settled depeg cover
-on suiUSDe). Consumer = `pyth_lending_demo`. SDK surface in `sdk/src/index.ts`. App
-read-only `/depeg` surface (simulator + live price card) is live on
-backstop.gudman.xyz.
+on suiUSDe). Consumer = `pyth_lending_demo`. SDK surface in `sdk/src/index.ts`. The
+deployed app still needs an update, but this branch now has a wallet-connected `/depeg`
+mainnet action panel gated on verified package/pool IDs.
 
 **Sprint 0** (live-app defects) — done: G10 (agent never blanks the public feed), G11
 (risk terminal first-liquid term), G12 (route code-splitting).
@@ -60,6 +63,7 @@ backstop.gudman.xyz.
 **Sprint 1 part 1** — done: no-wallet **DepegSimulator** is the lead `/depeg` surface.
 
 **Sprint 2 contract v2 hardening** — DONE and merged:
+
 - **G2** confidence band — adverse bound `price+conf<=threshold` + `max_conf_bps` reject.
 - **G1** dwell — sustained breach: `record_breach` arms, a confirming read
   `>= min_dwell_secs` later latches; `claim_latched` pays. No single-read instant claim.
@@ -70,24 +74,32 @@ backstop.gudman.xyz.
 - **G6** exposure caps — `max_cover_per_policy` + `max_total_cover` (0 = uncapped).
 - **G4** governance — `AdminCap` (minted to creator at `create_and_share`),
   claim-exempt `set_paused`, timelocked `propose/execute/cancel_param_update`.
+- **G5** treasury fee — paid premiums are split into LP net premium + protocol
+  treasury, admin-only treasury withdrawal, and timelocked `treasury_fee_bps`.
+- **G8** keeper bounty — breach-confirming keepers are paid a fixed bounty from the
+  treasury when funded; an empty treasury never blocks the latch.
 
 Current `pyth_cover_pool` public API (for reference when building UI/SDK):
 `new_pool`, `create_and_share` (entry), `deposit_lp`, `withdraw_lp`, `premium_rate_bps`,
 `premium_for`, `buy_cover`, `expire_policy`, `record_breach`, `claim_latched`,
+`withdraw_treasury`,
 `set_paused`, `propose_param_update`, `execute_param_update`, `cancel_param_update`,
 plus views (`pool_value`, `total_cover`, `total_shares`, `threshold`, `premium_bps`,
 `surge_premium_bps`, `max_conf_bps`, `max_age_secs`, `min_dwell_secs`,
 `activation_delay_secs`, `max_cover_per_policy`, `max_total_cover`, `is_paused`,
-`timelock_secs`, `has_pending_update`, and `policy_*` / `shares`).
+`treasury_value`, `treasury_fee_bps`, `keeper_bounty`, `timelock_secs`,
+`has_pending_update`, and `policy_*` / `shares`).
 
 `create_and_share` arg order (positional): `feed_id, expo_neg, expo_mag, threshold,
 max_age_secs, premium_bps, surge_premium_bps, max_conf_bps, min_dwell_secs,
-activation_delay_secs, max_cover_per_policy, max_total_cover, timelock_secs, ctx`.
+activation_delay_secs, max_cover_per_policy, max_total_cover, timelock_secs,
+treasury_fee_bps, keeper_bounty, ctx`.
 
 SDK depeg exports: `readDepegPrice`, `readDepegPool`, `quoteDepegPremium`,
-`buildDepegBuyCoverTx`, `buildDepegRecordBreachTx`, `buildDepegClaimLatchedTx`.
+`buildDepegBuyCoverTx`, `buildDepegDepositLpTx`, `buildDepegWithdrawLpTx`,
+`buildDepegRecordBreachTx`, `buildDepegClaimLatchedTx`.
 
-Tests today: `pyth_cover_pool` 26/26, `pyth_lending_demo` 4/4 (both green).
+Tests today: `pyth_cover_pool` 34/34, `pyth_lending_demo` 4/4 (both green).
 
 ---
 
@@ -95,103 +107,135 @@ Tests today: `pyth_cover_pool` 26/26, `pyth_lending_demo` 4/4 (both green).
 
 ### A. Sprint 2 leftovers — contract, no funds (do these next)
 
-#### A1 — G5 Treasury fee  *(small, self-contained)*
-Split a protocol fee off each premium into a treasury balance for sustainability +
-keeper funding.
-- Add pool fields `treasury_fee_bps: u64` and `treasury: Balance<T>`.
-- In `buy_cover`, after validating the paid premium, skim
-  `fee = paid * treasury_fee_bps / 10_000` into `pool.treasury`; join only
-  `paid - fee` into `pool.funds`. Re-check `value(funds) >= total_cover + cover` AFTER
-  the skim (collateralization must still hold).
-- `withdraw_treasury(pool, &AdminCap, amount, ctx): Coin<T>` — admin-only, cannot touch
-  `funds`.
-- Make `treasury_fee_bps` a timelocked param (add a `K_TREASURY_FEE_BPS` kind, extend
-  the `kind <= …` bound and `apply_param`).
-- Views: `treasury_value`, `treasury_fee_bps`. Ctor gains `treasury_fee_bps` (ripple).
-- **Acceptance:** new tests (fee skimmed to treasury; LP still earns `paid-fee`; admin
-  withdraw works + non-admin/`EWrongAdminCap`; collateralization still holds). All
-  suites green; SDK `readDepegPool` exposes the two fields. Start ~5% (`500` bps).
+#### A1 — G5 Treasury fee _(done)_
 
-#### A2 — G8 Keeper bounty  *(touches `record_breach` signature)*
-Reward whoever posts the Pyth update + arms/confirms the dwell (Pyth is pull-based).
-- Add pool field `keeper_bounty: u64` (coin units), paid from `treasury` (preferred) to
-  `ctx.sender()` **once**, on the CONFIRM transition (when `breached` flips true).
-- This requires `record_breach` to take `&mut DepegCoverPool` + `ctx` (currently `&` +
-  no ctx). **Ripple to handle:** the SDK `buildDepegRecordBreachTx` moveCall args are
-  unchanged (the pool object is already passed; `&`→`&mut` is transparent to the PTB,
-  but `ctx` is implicit so no new arg) — verify; `pyth_lending_demo::record_shortfall`
-  must pass `&mut pool` + `ctx` and so must its callers/tests; `do_latch` likewise.
-- Guard: pay only if `treasury` has funds (else pay 0 / skip — never abort the latch).
-  Keep it a fixed bounty; gas-rebate sizing is a Phase-5 refinement.
-- Ctor gains `keeper_bounty` (ripple). Timelockable (optional).
-- **Acceptance:** test that a confirm pays the keeper exactly once from treasury and
-  the latch still works when treasury is empty. All suites green.
+Implemented in branch `feat/pyth-treasury-fee`: `treasury_fee_bps`, `treasury`,
+admin-only `withdraw_treasury`, timelocked parameter kind `9`, views, constructor
+ripple, SDK pool fields, deploy docs, and 500 bps default in the provisioner.
+Acceptance is green: fee skim, LP net premium, admin withdrawal, wrong cap,
+post-fee collateralization, and timelocked fee update tests.
 
-#### A3 — Sui Prover invariant  *(assurance, optional but in Phase-1 acceptance)*
-Prove `value(funds) >= total_cover` and share accounting with **Sui Prover**. If the
-toolchain isn't available, document the attempt and leave a `#[spec]`/comment stub —
-do not fake it.
+#### A2 — G8 Keeper bounty _(done)_
 
-### B. Phase 0 — backtest + calibration *(no funds; was skipped, acceptance-listed)*
-- Write `agent/src/backtestDepeg.ts` (`npm run backtest-depeg`): pull suiUSDe/USDe Pyth
-  history (Hermes), replay the v2 trigger (conf band + dwell + activation) over the
-  Oct-2025 USDe dislocation window, print what would/wouldn't have paid.
-- Use the output to fix `threshold`, `max_conf_bps`, `min_dwell_secs`,
-  `activation_delay_secs`, premium curve constants, caps, treasury fee (see
-  `PRODUCTION_PLAN.md` §3 table — current values are **templates, not tuned**).
-- **Acceptance:** runnable script + a short calibrated-params note.
+Implemented in branch `feat/pyth-keeper-bounty`: `keeper_bounty`, confirm-only
+treasury payout to `ctx.sender()`, `record_breach`/consumer mutable-pool ripple,
+timelocked parameter kind `10`, SDK pool field, deploy docs, and provisioner default
+`KEEPER_BOUNTY=100000` (0.0001 SUI). Acceptance is green: confirm pays once from
+treasury, empty treasury never blocks latch, and timelocked bounty updates execute.
 
-### C. Sprint 1 part 2 / Phase 2 — interactive wallet UI on `/depeg` *(no funds; live txs need a funded wallet, devInspect otherwise)*
-Make `/depeg` a wallet-connected mainnet dApp (today it is read-only). Reuse the
-testnet tabs' dapp-kit pattern (`ConnectButton`, `useSignAndExecuteTransaction`).
-- **Buy cover** — quote via `quoteDepegPremium(readDepegPool(...), cover)`; build with
-  `buildDepegBuyCoverTx`; show activation delay + dwell terms.
-- **Provide / withdraw liquidity** — `deposit_lp`/`withdraw_lp` (add SDK builders;
-  show TVL, utilization, premium APR, full-collateralization headroom).
-- **Record-breach + Claim** — `buildDepegRecordBreachTx` (arm → wait dwell → confirm)
-  then `buildDepegClaimLatchedTx`; show **dwell progress** (`policy_first_breach_ms` +
-  `min_dwell_secs`) and **activation** state.
-- **My policies / My LP** — live positions + claimable/pending state; surface `paused`.
-- **"Protect this position" widget** — read a real NAVI/Suilend suiUSDe position via
-  `navi-sdk` and size a policy to it (the unilateral path to "1 real integration").
-- **Acceptance:** every flow builds a valid PTB (devInspect-verified with no funds);
-  app `tsc` + `vite build` clean; deploy via `bash deploy/deploy.sh` (see gotchas in
-  `deploy/DEPLOY.md` — kill any lingering `vite preview` on :4173 before `npm ci`;
-  never blanket-kill `node.exe`).
+#### A3 — Sui Prover invariant _(toolchain-blocked, documented)_
 
-### D. Sprint 3 / Phase 3 — mainnet deploy + custody *(FUNDS/APPROVAL-GATED — do not run without the user)*
-- Deploy v2 `pyth_cover_pool` + `pyth_lending_demo` to mainnet via the wired
-  `DEPLOY_NETWORK=mainnet` path (`contracts/pyth_cover_pool/DEPLOY.md`). Needs a funded
-  **mainnet** wallet (the existing throwaway key is testnet-only) + ~0.5 SUI.
-- **G7** — move `UpgradeCap` + `AdminCap` to a **Sui multisig**; publish a timelock
-  upgrade-policy package in a *separate, immutable* package; lock the policy; ratchet to
-  Additive/Dependency-only once stable (docs.sui.io/build/custom-upgrade-policy).
-- Seed a real suiUSDe pool; first live **buy → dwell → claim** (stageable immediately
-  with `THRESHOLD_USD=1.05` + small `ACTIVATION_DELAY_SECS`/`MIN_DWELL_SECS`, per
-  `DEPLOY.md`).
-- **Acceptance:** live pkg ids + one real buy/claim digest in `deployment.json`; caps
-  on multisig.
+Pinned Sui CLI v1.73.1 has no `move prove` command, and no local `move-prover`,
+`sui-prover`, Boogie, or Z3 executable is installed. The attempt and target
+invariants are documented in `contracts/pyth_cover_pool/PROVER.md`, with a source
+comment stub in `pyth_cover_pool.move`. Do not claim a formal proof until a compatible
+Sui prover toolchain is available and run.
 
-### E. Sprint 4 / Phase 4 — assurance & first integration *(partly external)*
+### B. Phase 0 — backtest + calibration _(done)_
+
+Implemented in branch `feat/depeg-backtest-calibration`: `agent/src/backtestDepeg.ts`
+(`npm run backtest-depeg`) replays the contract trigger (`price + conf <= threshold`,
+`max_conf_bps`, dwell, activation delay) over the Oct-2025 USDe dislocation window
+using Pyth Benchmarks. `DEPEG_CALIBRATION.md` records the replay outputs and calibrated
+launch defaults.
+
+Default calibrated params are now: `THRESHOLD_USD=0.985`, `MAX_CONF_BPS=200`,
+`MIN_DWELL_SECS=600`, `ACTIVATION_DELAY_SECS=1800`, `premium_bps=200`,
+`SURGE_PREMIUM_BPS=800`, `TREASURY_FEE_BPS=500`, `KEEPER_BOUNTY=100000`.
+
+Acceptance is green: runnable script + short calibrated-params note.
+
+### C. Sprint 1 part 2 / Phase 2 — interactive wallet UI on `/depeg` _(partly done locally; live txs need verified mainnet IDs + funded wallet)_
+
+This branch adds the wallet-connected mainnet action surface:
+
+- dapp-kit now has both `testnet` and `mainnet` provider configs; `/depeg` can switch
+  the app provider to Sui mainnet.
+- `app/src/components/DepegActions.tsx` persists verified package/pool IDs in
+  localStorage and stays disabled until they are configured.
+- **Buy cover** quotes via `quoteDepegPremium(readDepegPool(...), cover)` and builds
+  `buy_cover`.
+- **Provide / withdraw liquidity** builds `deposit_lp`/`withdraw_lp`; the SDK now has
+  `buildDepegDepositLpTx` and `buildDepegWithdrawLpTx`.
+- **Record-breach + Claim** builds Pyth-refresh `record_breach` and latched
+  `claim_latched` PTBs.
+- **My policies / My LP** reads owned `Policy<SUI>` and `LpShare<SUI>` objects for the
+  configured pool, showing activation/armed/latched state.
+- Pool state now surfaces paused/live status, collateral/cap headroom, depeg floor,
+  premium curve, per-policy/pool caps, dwell/activation, oracle confidence/age,
+  treasury fee, and keeper bounty. Buy/deposit are disabled when paused or over cap.
+- Policy rows show activation countdown, dwell progress/readiness, latched state, and
+  only enable confirm once the dwell window has elapsed.
+- **Protect this position** is now a starter NAVI/Suilend rail: it scans the connected
+  mainnet wallet for lending/obligation-like Sui objects, accepts a manually pasted
+  position object ID, shows the object type/fields, and lets the user size the cover
+  form from a manual SUI-equivalent exposure. It also dynamically loads
+  `@naviprotocol/lending` and parses NAVI supply/borrow lines, including USDe-family
+  net exposure in USD, reads Suilend main-pool `ObligationOwnerCap` objects directly
+  without adding `@suilend/sdk`, and converts USDe-family USD exposure into a
+  SUI-denominated suggested cover size with Pyth SUI/USD.
+- Current `@suilend/sdk` should not be added directly to this app without a broader Sui
+  SDK migration: its latest peer surface expects `@mysten/sui` v2 while the app is on
+  the current dapp-kit/Sui SDK v1 stack. This branch uses a narrow direct Suilend JSON
+  parser verified against live mainnet obligation shapes instead.
+- No-funds live integration verification exists at the repo root as
+  `npm run verify:depeg`. It verifies the Pyth SUI/USD helper, the exported Suilend
+  obligation parser against a public mainnet USDe-family obligation, empty-owner
+  Suilend reads, and the NAVI dynamic import/empty-owner path.
+- App dev tooling was upgraded to Vite 8 / `@vitejs/plugin-react` 6 to clear the
+  Vite/esbuild dev advisory set. Full `npm audit` in `app` now reports 0
+  vulnerabilities, not just `--omit=dev`. `app/vite.config.ts` also splits React,
+  wallet/Sui, Pyth, crypto, and generic vendor chunks; the previous >500 kB build
+  chunk warning is gone.
+
+Still left:
+
+- Run a live wallet smoke from the browser against the deployed mainnet pool.
+- Validate the NAVI/Suilend exposure buttons with a connected wallet that actually has
+  USDe-family positions.
+- Deploy the updated app with user approval. Acceptance remains: app `tsc` + `vite
+build` clean, then `bash deploy/deploy.sh` (see gotchas in `deploy/DEPLOY.md`).
+
+### D. Sprint 3 / Phase 3 — mainnet deploy + custody _(mainnet deploy complete; admin custody still open)_
+
+- Deployed v2 `pyth_cover_pool` + `pyth_lending_demo` to Sui mainnet via the
+  keystore-backed `DEPLOY_NETWORK=mainnet` path.
+- Live IDs and proof digests are recorded under `pythDepeg` in `deployment.json`.
+- **G7** — package code is now locked to Sui `DEP_ONLY` on both mainnet
+  `UpgradeCap`s: cover lock tx `Csrn2Vi94rnd9G1A922649UhUgpymj33rXPA58nwMTm6`,
+  lending lock tx `DFCpC9cLqDmcNrBMHC4deT98HfX2QFM2337wRAqyS7n3`.
+- **Admin custody** — move production/staged `AdminCap`s to a real Sui multisig once
+  independent signer addresses are available. A second local keystore key was not used
+  because it would not materially improve custody.
+- Seeded a staged suiUSDe pool and executed live **buy → dwell → claim** with
+  `THRESHOLD_USD=1.05`, `ACTIVATION_DELAY_SECS=5`, and `MIN_DWELL_SECS=5`.
+- **Acceptance left:** admin caps on real multisig and a connected-wallet smoke
+  against the deployed pool.
+
+### E. Sprint 4 / Phase 4 — assurance & first integration _(partly external)_
+
 - External audit (OtterSec/Zellic/MoveBit tier) + fix cycle; soak + bug bounty.
 - Ship the 1 real integration (live policy against a real NAVI/Suilend suiUSDe
   position).
 - Proof-health badges + replayable accountability (decision → Walrus blob → on-chain
   reading → outcome → Brier).
 
-### F. Phase 5 — scale *(later)*
+### F. Phase 5 — scale _(later)_
+
 Multi-asset pools (USDC/USDT/sUSDe), a junior backstop tranche (capital efficiency, NOT
 leverage), an incentivized keeper network, progressive governance decentralization.
 
 ---
 
 ## 3. Submission / repo housekeeping (user-gated)
+
 - Repo is **PRIVATE**; Sui Overflow requires PUBLIC at judging →
   `gh repo edit Ridwannurudeen/backstop --visibility public` (user approval first).
 - Demo video + submission form are approval-gated — never submit without explicit
   user sign-off.
 
 ## 4. Known simplifications (acceptable; refine only if asked)
+
 - Dwell = exactly **2** observations (`confirm_count` in the param table is effectively
   2, hardcoded). A configurable confirm-count is a possible future refinement.
 - Utilization premium reverts toward the floor via **state** (cover freeing), not a

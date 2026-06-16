@@ -3,6 +3,8 @@
   "private": true,
   "description": "Backstop — the risk & trust layer for Sui (DeepBook Predict + Walrus)",
   "scripts": {
-    "verify:public": "node scripts/verify-public.mjs"
+    "verify:public": "node scripts/verify-public.mjs",
+    "verify:depeg": "npm --prefix agent run verify-depeg-integrations",
+    "check:deployer": "npm --prefix agent run check-deployer"
   }
 }

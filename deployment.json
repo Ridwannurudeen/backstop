@@ -96,10 +96,7 @@
     "registry": "0x8328bc1eeda8cd5a19640e9c61a138a16f3dde54ca8f736a16814b14c7ac042c",
     "registryCap": "0xef2def3bd662abaf67044f7d788dc003aaee09742f68670b5d6fb2db4f858c32",
     "publishDigest": "9nK4eoEVw9hnJv2xsRk6TsHci8SFbw2DrqDrWge9Gggs",
-    "registered": [
-      "BTC-CRASH-30D",
-      "DEMO-CRASH"
-    ],
+    "registered": ["BTC-CRASH-30D", "DEMO-CRASH"],
     "registerDigest": "AASK6nBMDz8oEWPo8JFPMSnACLLVzFRSBctZTEejCnX4"
   },
   "lendingDemo": {
@@ -165,6 +162,62 @@
       "slashDigest": "CCnhXCxVHdfqLP9r1jJpg3Lsk7YC15ZKe2VUpxoZYQhk",
       "slashedAmountMist": 5000000,
       "slashedAccuracyBps": 0
+    }
+  },
+  "pythDepeg": {
+    "network": "mainnet",
+    "note": "Pyth-settled suiUSDe depeg cover deployed and proven on Sui mainnet 2026-06-16. Staged pool used THRESHOLD_USD=1.05, ACTIVATION_DELAY_SECS=5, MIN_DWELL_SECS=5 to force a live dwell-latch claim while the production default remains .985 / 30m activation / 10m dwell.",
+    "deployer": "0xac29385d7753c7e1b8edd6db72de70c7af1660bf10ebb3ae2e41107a1ee37685",
+    "coverPackage": "0x761832702281966fac9dee6183b530d2f73ecd779524c61cd3dd4705fa6ec968",
+    "coverPublishDigest": "7EN6b3PpPriYHvLEZ9jPsmLtBWVdmxUK3y4LutdXT3BZ",
+    "coverUpgradeCap": "0x43a4d7e8fef6214c7dcc299beb15e446808c06a56f083f15d07df69cb3455e99",
+    "coverUpgradePolicy": "DEP_ONLY",
+    "coverUpgradePolicyLockDigest": "Csrn2Vi94rnd9G1A922649UhUgpymj33rXPA58nwMTm6",
+    "lendingPackage": "0xb448b63fd536525db0ee2bc26f6110cfc3d7fa072280915d7b177568fb36c664",
+    "lendingPublishDigest": "Drudc892vgTDmRzTy8LheCnbp2o4iMEETupq6VQDQ26Q",
+    "lendingUpgradeCap": "0xf871ce8cf6b2381988ab71693cb2139a47974653f0213f46951f0d0bc978afa0",
+    "lendingUpgradePolicy": "DEP_ONLY",
+    "lendingUpgradePolicyLockDigest": "DFCpC9cLqDmcNrBMHC4deT98HfX2QFM2337wRAqyS7n3",
+    "stagedProof": {
+      "feed": "suiUSDe/USD",
+      "pool": "0x274d8628a0566679ca949361424a145249e2d44b974e352bf723cd8007e93b89",
+      "adminCap": "0xde8a05cbbdcbea8f609c2be95eea3c6c0d870dc379176e4ad9e83aef542cd5c9",
+      "lendingMarket": "0xe967614f1795e189d20f81c850754257bf0fbb7b8752a50ba3edec2dbf2c3fe7",
+      "lpSeedMist": 100000000,
+      "coverMist": 50000000,
+      "premiumMist": 3000000,
+      "keeperBountyMist": 100000,
+      "thresholdUsd": 1.05,
+      "activationDelaySecs": 5,
+      "minDwellSecs": 5,
+      "createPoolDigest": "FTPrPSfT5BRynZfeAZQbd7u2ZrPLdpjcigyMdrsqGLBc",
+      "depositLpDigest": "Evjg2n88bDD7gvHymMyQYzik1jcfcNULqbSh8WV3F2MR",
+      "createMarketDigest": "F79UMQhsiGBAakqM3UQ6sPiyvvCRUQuwdnsFLXYGYtmh",
+      "depositReserveDigest": "Hc6JjcqgXs7i3z47hrNE6DHKZm9tzuDXoWMmyFwV9QJp",
+      "insureDigest": "2pVDxAhbWRvADo5e86Y6CwqQck3dbLWdxek8Te5mWB4z",
+      "recordArmDigest": "DuEPmCA91up54iuLqYaDgVLkHiZi38NZioR9EizJ2Gb9",
+      "recordConfirmDigest": "Hq3W3G9bNViE7GomBaGVfdxX4joxA9oDnYZmTLbbGWVu",
+      "claimDigest": "8uLrBjqfn2MFGpsoXE9xCVNQRmmhT5EiybWSckwdYnJ6",
+      "payoutMist": 50000000
+    },
+    "productionPool": {
+      "feed": "suiUSDe/USD",
+      "pool": "0x5edc508a4258e1253563219049dadc8b068cf309115e29732dad71698c168592",
+      "adminCap": "0x5a82b64e98ce691b086ef9bd2b32f0d541ca4bf821e3d515c6c2374a5d04e5af",
+      "lendingMarket": "0x61759e759625dfce9ac7b83878fce699d540ed59056134a4d57422b55fb6b7b3",
+      "thresholdUsd": 0.985,
+      "activationDelaySecs": 1800,
+      "minDwellSecs": 600,
+      "lpSeedMist": 1000000000,
+      "coverMist": 50000000,
+      "premiumMist": 2000000,
+      "keeperBountyMist": 100000,
+      "createPoolDigest": "6V29TwtqPs8aiDfYe48Foq5BGRJ8Qcn1wAqMLhZA3W5h",
+      "depositLpDigest": "8iEXnAJLrPAL5pqTzacEBFHcWBSPSC7cLf6EQvpF5jx4",
+      "createMarketDigest": "BJjFkgk6mJB6NNQ7gf7LogXryWBrxfGChkvQvKL8S9e",
+      "depositReserveDigest": "ESwe9ZATCEoNckKQXPkaQj1Nqrv6nqd981XvkbrFsmih",
+      "insureDigest": "GBosDDCMqB4acaV5Kt7mLa2bgo1sfDdvCStsWf9mbTmA",
+      "outcome": "suiUSDe above floor; cover remains active and premium retained by LPs"
     }
   }
 }

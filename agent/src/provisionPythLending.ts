@@ -10,21 +10,21 @@
 //    off mainnet Pyth and evaluates the pool's depeg trigger, so you can see whether
 //    a claim would settle right now. Prints the end-to-end flow + the env for --execute.
 //  - `--execute`: runs the full lifecycle on mainnet (real funds). Records the breach
-//    + claims only when the live feed is at/below the floor; otherwise reports the
-//    honest "no depeg → cover active, premium retained" outcome (no wasted gas).
+//    + claims only when the live feed's adverse band is at/below the floor; otherwise
+//    reports the honest "no depeg → cover active, premium retained" outcome (no wasted gas).
 //
 // Run (no funds):  npx tsx src/provisionPythLending.ts
-// Run (execute):   LENDING_PKG=.. POOL=.. SUI_PRIVATE_KEY=.. COVER=.. PREMIUM=.. \
-//                  [MARKET=.. RESERVE=.. THRESHOLD_USD=0.97] \
+// Run (execute):   LENDING_PKG=.. POOL=.. SUI_KEY_ALIAS=.. COVER=.. PREMIUM=.. \
+//                  [MARKET=.. RESERVE=.. THRESHOLD_USD=0.985] \
 //                  npx tsx src/provisionPythLending.ts --execute
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
-import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { Transaction } from "@mysten/sui/transactions";
 import { bcs } from "@mysten/sui/bcs";
 import {
   SuiPythClient,
   SuiPriceServiceConnection,
 } from "@pythnetwork/pyth-sui-js";
+import { loadSuiKeypair } from "./suiSigner.js";
 
 const CLOCK = "0x6";
 const HERMES = "https://hermes.pyth.network";
@@ -35,6 +35,7 @@ const WORMHOLE_STATE =
   "0x" + "aeab97f96cf9877fee2883315d459552b2b921edc16d7ceac6eab944dd88919c";
 const SUIUSDE_FEED =
   "8cead549d0e770dea8fdf5e018a85d59585265cf8bff16ba83962fc7996dbb7f";
+const MAX_CONF_BPS = 200;
 
 // Pyth's Price/I64 return layout (field order verified from price.move / i64.move).
 const I64 = bcs.struct("I64", { negative: bcs.bool(), magnitude: bcs.u64() });
@@ -66,6 +67,8 @@ export function buildCreatePoolTx(opts: {
   maxCoverPerPolicy: bigint;
   maxTotalCover: bigint;
   timelockSecs: bigint;
+  treasuryFeeBps: bigint;
+  keeperBountyMist: bigint;
 }): Transaction {
   const tx = new Transaction();
   tx.moveCall({
@@ -85,6 +88,8 @@ export function buildCreatePoolTx(opts: {
       tx.pure.u64(opts.maxCoverPerPolicy),
       tx.pure.u64(opts.maxTotalCover),
       tx.pure.u64(opts.timelockSecs),
+      tx.pure.u64(opts.treasuryFeeBps),
+      tx.pure.u64(opts.keeperBountyMist),
     ],
   });
   return tx;
@@ -204,9 +209,14 @@ export function buildCoverShortfallTx(
 }
 
 /** Read the live suiUSDe price off mainnet Pyth via devInspect (no funds). */
-async function readSuiUsde(
-  client: SuiClient,
-): Promise<{ priceUsd: number; expo: number; tsIso: string; pio: string }> {
+async function readSuiUsde(client: SuiClient): Promise<{
+  priceUsd: number;
+  confUsd: number;
+  confBps: number;
+  expo: number;
+  tsIso: string;
+  pio: string;
+}> {
   const tx = new Transaction();
   const updates = await new SuiPriceServiceConnection(
     HERMES,
@@ -232,20 +242,26 @@ async function readSuiUsde(
   if (!rv) throw new Error("no return value from get_price_no_older_than");
   const p = Price.parse(Uint8Array.from(rv[0]));
   const expo = i64Num(p.expo);
+  const priceUsd = i64Num(p.price) * Math.pow(10, expo);
+  const confUsd = Number(p.conf) * Math.pow(10, expo);
   return {
-    priceUsd: i64Num(p.price) * Math.pow(10, expo),
+    priceUsd,
+    confUsd,
+    confBps: priceUsd > 0 ? (confUsd / priceUsd) * 10_000 : Infinity,
     expo,
     tsIso: new Date(Number(p.timestamp) * 1000).toISOString(),
     pio,
   };
 }
 
-const thresholdUsd = (): number => Number(process.env.THRESHOLD_USD ?? "0.97");
+const thresholdUsd = (): number => Number(process.env.THRESHOLD_USD ?? "0.985");
 
 async function simulate(client: SuiClient): Promise<void> {
   const floor = thresholdUsd();
-  const { priceUsd, expo, tsIso, pio } = await readSuiUsde(client);
-  const depegged = priceUsd <= floor;
+  const { priceUsd, confUsd, confBps, expo, tsIso, pio } =
+    await readSuiUsde(client);
+  const adversePriceUsd = priceUsd + confUsd;
+  const depegged = adversePriceUsd <= floor && confBps <= MAX_CONF_BPS;
 
   console.log(
     "Backstop · pyth_lending_demo end-to-end (Sui mainnet, no funds)\n",
@@ -255,9 +271,12 @@ async function simulate(client: SuiClient): Promise<void> {
   console.log(
     `  live price       : $${priceUsd.toFixed(6)} (expo ${expo}, ${tsIso})`,
   );
-  console.log(`  depeg floor      : $${floor.toFixed(2)}`);
   console.log(
-    `  trigger          : ${depegged ? "🔴 BREACHED — a claim would settle now" : "🟢 above floor — no payout (correct)"}\n`,
+    `  adverse band     : $${adversePriceUsd.toFixed(6)} (${confBps.toFixed(1)} bps conf)`,
+  );
+  console.log(`  depeg floor      : $${floor.toFixed(3)}`);
+  console.log(
+    `  trigger          : ${depegged ? "qualifies - breach dwell can latch" : "above floor - no payout (correct)"}\n`,
   );
   console.log("  lifecycle a funded wallet runs (--execute):");
   console.log(
@@ -271,13 +290,13 @@ async function simulate(client: SuiClient): Promise<void> {
     "    6. cover_shortfall    → claim the latched payout into reserve\n",
   );
   console.log(
-    "  env for --execute: LENDING_PKG, SUI_PRIVATE_KEY, COVER, PREMIUM",
+    "  env for --execute: LENDING_PKG, SUI_KEY_ALIAS, COVER, PREMIUM",
   );
   console.log(
     "                     + POOL (reuse) OR BACKSTOP_PKG (create+seed a pool)",
   );
   console.log(
-    "                     [MARKET, RESERVE, LP_SEED, THRESHOLD_USD]  (needs a funded mainnet wallet)",
+    "                     [MARKET, RESERVE, LP_SEED, THRESHOLD_USD, KEEPER_BOUNTY]  (needs a funded mainnet wallet)",
   );
 }
 
@@ -290,7 +309,7 @@ async function execute(client: SuiClient): Promise<void> {
   const lendPkg = env("LENDING_PKG");
   const cover = BigInt(env("COVER"));
   const premium = BigInt(env("PREMIUM"));
-  const kp = Ed25519Keypair.fromSecretKey(env("SUI_PRIVATE_KEY").trim());
+  const kp = loadSuiKeypair();
   const addr = kp.getPublicKey().toSuiAddress();
 
   const run = async (tx: Transaction, label: string) => {
@@ -332,7 +351,7 @@ async function execute(client: SuiClient): Promise<void> {
         maxAgeSecs: 60n,
         premiumBps: 200n,
         surgePremiumBps: BigInt(process.env.SURGE_PREMIUM_BPS ?? "800"), // +8% at full utilization
-        maxConfBps: 200n,
+        maxConfBps: BigInt(process.env.MAX_CONF_BPS ?? String(MAX_CONF_BPS)),
         minDwellSecs: BigInt(process.env.MIN_DWELL_SECS ?? "600"), // 10-min sustained breach
         activationDelaySecs: BigInt(
           process.env.ACTIVATION_DELAY_SECS ?? "1800",
@@ -340,6 +359,8 @@ async function execute(client: SuiClient): Promise<void> {
         maxCoverPerPolicy: BigInt(process.env.MAX_COVER_PER_POLICY ?? "0"), // 0 = uncapped
         maxTotalCover: BigInt(process.env.MAX_TOTAL_COVER ?? "0"), // 0 = uncapped
         timelockSecs: BigInt(process.env.TIMELOCK_SECS ?? "86400"), // 24h governance delay
+        treasuryFeeBps: BigInt(process.env.TREASURY_FEE_BPS ?? "500"), // 5% protocol fee
+        keeperBountyMist: BigInt(process.env.KEEPER_BOUNTY ?? "100000"), // 0.0001 SUI keeper reward
       }),
       "create_and_share DepegCoverPool<SUI>",
     );

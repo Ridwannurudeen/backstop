@@ -2,7 +2,7 @@
 // REAL Pyth on Sui mainnet — no funds, no deploy. For each candidate stablecoin
 // feed it: (1) resolves the on-chain PriceInfoObject (the exact object
 // pyth_cover_pool::record_breach reads), (2) reads its on-chain price, (3) cross-checks
-// against Hermes, and (4) evaluates the $0.97 depeg trigger.
+// against Hermes, and (4) evaluates the adverse-band depeg trigger.
 //
 // Run: npx tsx src/pythRead.ts
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
@@ -28,13 +28,10 @@ const FEEDS: { label: string; id: string }[] = [
     label: "USDT/USD",
     id: "2b89b9dc8fdf9f34709a5b106b472f0f39bb6ca9ce04b0fd7f2e971688e2e53b",
   },
-  {
-    label: "SUI/USD",
-    id: "23d7315113f5b1d3ba7a83604c44b94d79f4fd69af77f804fc7f920a6dc65744",
-  },
 ];
 
-const DEPEG_THRESHOLD_USD = 0.97; // a pool insuring "stablecoin < $0.97"
+const DEPEG_THRESHOLD_USD = 0.985; // calibrated USDe floor
+const MAX_CONF_BPS = 200;
 const HERMES = "https://hermes.pyth.network";
 
 type I64 = { magnitude: string; negative: boolean };
@@ -44,14 +41,20 @@ const i64ToNumber = (v: I64): number =>
 // Navigate PriceInfoObject -> price_info -> price_feed -> price (the Price struct).
 function readOnchainPrice(content: any): {
   price: number;
+  conf: number;
+  confBps: number;
   expo: number;
   publishMs: number;
 } {
   const price = content.fields.price_info.fields.price_feed.fields.price.fields;
   const expo = i64ToNumber(price.expo.fields);
   const mag = i64ToNumber(price.price.fields);
+  const value = mag * Math.pow(10, expo);
+  const conf = Number(price.conf) * Math.pow(10, expo);
   return {
-    price: mag * Math.pow(10, expo),
+    price: value,
+    conf,
+    confBps: value > 0 ? (conf / value) * 10_000 : Infinity,
     expo,
     publishMs: Number(price.timestamp) * 1000,
   };
@@ -76,7 +79,7 @@ async function main() {
   const pyth = new SuiPythClient(client, PYTH_STATE, WORMHOLE_STATE);
 
   console.log(
-    `Backstop · live Pyth read on Sui mainnet · depeg trigger < $${DEPEG_THRESHOLD_USD}\n`,
+    `Backstop · live Pyth read on Sui mainnet · adverse-band trigger <= $${DEPEG_THRESHOLD_USD}\n`,
   );
 
   for (const { label, id } of FEEDS) {
@@ -96,8 +99,7 @@ async function main() {
       options: { showContent: true },
     });
     const content: any = obj.data?.content;
-    let onchain: { price: number; expo: number; publishMs: number } | null =
-      null;
+    let onchain: ReturnType<typeof readOnchainPrice> | null = null;
     try {
       onchain = readOnchainPrice(content);
     } catch (e) {
@@ -112,7 +114,9 @@ async function main() {
 
     const herm = await hermesPrice(id);
     const ageS = Math.round((Date.now() - onchain.publishMs) / 1000);
-    const triggered = onchain.price <= DEPEG_THRESHOLD_USD;
+    const adversePrice = onchain.price + onchain.conf;
+    const triggered =
+      adversePrice <= DEPEG_THRESHOLD_USD && onchain.confBps <= MAX_CONF_BPS;
 
     console.log(`✓ ${label}`);
     console.log(`    PriceInfoObject : ${objId}`);
@@ -120,10 +124,13 @@ async function main() {
       `    on-chain price  : $${onchain.price.toFixed(6)} (expo ${onchain.expo}, ${ageS}s old)`,
     );
     console.log(
+      `    adverse band    : $${adversePrice.toFixed(6)} (${onchain.confBps.toFixed(1)} bps conf)`,
+    );
+    console.log(
       `    hermes price    : ${herm ? `$${herm.price.toFixed(6)}` : "n/a"}`,
     );
     console.log(
-      `    depeg trigger   : ${triggered ? "🔴 BREACHED → claim would PAY" : "🟢 above floor → no payout"}\n`,
+      `    depeg trigger   : ${triggered ? "qualifies - breach dwell can latch" : "above floor - no payout"}\n`,
     );
   }
 }
