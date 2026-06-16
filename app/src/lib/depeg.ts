@@ -6,8 +6,9 @@ import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 // pyth_cover_pool::record_breach consumes on-chain to settle a sustained depeg.
 const mainnet = new SuiClient({ url: getFullnodeUrl("mainnet") });
 
-// A pool insuring "stablecoin < $0.97".
-export const DEPEG_THRESHOLD = 0.97;
+// Calibrated USDe floor: a pool pays only when price + confidence <= threshold.
+export const DEPEG_THRESHOLD = 0.985;
+export const DEPEG_MAX_CONF_BPS = 200;
 
 // Pyth PriceInfoObject ids on Sui mainnet — stable shared objects, verified live
 // 2026-06-12. hx-split: the repo's secret-scanner hook blocks 0x+64hex literals.
@@ -38,6 +39,9 @@ export type DepegReading = {
   label: string;
   flagship?: boolean;
   price: number;
+  conf: number;
+  confBps: number;
+  adversePrice: number;
   expo: number;
   publishMs: number;
   triggered: boolean;
@@ -59,13 +63,20 @@ export async function fetchDepeg(): Promise<DepegReading[]> {
       if (!price) return null;
       const expo = i64(price.expo);
       const value = i64(price.price) * Math.pow(10, expo);
+      const conf = Number(price.conf) * Math.pow(10, expo);
+      const confBps = value > 0 ? (conf / value) * 10_000 : Infinity;
+      const adversePrice = value + conf;
       return {
         label: f.label,
         flagship: f.flagship,
         price: value,
+        conf,
+        confBps,
+        adversePrice,
         expo,
         publishMs: Number(price.timestamp) * 1000,
-        triggered: value <= DEPEG_THRESHOLD,
+        triggered:
+          adversePrice <= DEPEG_THRESHOLD && confBps <= DEPEG_MAX_CONF_BPS,
         objId: f.obj,
       } satisfies DepegReading;
     }),

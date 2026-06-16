@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchDepeg, DEPEG_THRESHOLD } from "../lib/depeg";
+import { fetchDepeg, DEPEG_THRESHOLD, DEPEG_MAX_CONF_BPS } from "../lib/depeg";
 import "./terminal.css";
 
 const SUIVISION = "https://suivision.xyz/object";
@@ -20,9 +20,10 @@ export default function DepegCover() {
       </h3>
       <p className="lead">
         Parametric cover on stablecoin exposure. A policy pays from a
-        fully-collateralized pool the moment Pyth reports the asset at or below
-        ${DEPEG_THRESHOLD.toFixed(2)} — settlement reads Pyth on-chain, so no
-        one has to trust Backstop to get paid.
+        fully-collateralized pool after Pyth's adverse band stays at or below{" "}
+        {`$${DEPEG_THRESHOLD.toFixed(3)}`} with confidence at most{" "}
+        {DEPEG_MAX_CONF_BPS} bps — settlement reads Pyth on-chain, so no one has
+        to trust Backstop to get paid.
       </p>
 
       {isLoading && <p className="muted">Reading Pyth on Sui mainnet…</p>}
@@ -42,8 +43,10 @@ export default function DepegCover() {
                     ${r.price.toFixed(4)}
                   </div>
                   <div className="k">
-                    {r.triggered ? "below floor — would pay" : "above floor"} ·{" "}
-                    {ageS}s old
+                    {r.triggered
+                      ? "adverse band below floor"
+                      : `adverse $${r.adversePrice.toFixed(4)}`}{" "}
+                    · {ageS}s old
                   </div>
                 </div>
               );
@@ -63,8 +66,8 @@ export default function DepegCover() {
           <p className="note">
             suiUSDe is the flagship market — Ethena-backed, live across Sui
             DeFi. Pricing is set off-chain; settlement is objective and
-            on-chain. The mainnet pool deploy is pending; the settlement read
-            path is proven live.
+            on-chain. The mainnet pool is deployed, and the staged claim path
+            has paid out from the pool on-chain.
           </p>
 
           <h4>Reference consumer</h4>
@@ -74,13 +77,13 @@ export default function DepegCover() {
             reserve on a breach.{" "}
             {flagship &&
               (flagship.triggered
-                ? "suiUSDe is below the floor now, so a holder's payout would latch and settle on-chain."
-                : "suiUSDe is above the floor now, so the market keeps its cover active and premiums accrue to LPs; on a breach the payout latches into the reserve in one step.")}
+                ? "suiUSDe's adverse band is below the floor now, so a holder's breach dwell can latch on-chain."
+                : "suiUSDe's adverse band is above the floor now, so the market keeps its cover active and premiums accrue to LPs; on a sustained breach the payout latches into the reserve.")}
           </p>
           <p className="note">
-            An on-chain consumer of the live feed above — 4/4 Move tests, builds
-            against mainnet Pyth/Wormhole. Mainnet deploy is pending; the
-            settlement read path is proven live.
+            An on-chain consumer of the live feed above — 4/4 Move tests, built
+            and deployed against mainnet Pyth/Wormhole, with a live claim paid
+            into its reserve.
           </p>
         </>
       )}

@@ -1,6 +1,7 @@
 [package]
 name = "pyth_lending_demo"
 edition = "2024.beta"
+published-at = "0xb448b63fd536525db0ee2bc26f6110cfc3d7fa072280915d7b177568fb36c664"
 
 # A production-shaped consumer of Backstop's mainnet DepegCoverPool: a lending
 # market that buys Pyth-settled depeg cover and claims the payout into its reserve.
@@ -13,4 +14,4 @@ Pyth = { git = "https://github.com/pyth-network/pyth-crosschain.git", subdir = "
 Wormhole = { git = "https://github.com/wormhole-foundation/wormhole.git", subdir = "sui/wormhole", rev = "sui/mainnet" }
 
 [addresses]
-pyth_lending_demo = "0x0"
+pyth_lending_demo = "0xb448b63fd536525db0ee2bc26f6110cfc3d7fa072280915d7b177568fb36c664"

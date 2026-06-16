@@ -5,6 +5,214 @@
   margin-bottom: 16px;
 }
 
+.depeg-policy-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.depeg-policy-actions .btn {
+  width: auto;
+  min-width: 112px;
+  margin-top: 0;
+}
+
+.depeg-terms {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 22px;
+  margin-bottom: 16px;
+}
+
+.depeg-progress {
+  height: 4px;
+  max-width: 360px;
+  margin: 8px 0 2px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--line);
+}
+
+.depeg-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
+.depeg-position-panel {
+  padding: 16px 0;
+  margin: 4px 0 18px;
+  border-top: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.depeg-position-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.depeg-position-head h4 {
+  margin: 0 0 4px;
+}
+
+.depeg-position-list {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.depeg-position-head-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.depeg-position-head-actions .btn {
+  width: auto;
+  min-width: 116px;
+  margin-top: 0;
+}
+
+.depeg-position-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 58px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--panel-2);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.depeg-position-row:hover,
+.depeg-position-row.selected {
+  border-color: var(--accent);
+}
+
+.depeg-position-row strong,
+.depeg-position-row .muted {
+  display: block;
+}
+
+.depeg-position-row .mono {
+  max-width: min(64vw, 520px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.depeg-position-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.depeg-position-actions .btn {
+  width: auto;
+  min-width: 136px;
+  margin-top: 0;
+}
+
+.depeg-position-summary {
+  margin-top: 12px;
+}
+
+.depeg-position-summary .quote .v {
+  max-width: 60%;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.depeg-navi-box {
+  margin: 12px 0 16px;
+}
+
+.depeg-navi-box .term-grid {
+  margin-bottom: 12px;
+}
+
+.depeg-navi-lines {
+  display: grid;
+  gap: 6px;
+}
+
+.depeg-navi-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line-soft);
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .policy {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .depeg-terms {
+    grid-template-columns: 1fr;
+  }
+
+  .depeg-policy-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .depeg-policy-actions .btn {
+    flex: 1;
+  }
+
+  .depeg-position-head {
+    flex-direction: column;
+  }
+
+  .depeg-position-head-actions,
+  .depeg-position-actions .btn {
+    width: 100%;
+  }
+
+  .depeg-position-head-actions .btn {
+    width: 100%;
+  }
+
+  .depeg-position-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .depeg-position-row .mono {
+    max-width: 100%;
+  }
+
+  .depeg-position-summary .quote {
+    gap: 12px;
+  }
+
+  .depeg-position-summary .quote .v {
+    max-width: 55%;
+  }
+
+  .depeg-navi-line {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
 .term-stat {
   background: var(--panel-2);
   border: 1px solid var(--line);

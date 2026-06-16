@@ -190,9 +190,12 @@ export function buildTrustlessClaimTx(p: {
 
 export type DepegReading = {
   priceUsd: number;
+  confUsd: number;
+  confBps: number;
+  adversePriceUsd: number;
   expo: number;
   publishMs: number;
-  triggered: boolean; // priceUsd <= thresholdUsd
+  triggered: boolean; // priceUsd + confUsd <= thresholdUsd and confBps <= maxConfBps
   priceObjectId: string;
 };
 
@@ -202,14 +205,19 @@ const i64FromFields = (v: {
 
 /**
  * Read a Pyth feed's live on-chain price on Sui mainnet — the exact PriceInfoObject
- * a depeg pool settles against. Defaults to suiUSDe and a $0.97 depeg floor.
+ * a depeg pool settles against. Defaults to suiUSDe and a $0.985 depeg floor.
  */
 export async function readDepegPrice(
   client: SuiClient,
-  opts: { priceObject?: string; thresholdUsd?: number } = {},
+  opts: {
+    priceObject?: string;
+    thresholdUsd?: number;
+    maxConfBps?: number;
+  } = {},
 ): Promise<DepegReading> {
   const priceObjectId = opts.priceObject ?? SUIUSDE_PRICE_OBJECT;
-  const thresholdUsd = opts.thresholdUsd ?? 0.97;
+  const thresholdUsd = opts.thresholdUsd ?? 0.985;
+  const maxConfBps = opts.maxConfBps ?? 200;
   const o = await client.getObject({
     id: priceObjectId,
     options: { showContent: true },
@@ -226,11 +234,17 @@ export async function readDepegPrice(
   if (!pf) throw new Error("Pyth PriceInfoObject not found / unexpected shape");
   const expo = i64FromFields(pf.expo);
   const priceUsd = i64FromFields(pf.price) * Math.pow(10, expo);
+  const confUsd = Number(pf.conf) * Math.pow(10, expo);
+  const confBps = priceUsd > 0 ? (confUsd / priceUsd) * 10_000 : Infinity;
+  const adversePriceUsd = priceUsd + confUsd;
   return {
     priceUsd,
+    confUsd,
+    confBps,
+    adversePriceUsd,
     expo,
     publishMs: Number(pf.timestamp) * 1000,
-    triggered: priceUsd <= thresholdUsd,
+    triggered: adversePriceUsd <= thresholdUsd && confBps <= maxConfBps,
     priceObjectId,
   };
 }
@@ -343,6 +357,41 @@ export function buildDepegBuyCoverTx(p: {
     ],
   });
   tx.transferObjects([policy], p.owner);
+  return tx;
+}
+
+/** Build a tx to supply SUI liquidity to a depeg pool and receive an LP share. */
+export function buildDepegDepositLpTx(p: {
+  pkg: string;
+  poolId: string;
+  amountMist: bigint;
+  owner: string;
+}): Transaction {
+  const tx = new Transaction();
+  const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(p.amountMist)]);
+  const share = tx.moveCall({
+    target: `${p.pkg}::pyth_cover_pool::deposit_lp`,
+    typeArguments: [SUI_TYPE],
+    arguments: [tx.object(p.poolId), coin],
+  });
+  tx.transferObjects([share], p.owner);
+  return tx;
+}
+
+/** Build a tx to redeem one depeg LP share object for its pool value. */
+export function buildDepegWithdrawLpTx(p: {
+  pkg: string;
+  poolId: string;
+  shareId: string;
+  owner: string;
+}): Transaction {
+  const tx = new Transaction();
+  const payout = tx.moveCall({
+    target: `${p.pkg}::pyth_cover_pool::withdraw_lp`,
+    typeArguments: [SUI_TYPE],
+    arguments: [tx.object(p.poolId), tx.object(p.shareId)],
+  });
+  tx.transferObjects([payout], p.owner);
   return tx;
 }
 

@@ -1,11 +1,11 @@
 #[test_only]
 module pyth_lending_demo::pyth_lending_demo_tests {
     use std::string;
+    use std::unit_test;
     use sui::clock;
     use sui::coin;
     use sui::balance;
     use sui::sui::SUI;
-    use sui::test_utils;
     use pyth_cover_pool::pyth_cover_pool;
     use pyth_lending_demo::pyth_lending_demo;
 
@@ -13,7 +13,6 @@ module pyth_lending_demo::pyth_lending_demo_tests {
     const FEED: vector<u8> = b"SUIUSDE/USD";
     const EXPO_MAG: u64 = 8;
     const THRESHOLD: u64 = 97_000_000; // $0.97
-    const PEG: u64 = 100_000_000;      // $1.00
     const DEPEG: u64 = 95_000_000;     // $0.95
     const PREMIUM_BPS: u64 = 200;      // 2% base rate (0% utilization)
     const SURGE_BPS: u64 = 800;        // +8% at 100% utilization
@@ -74,10 +73,10 @@ module pyth_lending_demo::pyth_lending_demo_tests {
         assert!(pyth_lending_demo::reserve_value(&market) == 500, 2);
         assert!(!pyth_lending_demo::is_insured(&market), 3);
 
-        test_utils::destroy(market);
-        test_utils::destroy(lp);
+        unit_test::destroy(market);
+        unit_test::destroy(lp);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -99,10 +98,10 @@ module pyth_lending_demo::pyth_lending_demo_tests {
             &mut market, &mut pool, fund(premium2, &mut ctx), 500, EXPIRY, &clock, &mut ctx,
         );
 
-        test_utils::destroy(market);
-        test_utils::destroy(lp);
+        unit_test::destroy(market);
+        unit_test::destroy(lp);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -116,9 +115,9 @@ module pyth_lending_demo::pyth_lending_demo_tests {
         let mut market = pyth_lending_demo::new_for_testing(string::utf8(ASSET), &mut ctx);
         pyth_lending_demo::cover_shortfall(&mut market, &mut pool, &mut ctx);
 
-        test_utils::destroy(market);
-        test_utils::destroy(lp);
-        test_utils::destroy(pool);
+        unit_test::destroy(market);
+        unit_test::destroy(lp);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -137,9 +136,9 @@ module pyth_lending_demo::pyth_lending_demo_tests {
         // Insured but never breached → the latched claim must abort, no free payout.
         pyth_lending_demo::cover_shortfall(&mut market, &mut pool, &mut ctx);
 
-        test_utils::destroy(market);
-        test_utils::destroy(lp);
+        unit_test::destroy(market);
+        unit_test::destroy(lp);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 }

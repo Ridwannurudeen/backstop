@@ -1,9 +1,9 @@
 #[test_only]
 module pyth_cover_pool::pyth_cover_pool_tests {
+    use std::unit_test;
     use sui::clock::{Self, Clock};
     use sui::coin;
     use sui::balance;
-    use sui::test_utils;
     use pyth_cover_pool::pyth_cover_pool::{Self, DepegCoverPool, Policy};
 
     public struct TESTCOIN has drop {}
@@ -86,9 +86,9 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         assert!(pyth_cover_pool::total_shares(&pool) == 1500, 2);
         assert!(pyth_cover_pool::pool_value(&pool) == 1500, 3);
 
-        test_utils::destroy(s1);
-        test_utils::destroy(s2);
-        test_utils::destroy(pool);
+        unit_test::destroy(s1);
+        unit_test::destroy(s2);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -106,8 +106,8 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         assert!(pyth_cover_pool::premium_rate_bps(&pool, 1000) == 1000, 2);
         assert!(pyth_cover_pool::premium_for(&pool, 1000) == 100, 3);
 
-        test_utils::destroy(lp);
-        test_utils::destroy(pool);
+        unit_test::destroy(lp);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -133,7 +133,7 @@ module pyth_cover_pool::pyth_cover_pool_tests {
 
         coin::burn_for_testing(out);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -155,11 +155,11 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         assert!(pyth_cover_pool::pool_value(&pool) == 1000 + premium - fee, 2);
 
         coin::burn_for_testing(out);
-        test_utils::destroy(policy);
-        test_utils::destroy(lp);
-        test_utils::destroy(cap);
+        unit_test::destroy(policy);
+        unit_test::destroy(lp);
+        unit_test::destroy(cap);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -197,9 +197,9 @@ module pyth_cover_pool::pyth_cover_pool_tests {
 
         let payout = pyth_cover_pool::claim_latched(&mut pool, policy, &mut ctx);
         coin::burn_for_testing(payout);
-        test_utils::destroy(lp);
+        unit_test::destroy(lp);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -232,10 +232,10 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         let payout = pyth_cover_pool::claim_latched(&mut pool, policy, &mut ctx);
         coin::burn_for_testing(payout);
         coin::burn_for_testing(withdrawn);
-        test_utils::destroy(lp);
-        test_utils::destroy(cap);
+        unit_test::destroy(lp);
+        unit_test::destroy(cap);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -248,9 +248,9 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         let out = pyth_cover_pool::withdraw_treasury(&mut poolb, &cap_a, 1, &mut ctx);
 
         coin::burn_for_testing(out);
-        test_utils::destroy(cap_a);
-        test_utils::destroy(poola);
-        test_utils::destroy(poolb);
+        unit_test::destroy(cap_a);
+        unit_test::destroy(poola);
+        unit_test::destroy(poolb);
     }
 
     #[test]
@@ -262,10 +262,10 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(900, &mut ctx), &mut ctx);
         let policy = buy(&mut pool, 1000, EXPIRY, &clock, &mut ctx);
 
-        test_utils::destroy(policy);
-        test_utils::destroy(lp);
+        unit_test::destroy(policy);
+        unit_test::destroy(lp);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -302,9 +302,9 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         assert!(pyth_cover_pool::pool_value(&pool) == 1000 + premium - fee - 500, 8);
 
         coin::burn_for_testing(payout);
-        test_utils::destroy(lp);
+        unit_test::destroy(lp);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -320,10 +320,10 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         // cover bought at the instant of a depeg cannot arm.
         pyth_cover_pool::latch_at_price_for_testing(&mut pool, &mut policy, DEPEG, 0, &clock, &mut ctx);
 
-        test_utils::destroy(policy);
-        test_utils::destroy(lp);
+        unit_test::destroy(policy);
+        unit_test::destroy(lp);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -337,10 +337,10 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         // Expiry (3000) is before activation (5000) → a never-claimable policy.
         let policy = buy(&mut pool, 500, 3000, &clock, &mut ctx);
 
-        test_utils::destroy(policy);
-        test_utils::destroy(lp);
+        unit_test::destroy(policy);
+        unit_test::destroy(lp);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -359,9 +359,9 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         let payout = pyth_cover_pool::claim_latched(&mut pool, policy, &mut ctx);
 
         coin::burn_for_testing(payout);
-        test_utils::destroy(lp);
+        unit_test::destroy(lp);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -384,9 +384,9 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         let payout = pyth_cover_pool::claim_latched(&mut pool, policy, &mut ctx);
 
         coin::burn_for_testing(payout);
-        test_utils::destroy(lp);
+        unit_test::destroy(lp);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -402,10 +402,10 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         clock::set_for_testing(&mut clock, ARM_MS);
         pyth_cover_pool::latch_at_price_for_testing(&mut pool, &mut policy, PEG, 0, &clock, &mut ctx);
 
-        test_utils::destroy(policy);
-        test_utils::destroy(lp);
+        unit_test::destroy(policy);
+        unit_test::destroy(lp);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -422,10 +422,10 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         clock::set_for_testing(&mut clock, 9000);
         pyth_cover_pool::latch_at_price_for_testing(&mut pool, &mut policy, DEPEG, 0, &clock, &mut ctx);
 
-        test_utils::destroy(policy);
-        test_utils::destroy(lp);
+        unit_test::destroy(policy);
+        unit_test::destroy(lp);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -438,10 +438,10 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(100, &mut ctx), &mut ctx);
         let policy = buy(&mut pool, 1000, EXPIRY, &clock, &mut ctx);
 
-        test_utils::destroy(policy);
-        test_utils::destroy(lp);
+        unit_test::destroy(policy);
+        unit_test::destroy(lp);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -454,10 +454,10 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(1000, &mut ctx), &mut ctx);
         let policy = buy(&mut pool, 50, EXPIRY, &clock, &mut ctx);
 
-        test_utils::destroy(policy);
-        test_utils::destroy(lp);
+        unit_test::destroy(policy);
+        unit_test::destroy(lp);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -485,7 +485,7 @@ module pyth_cover_pool::pyth_cover_pool_tests {
 
         coin::burn_for_testing(out);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -510,9 +510,9 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         assert!(pyth_cover_pool::total_cover(&pool) == 0, 2);
 
         coin::burn_for_testing(payout);
-        test_utils::destroy(lp);
+        unit_test::destroy(lp);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -527,9 +527,9 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         let payout = pyth_cover_pool::claim_latched(&mut pool, policy, &mut ctx);
 
         coin::burn_for_testing(payout);
-        test_utils::destroy(lp);
+        unit_test::destroy(lp);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -549,9 +549,9 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         clock::set_for_testing(&mut clock, EXPIRY + 1);
         pyth_cover_pool::expire_policy(&mut pool, policy, &clock);
 
-        test_utils::destroy(lp);
+        unit_test::destroy(lp);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -569,9 +569,9 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         let payout = pyth_cover_pool::claim_latched(&mut pool, policy, &mut ctx);
         assert!(coin::value(&payout) == 500, 0);
         coin::burn_for_testing(payout);
-        test_utils::destroy(lp);
+        unit_test::destroy(lp);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -586,10 +586,10 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         let mut policy = buy(&mut pool, 500, EXPIRY, &clock, &mut ctx);
         clock::set_for_testing(&mut clock, ARM_MS);
         pyth_cover_pool::latch_at_price_for_testing(&mut pool, &mut policy, DEPEG, 2_500_000, &clock, &mut ctx);
-        test_utils::destroy(policy);
-        test_utils::destroy(lp);
+        unit_test::destroy(policy);
+        unit_test::destroy(lp);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -602,10 +602,10 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(1000, &mut ctx), &mut ctx);
         let policy = buy(&mut pool, 500, EXPIRY, &clock, &mut ctx);
 
-        test_utils::destroy(policy);
-        test_utils::destroy(lp);
+        unit_test::destroy(policy);
+        unit_test::destroy(lp);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -619,11 +619,11 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         let p1 = buy(&mut pool, 400, EXPIRY, &clock, &mut ctx);
         let p2 = buy(&mut pool, 300, EXPIRY, &clock, &mut ctx);
 
-        test_utils::destroy(p1);
-        test_utils::destroy(p2);
-        test_utils::destroy(lp);
+        unit_test::destroy(p1);
+        unit_test::destroy(p2);
+        unit_test::destroy(lp);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -637,11 +637,11 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         let p2 = buy(&mut pool, 300, EXPIRY, &clock, &mut ctx);
         assert!(pyth_cover_pool::total_cover(&pool) == 600, 0);
 
-        test_utils::destroy(p1);
-        test_utils::destroy(p2);
-        test_utils::destroy(lp);
+        unit_test::destroy(p1);
+        unit_test::destroy(p2);
+        unit_test::destroy(lp);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     // --- Governance ---
@@ -659,11 +659,11 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         assert!(pyth_cover_pool::is_paused(&pool), 0);
         let policy = buy(&mut pool, 500, EXPIRY, &clock, &mut ctx);
 
-        test_utils::destroy(policy);
-        test_utils::destroy(lp);
-        test_utils::destroy(cap);
+        unit_test::destroy(policy);
+        unit_test::destroy(lp);
+        unit_test::destroy(cap);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -687,10 +687,10 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         assert!(coin::value(&payout) == 500, 0);
 
         coin::burn_for_testing(payout);
-        test_utils::destroy(lp);
-        test_utils::destroy(cap);
+        unit_test::destroy(lp);
+        unit_test::destroy(cap);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -706,9 +706,9 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         assert!(pyth_cover_pool::has_pending_update(&pool), 0);
         pyth_cover_pool::execute_param_update(&mut pool, &cap, &clock);
 
-        test_utils::destroy(cap);
+        unit_test::destroy(cap);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -724,9 +724,9 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         assert!(pyth_cover_pool::threshold(&pool) == 90_000_000, 0);
         assert!(!pyth_cover_pool::has_pending_update(&pool), 1);
 
-        test_utils::destroy(cap);
+        unit_test::destroy(cap);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -743,9 +743,9 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         pyth_cover_pool::execute_param_update(&mut pool, &cap, &clock);
         assert!(pyth_cover_pool::treasury_fee_bps(&pool) == 750, 0);
 
-        test_utils::destroy(cap);
+        unit_test::destroy(cap);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -762,9 +762,9 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         pyth_cover_pool::execute_param_update(&mut pool, &cap, &clock);
         assert!(pyth_cover_pool::keeper_bounty(&pool) == 7, 0);
 
-        test_utils::destroy(cap);
+        unit_test::destroy(cap);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -781,9 +781,9 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         // Nothing pending → execute aborts.
         pyth_cover_pool::execute_param_update(&mut pool, &cap, &clock);
 
-        test_utils::destroy(cap);
+        unit_test::destroy(cap);
         clock::destroy_for_testing(clock);
-        test_utils::destroy(pool);
+        unit_test::destroy(pool);
     }
 
     #[test]
@@ -796,8 +796,8 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         let cap_a = pyth_cover_pool::new_admin_cap_for_testing(&poola, &mut ctx);
         pyth_cover_pool::set_paused(&mut poolb, &cap_a, true);
 
-        test_utils::destroy(cap_a);
-        test_utils::destroy(poola);
-        test_utils::destroy(poolb);
+        unit_test::destroy(cap_a);
+        unit_test::destroy(poola);
+        unit_test::destroy(poolb);
     }
 }

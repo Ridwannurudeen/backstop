@@ -28,6 +28,7 @@ export const COVER_POOL_OBJ = hx(
 );
 export const COVER_POOL_MARKET = "BTC-CRASH-30D";
 export const SUI_TYPE = "0x2::sui::SUI";
+export const CLOCK = "0x6";
 
 // Accountability (Pillars II+III) + PoolRegistry (Pillar I breadth), deployed 2026-06-10.
 export const ACCOUNTABILITY_PKG = hx(
@@ -75,4 +76,40 @@ export const ARENA_PKG = hx(
 export const ARENA_OBJ = hx(
   "5c77be6ad4f51eefc721666908c8ee78",
   "21b40aebe69b2a916a6b1aed85e0e65f",
+);
+
+// Depeg cover runs on Sui mainnet because settlement reads live Pyth feeds.
+export const MAINNET = "mainnet" as const;
+export const HERMES = "https://hermes.pyth.network";
+export const PYTH_DEPEG_COVER_PKG = hx(
+  "761832702281966fac9dee6183b530d2",
+  "f73ecd779524c61cd3dd4705fa6ec968",
+);
+export const PYTH_DEPEG_POOL = hx(
+  "5edc508a4258e1253563219049dadc8b",
+  "068cf309115e29732dad71698c168592",
+);
+export const PYTH_LENDING_PKG = hx(
+  "b448b63fd536525db0ee2bc26f6110cf",
+  "c3d7fa072280915d7b177568fb36c664",
+);
+export const PYTH_LENDING_MARKET = hx(
+  "61759e759625dfce9ac7b83878fce699d",
+  "540ed59056134a4d57422b55fb6b7b3",
+);
+export const PYTH_STATE = hx(
+  "1f9310238ee9298fb703c3419030b35b",
+  "22bb1cc37113e3bb5007c99aec79e5b8",
+);
+export const WORMHOLE_STATE = hx(
+  "aeab97f96cf9877fee2883315d459552",
+  "b2b921edc16d7ceac6eab944dd88919c",
+);
+export const SUIUSDE_FEED_ID =
+  "8cead549d0e770dea8fdf5e018a85d59585265cf8bff16ba83962fc7996dbb7f";
+export const SUIUSD_FEED_ID =
+  "23d7315113f5b1d3ba7a83604c44b94d79f4fd69af77f804fc7f920a6dc65744";
+export const SUIUSD_PRICE_OBJECT = hx(
+  "801dbc2f0053d34734814b2d6df491ce",
+  "7807a725fe9a01ad74a07e9c51396c37",
 );

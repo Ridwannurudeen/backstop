@@ -47,7 +47,7 @@ module pyth_lending_demo::pyth_lending_demo {
     }
 
     /// Create and share a lending market for `asset` (UTF-8 bytes).
-    public entry fun create_and_share(asset: vector<u8>, ctx: &mut TxContext) {
+    public fun create_and_share(asset: vector<u8>, ctx: &mut TxContext) {
         transfer::share_object(new_market(string::utf8(asset), ctx));
     }
 

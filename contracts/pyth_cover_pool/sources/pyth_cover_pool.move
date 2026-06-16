@@ -2,8 +2,8 @@
 /// pool that settles TRUSTLESSLY against a Pyth Network price feed.
 ///
 /// A pool insures one asset (one Pyth feed id) against breaking below a `threshold`
-/// price — e.g. a stablecoin depeg ("pay if suiUSDe < $0.97"). LPs supply capital
-/// and earn premiums; a holder buys cover; and when Pyth reports the insured asset
+/// price — e.g. a stablecoin depeg ("pay if suiUSDe < $0.985"). LPs supply capital
+/// and earn premiums; a holder buys cover; and when Pyth's adverse price band stays
 /// at or below the threshold, the holder claims a payout straight from the pool.
 ///
 /// The settlement read uses `pyth::pyth::get_price_no_older_than`, which aborts on a
@@ -109,7 +109,7 @@ module pyth_cover_pool::pyth_cover_pool {
         expo_neg: bool,
         expo_mag: u64,
         /// Depeg trigger: claim pays when the feed price magnitude is <= this,
-        /// expressed at the pool's expected exponent (e.g. $0.97 @ expo -8 = 97_000_000).
+        /// expressed at the pool's expected exponent (e.g. $0.985 @ expo -8 = 98_500_000).
         threshold: u64,
         /// Max Pyth price age (seconds) accepted at settlement.
         max_age_secs: u64,
@@ -302,7 +302,8 @@ module pyth_cover_pool::pyth_cover_pool {
 
     /// Create and share a depeg-cover pool insuring `feed_id` below `threshold`, and
     /// transfer its `AdminCap` (pause + timelocked governance) to the creator.
-    public entry fun create_and_share<T>(
+    #[allow(lint(self_transfer))]
+    public fun create_and_share<T>(
         feed_id: vector<u8>,
         expo_neg: bool,
         expo_mag: u64,

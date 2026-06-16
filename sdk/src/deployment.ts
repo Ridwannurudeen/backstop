@@ -43,6 +43,23 @@ export const WALRUS_AGGREGATOR =
 export const MAINNET = "mainnet" as const;
 export const HERMES = "https://hermes.pyth.network";
 
+export const PYTH_DEPEG_COVER_PKG = hx(
+  "761832702281966fac9dee6183b530d2",
+  "f73ecd779524c61cd3dd4705fa6ec968",
+);
+export const PYTH_DEPEG_POOL = hx(
+  "5edc508a4258e1253563219049dadc8b",
+  "068cf309115e29732dad71698c168592",
+);
+export const PYTH_LENDING_PKG = hx(
+  "b448b63fd536525db0ee2bc26f6110cf",
+  "c3d7fa072280915d7b177568fb36c664",
+);
+export const PYTH_LENDING_MARKET = hx(
+  "61759e759625dfce9ac7b83878fce699d",
+  "540ed59056134a4d57422b55fb6b7b3",
+);
+
 export const PYTH_STATE = hx(
   "1f9310238ee9298fb703c3419030b35b",
   "22bb1cc37113e3bb5007c99aec79e5b8",

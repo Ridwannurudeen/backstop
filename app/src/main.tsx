@@ -9,7 +9,10 @@ import "./styles.css";
 import App from "./App";
 
 const queryClient = new QueryClient();
-const networks = { testnet: { url: getFullnodeUrl("testnet") } };
+const networks = {
+  testnet: { url: getFullnodeUrl("testnet") },
+  mainnet: { url: getFullnodeUrl("mainnet") },
+};
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
