@@ -249,6 +249,10 @@ export type DepegPoolState = {
   maxCoverPerPolicyMist: bigint;
   /** Max aggregate cover in MIST (0 = bounded only by full collateralization). */
   maxTotalCoverMist: bigint;
+  /** When true, new deposits/cover are halted (claims are still allowed). */
+  paused: boolean;
+  /** Governance timelock (seconds) on parameter updates. */
+  timelockSecs: number;
   fundsMist: bigint;
   totalCoverMist: bigint;
 };
@@ -300,6 +304,8 @@ export async function readDepegPool(
     surgePremiumBps: Number(f.surge_premium_bps),
     maxCoverPerPolicyMist: BigInt(f.max_cover_per_policy as string),
     maxTotalCoverMist: BigInt(f.max_total_cover as string),
+    paused: Boolean(f.paused),
+    timelockSecs: Number(f.timelock_secs),
     fundsMist: BigInt(f.funds as string),
     totalCoverMist: BigInt(f.total_cover as string),
   };

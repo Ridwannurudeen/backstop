@@ -33,7 +33,7 @@ module pyth_lending_demo::pyth_lending_demo_tests {
     fun new_pool(ctx: &mut TxContext): pyth_cover_pool::DepegCoverPool<SUI> {
         pyth_cover_pool::new_pool_for_testing<SUI>(
             FEED, true, EXPO_MAG, THRESHOLD, MAX_AGE, PREMIUM_BPS, SURGE_BPS,
-            MAX_CONF_BPS, DWELL_SECS, ACT_SECS, 0, 0, ctx,
+            MAX_CONF_BPS, DWELL_SECS, ACT_SECS, 0, 0, 0, ctx,
         )
     }
 

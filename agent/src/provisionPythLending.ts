@@ -65,6 +65,7 @@ export function buildCreatePoolTx(opts: {
   activationDelaySecs: bigint;
   maxCoverPerPolicy: bigint;
   maxTotalCover: bigint;
+  timelockSecs: bigint;
 }): Transaction {
   const tx = new Transaction();
   tx.moveCall({
@@ -83,6 +84,7 @@ export function buildCreatePoolTx(opts: {
       tx.pure.u64(opts.activationDelaySecs),
       tx.pure.u64(opts.maxCoverPerPolicy),
       tx.pure.u64(opts.maxTotalCover),
+      tx.pure.u64(opts.timelockSecs),
     ],
   });
   return tx;
@@ -337,11 +339,16 @@ async function execute(client: SuiClient): Promise<void> {
         ), // 30-min anti-adverse-selection
         maxCoverPerPolicy: BigInt(process.env.MAX_COVER_PER_POLICY ?? "0"), // 0 = uncapped
         maxTotalCover: BigInt(process.env.MAX_TOTAL_COVER ?? "0"), // 0 = uncapped
+        timelockSecs: BigInt(process.env.TIMELOCK_SECS ?? "86400"), // 24h governance delay
       }),
       "create_and_share DepegCoverPool<SUI>",
     );
     pool = created(out, /::pyth_cover_pool::DepegCoverPool/);
     console.log(`   POOL=${pool}`);
+    const adminCap = created(out, /::pyth_cover_pool::AdminCap/);
+    console.log(
+      `   ADMIN_CAP=${adminCap} (pause + timelocked params; held by ${addr})`,
+    );
     const lpSeed = BigInt(process.env.LP_SEED ?? "100000000"); // 0.1 SUI
     await run(
       buildDepositLpTx(backstopPkg, pool, lpSeed, addr),

@@ -107,6 +107,11 @@ LP_SEED=100000000 RESERVE=0 \
   Production pools use a 30–60 min activation delay and a 5–15 min dwell.
 - Reuse an existing pool instead of creating one by passing `POOL=0x…` (omit
   `BACKSTOP_PKG`/`LP_SEED`).
+- **Governance:** `create_and_share` mints an `AdminCap` to the deployer (printed as
+  `ADMIN_CAP=…`). It can `set_paused` (claim-exempt) and run timelocked param updates
+  via `propose_param_update`/`execute_param_update`/`cancel_param_update`. Set the delay
+  with `TIMELOCK_SECS` (default 86400 = 24h). Keep the AdminCap safe — move it to a
+  multisig for production (the UpgradeCap policy is tracked separately as G7).
 
 ## Notes
 

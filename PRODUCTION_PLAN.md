@@ -25,7 +25,7 @@ core is architecturally close to Y2K Finance / Risk Harbor and is the right base
 | G1 | Settles on a **single instantaneous** Pyth read — a transient wick or one manipulated update pays out | `do_latch`: `assert!(price_mag <= threshold)` at one moment | Critical — ✅ closed (dwell: two sub-threshold reads `min_dwell_secs` apart) |
 | G2 | **Ignores the Pyth confidence interval** (`conf`) | `read_price_magnitude` reads only `get_price`, never `get_conf` (grep: no `conf`) | High — ✅ closed (PR #25: adverse-bound `price+conf<=threshold` + `max_conf_bps` reject) |
 | G3 | **Flat `premium_bps`** set at pool creation; no utilization curve, no cooldown → adverse selection (buy cover at the moment of depeg) | `premium_for = cover * premium_bps / 10_000` | Critical (economic) — ✅ closed (cooldown via `activation_delay_secs`; utilization curve `rate = premium_bps + surge_premium_bps * (total_cover+cover)/pool_value`) |
-| G4 | **No admin / pause / governance / timelock**; `premium_bps`/`threshold`/`max_age` frozen at creation | grep: no `pause`/`AdminCap`/`owner` | High |
+| G4 | **No admin / pause / governance / timelock**; `premium_bps`/`threshold`/`max_age` frozen at creation | grep: no `pause`/`AdminCap`/`owner` | High — ✅ closed (`AdminCap` minted at creation; claim-exempt `set_paused`; timelocked propose/execute/cancel param updates) |
 | G5 | **No treasury fee** — 100% of premium to LPs, protocol not sustainable | — | Medium |
 | G6 | **No exposure caps** (per-policy / per-pool) on a fully-correlated single-feed risk | — | High — ✅ closed (`max_cover_per_policy` + `max_total_cover` pool caps, 0 = uncapped; full collateralization kept) |
 | G7 | **UpgradeCap** would sit in a hot EOA (the deployer) | `deployPackage.ts` transfers UpgradeCap to sender | High |
@@ -90,12 +90,16 @@ is already used by the testnet tabs, so the pattern exists.
   sustainability + keeper funding.
 
 ### 1.3 Safety & governance (closes G4, G7)
-- **AdminCap + pause** — gate `deposit_lp`/`buy_cover` with a pause flag, but the
-  **claim / settlement path must be pause-exempt** so a guardian can never block
-  payouts during a depeg (the first centralization finding an auditor raises).
-- **Timelocked parameter updates** for `threshold`, premium params, `max_age_secs`,
-  caps — no silent live changes under LPs/holders.
-- **UpgradeCap → multisig + timelock policy** in a *separate, immutable* package; lock
+- **AdminCap + pause** — ✅ **Done**. `AdminCap` (carries `pool_id`) is minted to the
+  creator at `create_and_share`. `set_paused` gates `deposit_lp`/`buy_cover`; the
+  **claim / settlement path is pause-exempt** (`record_breach`/`claim_latched`/
+  `expire_policy`/`withdraw_lp` are never gated), so a guardian can never block payouts.
+- **Timelocked parameter updates** — ✅ **Done**. `propose_param_update(kind, value)`
+  arms a single `PendingParamUpdate` with `eta = now + timelock_secs`;
+  `execute_param_update` applies it only after the ETA; `cancel_param_update` clears it.
+  `kind` covers threshold, premium/surge bps, `max_age_secs`, `max_conf_bps`,
+  `min_dwell_secs`, `activation_delay_secs`, and both caps — no silent live changes.
+- **UpgradeCap → multisig + timelock policy** (G7) in a *separate, immutable* package; lock
   the policy right after publish; ratchet to `Additive`/`Dependency-only` once stable.
   (docs.sui.io/build/custom-upgrade-policy.)
 - **Visibility sweep** — audit every `public` fn; keep internal helpers
