@@ -86,6 +86,24 @@ async function upgradeCapDepOnly(id, label) {
   }
 }
 
+async function adminCapOwnedBy(id, expectedOwner, label) {
+  if (!id) return bad(`${label}: missing object id`);
+  if (!expectedOwner) return bad(`${label}: missing expected owner`);
+  try {
+    const r = await rpc(
+      "sui_getObject",
+      [id, { showOwner: true, showType: true }],
+      MAINNET_RPC,
+    );
+    const owner = r?.data?.owner?.AddressOwner?.toLowerCase();
+    owner === expectedOwner.toLowerCase()
+      ? ok(`${label} owner ${owner.slice(0, 8)}…`)
+      : bad(`${label} owner ${owner ?? "not found"}`);
+  } catch (e) {
+    bad(`${label}: ${e.message}`);
+  }
+}
+
 async function main() {
   const d = JSON.parse(await readFile(join(ROOT, "deployment.json"), "utf8"));
 
@@ -267,6 +285,21 @@ async function main() {
     d.pythDepeg?.lendingUpgradePolicyLockDigest,
     "pyth lending upgrade policy lock",
     MAINNET_RPC,
+  );
+  await txOk(
+    d.pythDepeg?.adminCustody?.transferDigest,
+    "pyth AdminCap custody transfer",
+    MAINNET_RPC,
+  );
+  await adminCapOwnedBy(
+    d.pythDepeg?.productionPool?.adminCap,
+    d.pythDepeg?.adminCustody?.owner,
+    "production AdminCap",
+  );
+  await adminCapOwnedBy(
+    d.pythDepeg?.stagedProof?.adminCap,
+    d.pythDepeg?.adminCustody?.owner,
+    "staged AdminCap",
   );
   await txOk(
     d.pythDepeg?.productionPool?.insureDigest,

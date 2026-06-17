@@ -20,20 +20,20 @@ core is architecturally close to Y2K Finance / Risk Harbor and is the right base
 **It is not yet a standard protocol.** Verified gaps (read from
 `pyth_cover_pool.move` this session):
 
-| #   | Gap                                                                                                                                   | Evidence                                                                              | Severity                                                                                                                                                            |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| G1  | Settles on a **single instantaneous** Pyth read — a transient wick or one manipulated update pays out                                 | `do_latch`: `assert!(price_mag <= threshold)` at one moment                           | Critical — ✅ closed (dwell: two sub-threshold reads `min_dwell_secs` apart)                                                                                        |
-| G2  | **Ignores the Pyth confidence interval** (`conf`)                                                                                     | `read_price_magnitude` reads only `get_price`, never `get_conf` (grep: no `conf`)     | High — ✅ closed (PR #25: adverse-bound `price+conf<=threshold` + `max_conf_bps` reject)                                                                            |
-| G3  | **Flat `premium_bps`** set at pool creation; no utilization curve, no cooldown → adverse selection (buy cover at the moment of depeg) | `premium_for = cover * premium_bps / 10_000`                                          | Critical (economic) — ✅ closed (cooldown via `activation_delay_secs`; utilization curve `rate = premium_bps + surge_premium_bps * (total_cover+cover)/pool_value`) |
-| G4  | **No admin / pause / governance / timelock**; `premium_bps`/`threshold`/`max_age` frozen at creation                                  | grep: no `pause`/`AdminCap`/`owner`                                                   | High — ✅ closed (`AdminCap` minted at creation; claim-exempt `set_paused`; timelocked propose/execute/cancel param updates)                                        |
-| G5  | **No treasury fee** — 100% of premium to LPs, protocol not sustainable                                                                | —                                                                                     | Medium — ✅ closed (`treasury_fee_bps` premium skim + admin-only treasury withdrawal)                                                                               |
-| G6  | **No exposure caps** (per-policy / per-pool) on a fully-correlated single-feed risk                                                   | —                                                                                     | High — ✅ closed (`max_cover_per_policy` + `max_total_cover` pool caps, 0 = uncapped; full collateralization kept)                                                  |
-| G7  | **UpgradeCap** would sit in a hot EOA (the deployer)                                                                                  | `deployPackage.ts` transfers UpgradeCap to sender                                     | High                                                                                                                                                                |
-| G8  | **No keeper incentive** to record a breach during the dip (Pyth is pull-based)                                                        | `record_breach` is permissionless but unrewarded                                      | Medium — ✅ closed (`keeper_bounty` paid from treasury on confirm)                                                                                                  |
-| G9  | **No audit, no formal verification; admin custody still hot-keyed**                                                                   | `deployment.json` now has `pythDepeg` mainnet proof + upgrade-policy locks            | Gating                                                                                                                                                              |
-| G10 | **Agent can overwrite the live public feed with `[]`** on an empty/all-failed cycle                                                   | `index.ts:162`+`:246` `persist()` writes unconditionally                              | High (live demo)                                                                                                                                                    |
-| G11 | **Risk terminal defaults to soonest/0d term** → no curve on load; term options labeled by ambiguous `Nd`                              | `RiskTerminal.tsx:46` (idx 0); `predict.ts:202` soonest-first, no quoteability filter | Medium                                                                                                                                                              |
-| G12 | **App bundle ~632 kB** (no route-level code splitting)                                                                                | single eager chunk in `App.tsx`                                                       | Medium                                                                                                                                                              |
+| #   | Gap                                                                                                                                   | Evidence                                                                                              | Severity                                                                                                                                                            |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| G1  | Settles on a **single instantaneous** Pyth read — a transient wick or one manipulated update pays out                                 | `do_latch`: `assert!(price_mag <= threshold)` at one moment                                           | Critical — ✅ closed (dwell: two sub-threshold reads `min_dwell_secs` apart)                                                                                        |
+| G2  | **Ignores the Pyth confidence interval** (`conf`)                                                                                     | `read_price_magnitude` reads only `get_price`, never `get_conf` (grep: no `conf`)                     | High — ✅ closed (PR #25: adverse-bound `price+conf<=threshold` + `max_conf_bps` reject)                                                                            |
+| G3  | **Flat `premium_bps`** set at pool creation; no utilization curve, no cooldown → adverse selection (buy cover at the moment of depeg) | `premium_for = cover * premium_bps / 10_000`                                                          | Critical (economic) — ✅ closed (cooldown via `activation_delay_secs`; utilization curve `rate = premium_bps + surge_premium_bps * (total_cover+cover)/pool_value`) |
+| G4  | **No admin / pause / governance / timelock**; `premium_bps`/`threshold`/`max_age` frozen at creation                                  | grep: no `pause`/`AdminCap`/`owner`                                                                   | High — ✅ closed (`AdminCap` minted at creation; claim-exempt `set_paused`; timelocked propose/execute/cancel param updates)                                        |
+| G5  | **No treasury fee** — 100% of premium to LPs, protocol not sustainable                                                                | —                                                                                                     | Medium — ✅ closed (`treasury_fee_bps` premium skim + admin-only treasury withdrawal)                                                                               |
+| G6  | **No exposure caps** (per-policy / per-pool) on a fully-correlated single-feed risk                                                   | —                                                                                                     | High — ✅ closed (`max_cover_per_policy` + `max_total_cover` pool caps, 0 = uncapped; full collateralization kept)                                                  |
+| G7  | **UpgradeCap** would sit in a hot EOA (the deployer)                                                                                  | `deployPackage.ts` transfers UpgradeCap to sender                                                     | High                                                                                                                                                                |
+| G8  | **No keeper incentive** to record a breach during the dip (Pyth is pull-based)                                                        | `record_breach` is permissionless but unrewarded                                                      | Medium — ✅ closed (`keeper_bounty` paid from treasury on confirm)                                                                                                  |
+| G9  | **No audit / formal verification**                                                                                                    | `deployment.json` now has `pythDepeg` mainnet proof, upgrade-policy locks, and admin custody transfer | Gating                                                                                                                                                              |
+| G10 | **Agent can overwrite the live public feed with `[]`** on an empty/all-failed cycle                                                   | `index.ts:162`+`:246` `persist()` writes unconditionally                                              | High (live demo)                                                                                                                                                    |
+| G11 | **Risk terminal defaults to soonest/0d term** → no curve on load; term options labeled by ambiguous `Nd`                              | `RiskTerminal.tsx:46` (idx 0); `predict.ts:202` soonest-first, no quoteability filter                 | Medium                                                                                                                                                              |
+| G12 | **App bundle ~632 kB** (no route-level code splitting)                                                                                | single eager chunk in `App.tsx`                                                                       | Medium                                                                                                                                                              |
 
 (G10–G12 were surfaced by an independent Codex audit and verified against source this session.)
 
@@ -248,25 +248,25 @@ Additive, behaviour-preserving where possible; new state fields + new entry func
   (devInspect-verified where no funds); UI typecheck + build clean; deployed to
   backstop.gudman.xyz.
 
-### Phase 3 — Mainnet deploy + custody · _deploy complete; admin custody open_
+### Phase 3 — Mainnet deploy + custody · _complete_
 
 - Deployed v2 (`pyth_cover_pool` + updated `pyth_lending_demo`) to mainnet via the
   wired `DEPLOY_NETWORK=mainnet` path (`DEPLOY.md`).
 - `UpgradeCap` policy is now locked to Sui `DEP_ONLY` for both mainnet packages:
   cover lock tx `Csrn2Vi94rnd9G1A922649UhUgpymj33rXPA58nwMTm6`, lending lock tx
   `DFCpC9cLqDmcNrBMHC4deT98HfX2QFM2337wRAqyS7n3`.
-- Move `AdminCap` custody to a **real Sui multisig** once independent signer
-  addresses are available.
+- `AdminCap` custody moved to
+  `0x5f21a9aaf680f6b0e0190e6a99bb9d4e314e0761ff3c3bc809f298711e73d8e5` in tx
+  `2ZxbH6RRjjn4nr12UVJ1Er2g8wi9ofVyT3suFhqMPHES`.
 - `npm run verify:custody` verifies both `UpgradeCap` locks and reports current
-  `AdminCap` ownership; set `EXPECTED_ADMIN_OWNER=0x...` after transfer to make
-  multisig custody a hard check.
+  `AdminCap` ownership. It now hard-checks against `pythDepeg.adminCustody.owner` in
+  `deployment.json`.
 - `ADMIN_CAP_RECIPIENT=0x... SUI_KEY_ALIAS=backstop-mainnet-deployer npm run
 transfer:admin-caps` dry-runs the production + staged `AdminCap` transfer; append
   `-- --execute` only after the recipient is a real independent-signer multisig.
 - Seeded a staged suiUSDe pool and executed first live buy → dwell → claim with a
   threshold-above-spot demo pool, per `DEPLOY.md`.
-- **Acceptance left:** admin caps wired to real multisig and connected-wallet smoke
-  against the deployed pool.
+- **Acceptance left:** connected-wallet smoke against the deployed pool.
 
 ### Phase 4 — Assurance & first integration · _partly external_
 

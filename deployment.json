@@ -178,6 +178,14 @@
     "lendingUpgradeCap": "0xf871ce8cf6b2381988ab71693cb2139a47974653f0213f46951f0d0bc978afa0",
     "lendingUpgradePolicy": "DEP_ONLY",
     "lendingUpgradePolicyLockDigest": "DFCpC9cLqDmcNrBMHC4deT98HfX2QFM2337wRAqyS7n3",
+    "adminCustody": {
+      "owner": "0x5f21a9aaf680f6b0e0190e6a99bb9d4e314e0761ff3c3bc809f298711e73d8e5",
+      "transferDigest": "2ZxbH6RRjjn4nr12UVJ1Er2g8wi9ofVyT3suFhqMPHES",
+      "objects": [
+        "0x5a82b64e98ce691b086ef9bd2b32f0d541ca4bf821e3d515c6c2374a5d04e5af",
+        "0xde8a05cbbdcbea8f609c2be95eea3c6c0d870dc379176e4ad9e83aef542cd5c9"
+      ]
+    },
     "stagedProof": {
       "feed": "suiUSDe/USD",
       "pool": "0x274d8628a0566679ca949361424a145249e2d44b974e352bf723cd8007e93b89",

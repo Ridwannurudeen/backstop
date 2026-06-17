@@ -13,6 +13,9 @@ type Deployment = {
     deployer?: string;
     coverUpgradeCap?: string;
     lendingUpgradeCap?: string;
+    adminCustody?: {
+      owner?: string;
+    };
     productionPool?: {
       adminCap?: string;
     };
@@ -126,7 +129,9 @@ async function main(): Promise<void> {
 
   const expectedOwner = process.env.EXPECTED_ADMIN_OWNER?.trim()
     ? normalizeSuiAddress(process.env.EXPECTED_ADMIN_OWNER)
-    : null;
+    : pyth.adminCustody?.owner
+      ? normalizeSuiAddress(pyth.adminCustody.owner)
+      : null;
   const deployer = pyth.deployer ? normalizeSuiAddress(pyth.deployer) : null;
   const client = new SuiClient({ url: getFullnodeUrl("mainnet") });
 
@@ -149,7 +154,7 @@ async function main(): Promise<void> {
 
   if (!expectedOwner) {
     warn(
-      "set EXPECTED_ADMIN_OWNER=0x... after multisig transfer to make AdminCap ownership a hard check",
+      "set EXPECTED_ADMIN_OWNER=0x... or pythDepeg.adminCustody.owner to make AdminCap ownership a hard check",
     );
   }
 }
