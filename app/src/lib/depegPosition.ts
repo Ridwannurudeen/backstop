@@ -4,6 +4,8 @@ import type {
   LendingPositionType,
 } from "@naviprotocol/lending";
 
+export type { LendingPosition } from "@naviprotocol/lending";
+
 export type DepegPositionProtocol = "Suilend" | "NAVI" | "Manual";
 
 export type NaviExposureLine = {
@@ -75,7 +77,7 @@ const SUILEND_PKG = hx(
 );
 const SUILEND_MAIN_POOL = `${SUILEND_PKG}::suilend::MAIN_POOL`;
 const SUILEND_OWNER_CAP_TYPE = `${SUILEND_PKG}::lending_market::ObligationOwnerCap<${SUILEND_MAIN_POOL}>`;
-const SUILEND_OBLIGATION_TYPE = `${SUILEND_PKG}::obligation::Obligation<${SUILEND_MAIN_POOL}>`;
+export const SUILEND_OBLIGATION_TYPE = `${SUILEND_PKG}::obligation::Obligation<${SUILEND_MAIN_POOL}>`;
 
 const NAVI_POSITION_SIDES: Record<LendingPositionType, "supply" | "borrow"> = {
   "navi-lending-supply": "supply",
@@ -254,6 +256,12 @@ export async function fetchNaviExposure(
     env: "prod",
     markets: ["main", "sui-eco"],
   });
+  return summarizeNaviPositions(positions);
+}
+
+export function summarizeNaviPositions(
+  positions: LendingPosition[],
+): NaviExposureSummary {
   const lines = positions
     .map(naviLineOf)
     .filter((line): line is NaviExposureLine => line !== null)

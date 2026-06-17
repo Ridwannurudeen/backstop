@@ -1,9 +1,13 @@
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 import { normalizeSuiAddress } from "@mysten/sui/utils";
+import type { SuiObjectData } from "@mysten/sui/client";
 import {
   fetchNaviExposure,
   fetchSuilendExposure,
+  type LendingPosition,
   parseSuilendObligationObjects,
+  SUILEND_OBLIGATION_TYPE,
+  summarizeNaviPositions,
 } from "../../app/src/lib/depegPosition";
 import { readSuiUsdPrice } from "../../app/src/lib/pythPrice";
 
@@ -14,6 +18,10 @@ const PUBLIC_SUILEND_USDE_OBLIGATION = hx(
   "849c2078919b5c75e58c5c68dab3e43a",
 );
 const EMPTY_OWNER = normalizeSuiAddress("0x2");
+const USDE_COIN_TYPE =
+  "0x" +
+  "a99b8952d4f7dff6fa8cc05a7a995e142095b5e0e1d2e4a3b2b1e0c9d8f7a6b5" +
+  "::usde::USDE";
 
 const ok = (message: string) => console.log(`ok ${message}`);
 
@@ -51,6 +59,95 @@ async function verifySuilendParser(client: SuiClient) {
   );
 }
 
+function verifySuilendFixtureParser() {
+  const object = {
+    objectId: PUBLIC_SUILEND_USDE_OBLIGATION,
+    version: "1",
+    digest: "fixture",
+    type: SUILEND_OBLIGATION_TYPE,
+    content: {
+      dataType: "moveObject",
+      type: SUILEND_OBLIGATION_TYPE,
+      hasPublicTransfer: false,
+      fields: {
+        deposits: [
+          {
+            fields: {
+              coin_type: { fields: { name: USDE_COIN_TYPE } },
+              market_value: { fields: { value: "125500000000000000000" } },
+            },
+          },
+        ],
+        borrows: [
+          {
+            fields: {
+              coin_type: { fields: { name: USDE_COIN_TYPE } },
+              market_value: { fields: { value: "20250000000000000000" } },
+            },
+          },
+        ],
+      },
+    },
+  } as SuiObjectData;
+
+  const lines = parseSuilendObligationObjects([object]);
+  const supply = lines.find((line) => line.side === "supply");
+  const borrow = lines.find((line) => line.side === "borrow");
+  assert(supply?.valueUsd === 125.5, "Suilend fixture supply mismatch");
+  assert(borrow?.valueUsd === 20.25, "Suilend fixture borrow mismatch");
+  ok("Suilend fixture parser summarizes USDe supply and borrow");
+}
+
+function verifyNaviFixtureParser() {
+  const supplyPool = {} as NonNullable<
+    LendingPosition["navi-lending-supply"]
+  >["pool"];
+  const borrowPool = {} as NonNullable<
+    LendingPosition["navi-lending-borrow"]
+  >["pool"];
+  const token = {
+    coinType: USDE_COIN_TYPE,
+    decimals: 6,
+    logoUri: "",
+    symbol: "suiUSDe",
+    price: 1,
+  };
+  const positions: LendingPosition[] = [
+    {
+      id: "navi-supply-fixture",
+      wallet: EMPTY_OWNER,
+      protocol: "navi",
+      market: "main",
+      type: "navi-lending-supply",
+      "navi-lending-supply": {
+        amount: "125.5",
+        valueUSD: "125.50",
+        token,
+        pool: supplyPool,
+      },
+    },
+    {
+      id: "navi-borrow-fixture",
+      wallet: EMPTY_OWNER,
+      protocol: "navi",
+      market: "main",
+      type: "navi-lending-borrow",
+      "navi-lending-borrow": {
+        amount: "20.25",
+        valueUSD: "20.25",
+        token,
+        pool: borrowPool,
+      },
+    },
+  ];
+
+  const summary = summarizeNaviPositions(positions);
+  assert(summary.lines.length === 2, "NAVI fixture line count mismatch");
+  assert(summary.usdeSupplyUsd === 125.5, "NAVI fixture supply mismatch");
+  assert(summary.usdeBorrowUsd === 20.25, "NAVI fixture borrow mismatch");
+  ok("NAVI fixture parser summarizes USDe supply and borrow");
+}
+
 async function verifyEmptyOwnerReads(client: SuiClient) {
   const suilend = await fetchSuilendExposure(client, EMPTY_OWNER);
   assert(
@@ -70,6 +167,8 @@ async function verifyEmptyOwnerReads(client: SuiClient) {
 
 async function main() {
   const client = new SuiClient({ url: getFullnodeUrl("mainnet") });
+  verifySuilendFixtureParser();
+  verifyNaviFixtureParser();
   await verifyPyth(client);
   await verifySuilendParser(client);
   await verifyEmptyOwnerReads(client);

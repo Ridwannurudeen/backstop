@@ -1,0 +1,281 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
+import { Transaction } from "@mysten/sui/transactions";
+import {
+  SuiPriceServiceConnection,
+  SuiPythClient,
+} from "@pythnetwork/pyth-sui-js";
+import {
+  buildDepegBuyCoverTx,
+  buildDepegDepositLpTx,
+  buildDepegWithdrawLpTx,
+  quoteDepegPremium,
+  readDepegPool,
+} from "../../app/src/lib/depegPool";
+import {
+  CLOCK,
+  HERMES,
+  PYTH_STATE,
+  SUI_TYPE,
+  SUIUSDE_FEED_ID,
+  WORMHOLE_STATE,
+} from "../../app/src/lib/deployment";
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(HERE, "..", "..");
+const ZERO_SENDER = "0x" + "0".repeat(64);
+const RECORD_NOT_ACTIVE = 14;
+const CLAIM_NOT_BREACHED = 11;
+const WITHDRAW_INSOLVENT = 2;
+
+type Deployment = {
+  pythDepeg?: {
+    coverPackage?: string;
+    productionPool?: {
+      pool?: string;
+      depositLpDigest?: string;
+    };
+    stagedProof?: {
+      pool?: string;
+      premiumMist?: number;
+    };
+  };
+};
+
+type InspectExpectation =
+  | { kind: "success" }
+  | { kind: "abort"; code: number }
+  | { kind: "success-or-abort"; code: number };
+
+const ok = (message: string) => console.log(`ok ${message}`);
+
+function assert(condition: unknown, message: string): asserts condition {
+  if (!condition) throw new Error(message);
+}
+
+function readDeployment(): Deployment {
+  return JSON.parse(
+    readFileSync(join(ROOT, "deployment.json"), "utf8"),
+  ) as Deployment;
+}
+
+const abortCodePattern = (code: number) => new RegExp(`\\}, ${code}\\)`);
+
+async function inspect(
+  client: SuiClient,
+  label: string,
+  transactionBlock: Transaction,
+  expectation: InspectExpectation,
+): Promise<void> {
+  const result = await client.devInspectTransactionBlock({
+    sender: ZERO_SENDER,
+    transactionBlock,
+  });
+  const status = result.effects?.status?.status;
+  const error = result.effects?.status?.error ?? result.error ?? "";
+
+  if (expectation.kind === "success") {
+    assert(status === "success", `${label} failed: ${error || status}`);
+    ok(`${label} devInspect success`);
+    return;
+  }
+
+  if (expectation.kind === "success-or-abort" && status === "success") {
+    ok(`${label} devInspect success`);
+    return;
+  }
+
+  assert(status === "failure", `${label} expected abort, got ${status}`);
+  assert(
+    abortCodePattern(expectation.code).test(error),
+    `${label} expected abort ${expectation.code}, got ${error}`,
+  );
+  ok(`${label} reached expected abort ${expectation.code}`);
+}
+
+async function createdObjectFromTx(
+  client: SuiClient,
+  digest: string,
+  typeFragment: string,
+): Promise<string> {
+  const tx = await client.getTransactionBlock({
+    digest,
+    options: { showObjectChanges: true },
+  });
+  const created = (tx.objectChanges ?? []).find(
+    (change) =>
+      change.type === "created" &&
+      "objectType" in change &&
+      typeof change.objectType === "string" &&
+      change.objectType.includes(typeFragment),
+  );
+  assert(
+    created && "objectId" in created,
+    `${typeFragment} object not found in ${digest}`,
+  );
+  return created.objectId;
+}
+
+function buyPolicyProbe(opts: {
+  pkg: string;
+  pool: string;
+  premiumMist: bigint;
+  coverMist: bigint;
+}) {
+  const tx = new Transaction();
+  const [premium] = tx.splitCoins(tx.gas, [tx.pure.u64(opts.premiumMist)]);
+  const policy = tx.moveCall({
+    target: `${opts.pkg}::pyth_cover_pool::buy_cover`,
+    typeArguments: [SUI_TYPE],
+    arguments: [
+      tx.object(opts.pool),
+      premium,
+      tx.pure.u64(opts.coverMist),
+      tx.pure.u64(BigInt(Date.now() + 86_400_000)),
+      tx.object(CLOCK),
+    ],
+  });
+  return { tx, policy };
+}
+
+async function buildBuyThenRecordProbe(
+  client: SuiClient,
+  opts: {
+    pkg: string;
+    pool: string;
+    premiumMist: bigint;
+    coverMist: bigint;
+  },
+): Promise<Transaction> {
+  const { tx, policy } = buyPolicyProbe(opts);
+  const updates = await new SuiPriceServiceConnection(
+    HERMES,
+  ).getPriceFeedsUpdateData([SUIUSDE_FEED_ID]);
+  const pyth = new SuiPythClient(client, PYTH_STATE, WORMHOLE_STATE);
+  const [priceInfoObjectId] = await pyth.updatePriceFeeds(tx, updates, [
+    SUIUSDE_FEED_ID,
+  ]);
+  tx.moveCall({
+    target: `${opts.pkg}::pyth_cover_pool::record_breach`,
+    typeArguments: [SUI_TYPE],
+    arguments: [
+      tx.object(opts.pool),
+      policy,
+      tx.object(priceInfoObjectId),
+      tx.object(CLOCK),
+    ],
+  });
+  return tx;
+}
+
+function buildBuyThenClaimProbe(opts: {
+  pkg: string;
+  pool: string;
+  premiumMist: bigint;
+  coverMist: bigint;
+}): Transaction {
+  const { tx, policy } = buyPolicyProbe(opts);
+  tx.moveCall({
+    target: `${opts.pkg}::pyth_cover_pool::claim_latched`,
+    typeArguments: [SUI_TYPE],
+    arguments: [tx.object(opts.pool), policy],
+  });
+  return tx;
+}
+
+async function main(): Promise<void> {
+  const deployment = readDeployment();
+  const pyth = deployment.pythDepeg;
+  assert(pyth?.coverPackage, "deployment.json missing pythDepeg.coverPackage");
+  assert(
+    pyth.productionPool?.pool,
+    "deployment.json missing production pool id",
+  );
+  assert(
+    pyth.productionPool.depositLpDigest,
+    "deployment.json missing production LP deposit digest",
+  );
+  assert(pyth.stagedProof?.pool, "deployment.json missing staged pool id");
+  assert(
+    pyth.stagedProof.premiumMist,
+    "deployment.json missing staged premium",
+  );
+
+  const client = new SuiClient({ url: getFullnodeUrl("mainnet") });
+  const pool = await readDepegPool(client, pyth.productionPool.pool);
+  const coverMist = 1_000_000n;
+  const premiumMist = quoteDepegPremium(pool, coverMist);
+
+  await inspect(
+    client,
+    "production deposit_lp builder",
+    buildDepegDepositLpTx({
+      pkg: pyth.coverPackage,
+      poolId: pyth.productionPool.pool,
+      amountMist: coverMist,
+      owner: ZERO_SENDER,
+    }),
+    { kind: "success" },
+  );
+  await inspect(
+    client,
+    "production buy_cover builder",
+    buildDepegBuyCoverTx({
+      pkg: pyth.coverPackage,
+      poolId: pyth.productionPool.pool,
+      premiumMist,
+      coverMist,
+      expiryMs: BigInt(Date.now() + 30 * 86_400_000),
+      owner: ZERO_SENDER,
+    }),
+    { kind: "success" },
+  );
+
+  const shareId = await createdObjectFromTx(
+    client,
+    pyth.productionPool.depositLpDigest,
+    "::pyth_cover_pool::LpShare",
+  );
+  await inspect(
+    client,
+    "production withdraw_lp builder",
+    buildDepegWithdrawLpTx({
+      pkg: pyth.coverPackage,
+      poolId: pyth.productionPool.pool,
+      shareId,
+      owner: ZERO_SENDER,
+    }),
+    { kind: "success-or-abort", code: WITHDRAW_INSOLVENT },
+  );
+
+  const stagedPremiumMist = BigInt(pyth.stagedProof.premiumMist);
+  await inspect(
+    client,
+    "staged buy -> record_breach PTB",
+    await buildBuyThenRecordProbe(client, {
+      pkg: pyth.coverPackage,
+      pool: pyth.stagedProof.pool,
+      premiumMist: stagedPremiumMist,
+      coverMist,
+    }),
+    { kind: "abort", code: RECORD_NOT_ACTIVE },
+  );
+  await inspect(
+    client,
+    "staged buy -> claim_latched PTB",
+    buildBuyThenClaimProbe({
+      pkg: pyth.coverPackage,
+      pool: pyth.stagedProof.pool,
+      premiumMist: stagedPremiumMist,
+      coverMist,
+    }),
+    { kind: "abort", code: CLAIM_NOT_BREACHED },
+  );
+}
+
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : error);
+  process.exit(1);
+});

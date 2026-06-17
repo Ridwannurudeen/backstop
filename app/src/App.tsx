@@ -10,6 +10,7 @@ const HowItWorks = lazy(() => import("./pages/HowItWorks"));
 const SrxIndex = lazy(() => import("./components/SrxIndex"));
 const DepegSimulator = lazy(() => import("./components/DepegSimulator"));
 const DepegActions = lazy(() => import("./components/DepegActions"));
+const DepegProofHealth = lazy(() => import("./components/DepegProofHealth"));
 const DepegCover = lazy(() => import("./components/DepegCover"));
 const RiskTerminal = lazy(() => import("./components/RiskTerminal"));
 const OnchainRiskFeed = lazy(() => import("./components/OnchainRiskFeed"));
@@ -69,6 +70,7 @@ export default function App() {
               <>
                 <DepegSimulator />
                 <DepegActions />
+                <DepegProofHealth />
                 <DepegCover />
               </>
             }

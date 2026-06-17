@@ -1,6 +1,6 @@
 # Backstop → Production: closing the gaps to the best depeg/crash insurance app on Sui
 
-Status: planning. Owner: Backstop. Last updated: 2026-06-16.
+Status: execution. Owner: Backstop. Last updated: 2026-06-17.
 
 This is the concrete, verified engineering plan to turn Backstop's depeg-cover MVP
 into a production-grade, **fully interactive** insurance protocol on Sui. It is
@@ -191,7 +191,8 @@ specifics. Merged sprint order:
   multisig + timelock policy, first live buy → dwell → claim.
 - **Sprint 4 — assurance + polish:** audit, first real integration, proof-health
   badges, replayable accountability (decision → blob → on-chain reading → outcome →
-  Brier).
+  Brier). The `/depeg` proof-health card is now buildable app code; audit and first
+  real integration remain external.
 
 The detailed protocol phases below (§2) are the engineering reference for Sprints 2–4.
 
@@ -235,14 +236,15 @@ Additive, behaviour-preserving where possible; new state fields + new entry func
   status:** provider supports mainnet and `/depeg` can switch networks.
 - Interactive flows: Buy cover, Provide/withdraw liquidity, Record-breach + Claim,
   My policies / My LP — all calling the SDK/app `buildDepeg*` builders (extended for
-  v2: quote, cooldown state, dwell progress). **Local branch status:** configurable
-  action panel exists and is disabled until verified package/pool IDs are entered;
-  PTBs still need devInspect against a real deployed pool.
+  v2: quote, cooldown state, dwell progress). **Status:** the configurable action
+  panel is deployed, prefilled with verified package/pool IDs, and the no-wallet PTB
+  surface is covered by `npm run verify:depeg-ptbs` against Sui mainnet.
 - "Protect this position" rail. **Local branch status:** wallet object discovery,
   manual object import, object type/field summary, NAVI position parsing, USDe-family
   USD exposure summary, direct Suilend main-pool obligation parsing, Pyth SUI/USD
-  conversion, and cover-form sizing are wired. `npm run verify:depeg` covers the
-  no-funds Pyth/NAVI/Suilend integration paths. Connected-wallet validation with real
+  conversion, and cover-form sizing are wired. `npm run verify:depeg` covers
+  fixture-backed NAVI/Suilend positive exposure parsing plus no-funds live
+  Pyth/NAVI/Suilend integration paths. Connected-wallet validation with real
   USDe-family positions remains open.
 - **Acceptance:** every flow builds a valid PTB and signs on mainnet in a wallet
   (devInspect-verified where no funds); UI typecheck + build clean; deployed to
@@ -323,10 +325,11 @@ These are launch defaults, not permanent governance constants. Re-run
 
 ## 5. What can start immediately (no funds, no approval)
 
-Phase 0 (backtest + spec) and Phase 1 (contract v2 + tests + prover) and most of
-Phase 2 (interactive UI, devInspect-verified) and the Phase 3 mainnet deploy/live
-buy-claim proof are complete. Custody hardening, audit, app deploy, and the first
-external integration remain.
+Phase 0 (backtest + spec), Phase 1 (contract v2 + tests + prover attempt), Phase 2
+(interactive UI + no-wallet `devInspect` verification), and Phase 3 (mainnet
+deploy/live buy-claim proof + custody transfer) are complete. External audit, a
+connected-wallet smoke with a real browser wallet, and the first real NAVI/Suilend
+position-holder integration remain.
 
 **Recommended first build:** Phase 1's oracle hardening (confidence band + dwell
 trigger) — it closes the two most exploitable gaps (G1, G2), is self-contained in
