@@ -6,7 +6,7 @@
     "verify:public": "node scripts/verify-public.mjs",
     "verify:depeg": "npm --prefix agent run verify-depeg-integrations",
     "verify:custody": "npm --prefix agent run verify-depeg-custody",
-    "transfer:admin-caps": "npm --prefix agent run transfer-depeg-admin-caps",
+    "transfer:admin-caps": "npm --prefix agent run transfer-depeg-admin-caps --",
     "check:deployer": "npm --prefix agent run check-deployer"
   }
 }

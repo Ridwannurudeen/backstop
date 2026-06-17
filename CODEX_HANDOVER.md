@@ -196,7 +196,7 @@ Still left:
 - Deploy the updated app with user approval. Acceptance remains: app `tsc` + `vite
 build` clean, then `bash deploy/deploy.sh` (see gotchas in `deploy/DEPLOY.md`).
 
-### D. Sprint 3 / Phase 3 — mainnet deploy + custody _(mainnet deploy complete; admin custody still open)_
+### D. Sprint 3 / Phase 3 — mainnet deploy + custody _(mainnet deploy + custody complete)_
 
 - Deployed v2 `pyth_cover_pool` + `pyth_lending_demo` to Sui mainnet via the
   keystore-backed `DEPLOY_NETWORK=mainnet` path.
@@ -204,19 +204,18 @@ build` clean, then `bash deploy/deploy.sh` (see gotchas in `deploy/DEPLOY.md`).
 - **G7** — package code is now locked to Sui `DEP_ONLY` on both mainnet
   `UpgradeCap`s: cover lock tx `Csrn2Vi94rnd9G1A922649UhUgpymj33rXPA58nwMTm6`,
   lending lock tx `DFCpC9cLqDmcNrBMHC4deT98HfX2QFM2337wRAqyS7n3`.
-- **Admin custody** — move production/staged `AdminCap`s to a real Sui multisig once
-  independent signer addresses are available. A second local keystore key was not used
-  because it would not materially improve custody.
+- **Admin custody** — production/staged `AdminCap`s transferred to
+  `0x5f21a9aaf680f6b0e0190e6a99bb9d4e314e0761ff3c3bc809f298711e73d8e5` in tx
+  `2ZxbH6RRjjn4nr12UVJ1Er2g8wi9ofVyT3suFhqMPHES`.
 - `npm run verify:custody` checks both `UpgradeCap` locks and reports current
-  `AdminCap` ownership; set `EXPECTED_ADMIN_OWNER=0x...` after multisig transfer to
-  make custody a hard check.
+  `AdminCap` ownership. It now hard-checks against `pythDepeg.adminCustody.owner` in
+  `deployment.json`.
 - `ADMIN_CAP_RECIPIENT=0x... SUI_KEY_ALIAS=backstop-mainnet-deployer npm run
 transfer:admin-caps` dry-runs the production + staged `AdminCap` transfer, and adding
   `-- --execute` performs it. Use only with a real multisig address.
 - Seeded a staged suiUSDe pool and executed live **buy → dwell → claim** with
   `THRESHOLD_USD=1.05`, `ACTIVATION_DELAY_SECS=5`, and `MIN_DWELL_SECS=5`.
-- **Acceptance left:** admin caps on real multisig and a connected-wallet smoke
-  against the deployed pool.
+- **Acceptance left:** connected-wallet smoke against the deployed pool.
 
 ### E. Sprint 4 / Phase 4 — assurance & first integration _(partly external)_
 
