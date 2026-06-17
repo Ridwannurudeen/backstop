@@ -5,7 +5,9 @@
   "scripts": {
     "verify:public": "node scripts/verify-public.mjs",
     "verify:depeg": "npm --prefix agent run verify-depeg-integrations",
+    "verify:depeg-ptbs": "npm --prefix agent run verify-depeg-ptbs",
     "verify:custody": "npm --prefix agent run verify-depeg-custody",
+    "verify:readiness": "npm --prefix app run typecheck && npm --prefix app run build && npm --prefix agent run typecheck && npm --prefix sdk run build && npm run verify:depeg && npm run verify:depeg-ptbs && npm run verify:custody && npm run verify:public",
     "transfer:admin-caps": "npm --prefix agent run transfer-depeg-admin-caps --",
     "check:deployer": "npm --prefix agent run check-deployer"
   }

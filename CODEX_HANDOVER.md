@@ -6,7 +6,8 @@ This is the execution handover for the **production "Risk OS for Sui"** work tra
 (gap table G1–G12, phases 0–5, parameter table); this doc is the actionable cut.
 
 Repo: `github.com/Ridwannurudeen/backstop` (private). `main` is the integration branch.
-Last merged: PR #30 (`37b45ba`).
+Last merged: PR #34 (`5e3cd9e`). Current branch adds `/depeg` proof health,
+no-wallet PTB verification, parser fixtures, and readiness/smoke scripts.
 
 ---
 
@@ -54,8 +55,9 @@ total_cover` — no leverage on a correlated single-feed risk; (2) the **claim /
 
 Mainnet depeg product = `pyth_cover_pool` (SUI-collateralized, Pyth-settled depeg cover
 on suiUSDe). Consumer = `pyth_lending_demo`. SDK surface in `sdk/src/index.ts`. The
-deployed app still needs an update, but this branch now has a wallet-connected `/depeg`
-mainnet action panel gated on verified package/pool IDs.
+deployed app has the wallet-connected `/depeg` mainnet action panel gated on verified
+package/pool IDs; this branch adds a read-only mainnet proof-health panel for package
+locks, custody, pool status, and staged/production proof txs.
 
 **Sprint 0** (live-app defects) — done: G10 (agent never blanks the public feed), G11
 (risk terminal first-liquid term), G12 (route code-splitting).
@@ -145,7 +147,7 @@ Default calibrated params are now: `THRESHOLD_USD=0.985`, `MAX_CONF_BPS=200`,
 
 Acceptance is green: runnable script + short calibrated-params note.
 
-### C. Sprint 1 part 2 / Phase 2 — interactive wallet UI on `/depeg` _(partly done locally; live txs need verified mainnet IDs + funded wallet)_
+### C. Sprint 1 part 2 / Phase 2 — interactive wallet UI on `/depeg` _(shipped; external wallet smoke remains)_
 
 This branch adds the wallet-connected mainnet action surface:
 
@@ -179,9 +181,17 @@ This branch adds the wallet-connected mainnet action surface:
   the current dapp-kit/Sui SDK v1 stack. This branch uses a narrow direct Suilend JSON
   parser verified against live mainnet obligation shapes instead.
 - No-funds live integration verification exists at the repo root as
-  `npm run verify:depeg`. It verifies the Pyth SUI/USD helper, the exported Suilend
-  obligation parser against a public mainnet USDe-family obligation, empty-owner
-  Suilend reads, and the NAVI dynamic import/empty-owner path.
+  `npm run verify:depeg`. It verifies fixture-backed NAVI/Suilend positive exposure
+  parsing, the Pyth SUI/USD helper, the exported Suilend obligation parser against a
+  public mainnet USDe-family obligation, empty-owner Suilend reads, and the NAVI
+  dynamic import/empty-owner path.
+- `npm run verify:depeg-ptbs` dev-inspects the no-wallet depeg PTB surface against
+  Sui mainnet: production deposit/buy, production withdraw target/guard, staged
+  buy→record activation guard, and staged buy→claim not-breached guard.
+- `npm run verify:readiness` runs app typecheck/build, agent and SDK typechecks,
+  `verify:depeg`, `verify:depeg-ptbs`, `verify:custody`, and `verify:public`.
+- `npm --prefix app run smoke:depeg` is a no-extension Playwright route smoke for a
+  running `/depeg` URL; set `DEPEG_SMOKE_URL` to target the VPS.
 - App dev tooling was upgraded to Vite 8 / `@vitejs/plugin-react` 6 to clear the
   Vite/esbuild dev advisory set. Full `npm audit` in `app` now reports 0
   vulnerabilities, not just `--omit=dev`. `app/vite.config.ts` also splits React,
@@ -193,8 +203,6 @@ Still left:
 - Run a live wallet smoke from the browser against the deployed mainnet pool.
 - Validate the NAVI/Suilend exposure buttons with a connected wallet that actually has
   USDe-family positions.
-- Deploy the updated app with user approval. Acceptance remains: app `tsc` + `vite
-build` clean, then `bash deploy/deploy.sh` (see gotchas in `deploy/DEPLOY.md`).
 
 ### D. Sprint 3 / Phase 3 — mainnet deploy + custody _(mainnet deploy + custody complete)_
 
@@ -222,8 +230,9 @@ transfer:admin-caps` dry-runs the production + staged `AdminCap` transfer, and a
 - External audit (OtterSec/Zellic/MoveBit tier) + fix cycle; soak + bug bounty.
 - Ship the 1 real integration (live policy against a real NAVI/Suilend suiUSDe
   position).
-- Proof-health badges + replayable accountability (decision → Walrus blob → on-chain
-  reading → outcome → Brier).
+- Replayable accountability view (decision → Walrus blob → on-chain reading → outcome
+  → Brier). The `/depeg` proof-health card is now in app code; external audit and first
+  real integration remain outside no-wallet build scope.
 
 ### F. Phase 5 — scale _(later)_
 

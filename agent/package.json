@@ -6,6 +6,7 @@
   "description": "Backstop Pillar 2 — autonomous AI underwriter for DeepBook Predict crash-protection markets.",
   "scripts": {
     "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
     "once": "tsx src/index.ts --once",
     "publish-feed": "tsx src/publishRiskFeed.ts",
     "srx": "tsx src/srx.ts",
@@ -15,6 +16,7 @@
     "pyth-lending": "tsx src/provisionPythLending.ts",
     "backtest-depeg": "tsx src/backtestDepeg.ts",
     "verify-depeg-integrations": "tsx src/verifyDepegIntegrations.ts",
+    "verify-depeg-ptbs": "tsx src/verifyDepegPtbs.ts",
     "verify-depeg-custody": "tsx src/verifyDepegCustody.ts",
     "transfer-depeg-admin-caps": "tsx src/transferDepegAdminCaps.ts",
     "check-deployer": "tsx src/checkSuiDeployer.ts",

@@ -157,6 +157,106 @@
   font-size: 13px;
 }
 
+.proof-health-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.proof-health-head .lead {
+  margin-bottom: 14px;
+}
+
+.proof-health-score {
+  min-width: 112px;
+  text-align: right;
+}
+
+.proof-health-score span {
+  display: block;
+}
+
+.proof-health-score span:first-child {
+  font-family: var(--mono);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.proof-health-score .ok {
+  color: var(--good);
+}
+
+.proof-health-score .warn {
+  color: var(--warn);
+}
+
+.proof-health-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.proof-health-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  min-height: 74px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--panel-2);
+  color: var(--text);
+}
+
+.proof-health-row:hover {
+  text-decoration: none;
+  border-color: var(--accent);
+}
+
+.proof-health-row strong,
+.proof-health-row .muted {
+  display: block;
+}
+
+.proof-health-row .muted {
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+}
+
+.proof-health-row.ok {
+  border-color: color-mix(in srgb, var(--good) 30%, var(--line));
+}
+
+.proof-health-row.warn {
+  border-color: color-mix(in srgb, var(--warn) 34%, var(--line));
+}
+
+.proof-health-row.bad {
+  border-color: color-mix(in srgb, var(--bad) 34%, var(--line));
+}
+
+.proof-health-status {
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.proof-health-row.ok .proof-health-status {
+  color: var(--good);
+}
+
+.proof-health-row.warn .proof-health-status {
+  color: var(--warn);
+}
+
+.proof-health-row.bad .proof-health-status {
+  color: var(--bad);
+}
+
 @media (max-width: 640px) {
   .policy {
     align-items: flex-start;
@@ -209,6 +309,23 @@
 
   .depeg-navi-line {
     align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .proof-health-head {
+    flex-direction: column;
+  }
+
+  .proof-health-score {
+    min-width: 0;
+    text-align: left;
+  }
+
+  .proof-health-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .proof-health-row {
     flex-direction: column;
   }
 }
