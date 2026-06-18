@@ -888,6 +888,95 @@ select:focus {
   line-height: 1.6;
 }
 
+.cover-desk {
+  display: grid;
+  gap: 24px;
+}
+
+.desk-head {
+  display: grid;
+  gap: 12px;
+  max-width: 840px;
+}
+
+.desk-head .section-kicker {
+  margin-bottom: 0;
+}
+
+.desk-head h2 {
+  margin: 0;
+  font-size: 42px;
+  line-height: 1.06;
+  letter-spacing: 0;
+}
+
+.desk-head p {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.68;
+}
+
+.desk-table {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+}
+
+.desk-row {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr 1.45fr 108px;
+  gap: 18px;
+  align-items: center;
+  min-height: 74px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.desk-row:last-child {
+  border-bottom: 0;
+}
+
+.desk-row-head {
+  min-height: 44px;
+  background: color-mix(in srgb, var(--bg-soft) 70%, transparent);
+}
+
+.desk-row-head span {
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.desk-row strong {
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.desk-row span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.desk-row code {
+  justify-self: end;
+  padding: 6px 8px;
+  border: 1px solid color-mix(in srgb, var(--proof) 28%, var(--line));
+  border-radius: var(--r-sm);
+  color: var(--proof);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .operating-system,
 .proof-ledger,
 .integration-callout {
@@ -970,6 +1059,53 @@ select:focus {
 }
 
 .os-row p {
+  margin: 0;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.category-lessons {
+  display: grid;
+  gap: 18px;
+}
+
+.category-lessons .section-kicker {
+  margin-bottom: 0;
+}
+
+.lesson-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.lesson-card {
+  min-width: 0;
+  min-height: 148px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--panel) 94%, transparent),
+      color-mix(in srgb, var(--bg-soft) 98%, transparent)
+    ),
+    var(--panel);
+}
+
+.lesson-card span {
+  display: block;
+  margin-bottom: 18px;
+  color: var(--proof);
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.lesson-card p {
   margin: 0;
   color: var(--text);
   font-size: 14px;
@@ -1451,7 +1587,8 @@ select:focus {
   }
 
   .market-grid,
-  .flow-grid {
+  .flow-grid,
+  .lesson-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1508,13 +1645,28 @@ select:focus {
   }
 
   .product-tape,
+  .desk-row,
   .os-row,
   .ledger-row {
     grid-template-columns: 1fr;
     gap: 8px;
   }
 
+  .desk-row {
+    align-items: start;
+    min-height: 0;
+  }
+
+  .desk-row-head {
+    display: none;
+  }
+
+  .desk-row code {
+    justify-self: start;
+  }
+
   .section-split h2,
+  .desk-head h2,
   .proof-ledger h2,
   .integration-callout h2 {
     font-size: 30px;

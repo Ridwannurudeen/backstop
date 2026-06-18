@@ -44,6 +44,7 @@ type Deployment = {
       pool?: string;
       premiumMist?: number;
       policyDurationSecs?: number;
+      maxPolicyDurationSecs?: number;
     };
   };
 };
@@ -221,6 +222,14 @@ async function main(): Promise<void> {
   const stagedPolicyDurationSecs = BigInt(
     pyth.stagedProof.policyDurationSecs ?? 86_400,
   );
+  const stagedMaxPolicyDurationSecs = BigInt(
+    pyth.stagedProof.maxPolicyDurationSecs ?? Number(stagedPolicyDurationSecs),
+  );
+  const stagedProbeDurationSecs =
+    stagedMaxPolicyDurationSecs < 600n ? stagedMaxPolicyDurationSecs : 600n;
+  assert(stagedProbeDurationSecs > 0, "staged max policy duration is zero");
+  const stagedExpiryMs = () =>
+    BigInt(Date.now()) + stagedProbeDurationSecs * 1000n;
 
   const client = new SuiClient({ url: suiRpcUrl("mainnet") });
   const pool = await retryTransient("read production depeg pool", () =>
@@ -228,7 +237,6 @@ async function main(): Promise<void> {
   );
   const coverMist = 1_000_000n;
   const premiumMist = quoteDepegPremium(pool, coverMist);
-  const stagedExpiryMs = BigInt(Date.now()) + stagedPolicyDurationSecs * 1000n;
 
   await inspect(
     client,
@@ -281,7 +289,7 @@ async function main(): Promise<void> {
         pool: stagedPool,
         premiumMist: stagedPremiumMist,
         coverMist,
-        expiryMs: stagedExpiryMs,
+        expiryMs: stagedExpiryMs(),
       }),
     ),
     { kind: "abort", code: RECORD_NOT_ACTIVE },
@@ -294,7 +302,7 @@ async function main(): Promise<void> {
       pool: stagedPool,
       premiumMist: stagedPremiumMist,
       coverMist,
-      expiryMs: stagedExpiryMs,
+      expiryMs: stagedExpiryMs(),
     }),
     { kind: "abort", code: CLAIM_NOT_BREACHED },
   );

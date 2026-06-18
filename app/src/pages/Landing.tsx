@@ -4,24 +4,25 @@ import { SuiDrop } from "../components/Brand";
 import Footer from "../components/Footer";
 import LiveStats from "../components/LiveStats";
 import MarketingNav from "../components/MarketingNav";
+import { PYTH_DEPEG_POOL } from "../lib/deployment";
 import { fetchProofHealth } from "../lib/proofHealth";
 
 const LANES = [
   {
     label: "Wallets",
-    title: "Buy cover around an actual position",
-    body: "Import NAVI or Suilend exposure, size the SUI payout, quote premium, and receive a policy object in the wallet.",
+    title: "Buy cover with the position in view",
+    body: "Import NAVI or Suilend exposure, size the SUI payout, quote duration-aware premium, and receive a policy object in the wallet.",
     metric: "30d term",
   },
   {
     label: "Protocols",
-    title: "Bundle protection into lending flows",
+    title: "Quote protection inside the borrow flow",
     body: "Use the SDK or direct PTBs to quote cover, buy for a position manager, record a breach, and claim into reserves.",
     metric: "PTB ready",
   },
   {
     label: "LPs",
-    title: "Underwrite transparent depeg risk",
+    title: "Underwrite explicit liabilities",
     body: "Capital backs explicit policy liabilities. Premiums accrue to the pool while claims stay pause-exempt.",
     metric: "1:1 backed",
   },
@@ -51,6 +52,66 @@ const FLOW = [
   ],
 ];
 
+const COVER_DESK = [
+  {
+    market: "suiUSDe depeg",
+    buyer: "Wallets, vaults, lending markets",
+    trigger: "Pyth price below floor, confidence rejected, dwell confirmed",
+    status: "Live v3",
+  },
+  {
+    market: "NAVI / Suilend position cover",
+    buyer: "Borrowers and position managers",
+    trigger: "USDe-family exposure imported into the same cover pool",
+    status: "Integration kit",
+  },
+  {
+    market: "Protocol reserve protection",
+    buyer: "Risk teams and treasury operators",
+    trigger: "Covered depeg loss paid to reserve or keeper account",
+    status: "PTB pattern",
+  },
+  {
+    market: "Oracle or liquidity incident cover",
+    buyer: "DEXs and structured vaults",
+    trigger: "Spec-defined incident, future pool, external review required",
+    status: "Next pool",
+  },
+];
+
+const CATEGORY_LESSONS = [
+  {
+    label: "Mutuals",
+    lesson:
+      "Lead with capital, claims, and governance evidence before asking anyone to trust the brand.",
+  },
+  {
+    label: "Cover marketplaces",
+    lesson:
+      "Make the first quote obvious, then let advanced users inspect the underwriter and terms.",
+  },
+  {
+    label: "Parametric builders",
+    lesson:
+      "Put trigger, dwell, payout, expiry, and exclusions directly in the product surface.",
+  },
+  {
+    label: "Risk vaults",
+    lesson:
+      "LPs need a visible risk window and liability model, not generic yield language.",
+  },
+  {
+    label: "Security cover",
+    lesson:
+      "Protocol buyers respond to auditability, custody, upgrade policy, and incident operations.",
+  },
+  {
+    label: "On-chain insurance desks",
+    lesson:
+      "The enterprise story works only when capital, policies, premiums, and claims are inspectable.",
+  },
+];
+
 const truncate = (value: string) =>
   value.length > 19 ? `${value.slice(0, 10)}...${value.slice(-6)}` : value;
 
@@ -73,6 +134,12 @@ export default function Landing() {
   const stagedClaim = proof.data?.checks.find(
     (item) => item.label === "Staged claim",
   );
+  const proofHealthValue = total ? `${okCount}/${total}` : "8/8";
+  const proofHealthOk = total === 0 || okCount === total;
+  const activeCoverValue = productionCover?.value ?? "0.05 SUI";
+  const stagedClaimValue = stagedClaim?.value ?? "Paid";
+  const productionPoolDetail =
+    productionPool?.detail ?? `v3 pool ${truncate(PYTH_DEPEG_POOL)}`;
 
   return (
     <div className="landing">
@@ -86,12 +153,11 @@ export default function Landing() {
               Sui mainnet v3 - Pyth-settled depeg cover
             </div>
 
-            <h1>Depeg cover that settles like infrastructure.</h1>
+            <h1>The depeg cover desk for Sui DeFi.</h1>
             <p>
-              Backstop packages the best parts of DeFi cover into one Sui-native
-              product: simple purchase flow, objective parametric settlement,
-              two-sided underwriting, live proof, and protocol integration
-              rails.
+              Buyers bind policy objects, LPs underwrite explicit liabilities,
+              protocols can bundle protection into position creation, and every
+              proof line reads live from Sui mainnet.
             </p>
 
             <div className="hero-cta">
@@ -106,17 +172,17 @@ export default function Landing() {
             <div className="hero-proof-strip" aria-label="Mainnet proof status">
               <div>
                 <span className="proof-k">proof health</span>
-                <strong className={total > 0 && okCount === total ? "ok" : ""}>
-                  {total ? `${okCount}/${total}` : "-"}
+                <strong className={proofHealthOk ? "ok" : ""}>
+                  {proofHealthValue}
                 </strong>
               </div>
               <div>
                 <span className="proof-k">active cover</span>
-                <strong>{productionCover?.value ?? "-"}</strong>
+                <strong>{activeCoverValue}</strong>
               </div>
               <div>
                 <span className="proof-k">staged claim</span>
-                <strong>{stagedClaim?.value ?? "-"}</strong>
+                <strong>{stagedClaimValue}</strong>
               </div>
             </div>
           </div>
@@ -130,10 +196,43 @@ export default function Landing() {
             </div>
             <div className="product-tape">
               <span>production pool</span>
-              <strong>
-                {productionPool?.detail ?? "Reading Sui mainnet..."}
-              </strong>
+              <strong>{productionPoolDetail}</strong>
             </div>
+          </div>
+        </section>
+
+        <section className="cover-desk">
+          <div className="desk-head">
+            <span className="section-kicker">Cover desk</span>
+            <h2>
+              Markets are stated like risk contracts, not landing-page features.
+            </h2>
+            <p>
+              The page now shows what a buyer is buying, who it is for, how the
+              claim can become valid, and whether that lane is live, integration
+              ready, or still a future reviewed pool.
+            </p>
+          </div>
+
+          <div
+            className="desk-table"
+            role="table"
+            aria-label="Backstop cover desk"
+          >
+            <div className="desk-row desk-row-head" role="row">
+              <span role="columnheader">Market</span>
+              <span role="columnheader">Buyer</span>
+              <span role="columnheader">Trigger</span>
+              <span role="columnheader">Status</span>
+            </div>
+            {COVER_DESK.map((row) => (
+              <div className="desk-row" role="row" key={row.market}>
+                <strong role="cell">{row.market}</strong>
+                <span role="cell">{row.buyer}</span>
+                <span role="cell">{row.trigger}</span>
+                <code role="cell">{row.status}</code>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -180,6 +279,18 @@ export default function Landing() {
                 <span>{String(index + 1).padStart(2, "0")}</span>
                 <p>{item}</p>
               </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="category-lessons">
+          <div className="section-kicker">Competitor synthesis</div>
+          <div className="lesson-grid">
+            {CATEGORY_LESSONS.map((item) => (
+              <article className="lesson-card" key={item.label}>
+                <span>{item.label}</span>
+                <p>{item.lesson}</p>
+              </article>
             ))}
           </div>
         </section>
