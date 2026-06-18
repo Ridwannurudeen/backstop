@@ -64,13 +64,13 @@ export default function Underwriter() {
 
   return (
     <div className="card">
-      <h3>Autonomous AI underwriter</h3>
+      <h3>Underwriting decision receipts</h3>
       <p className="muted">
-        The agent reads DeepBook Predict's on-chain volatility surface, turns it
-        into a market-implied <b>probability of failure</b>, prices capacity +
-        premium, and logs every decision to Walrus — independently verifiable.{" "}
+        The Sui testnet lab reads DeepBook Predict's volatility surface, turns
+        it into a market-implied <b>probability of failure</b>, prices capacity
+        and premium, then records each accept or decline to Walrus.{" "}
         {data && (
-          <span>· last run {new Date(data.generatedAt).toLocaleString()}</span>
+          <span>Last run {new Date(data.generatedAt).toLocaleString()}</span>
         )}
       </p>
 
@@ -85,7 +85,7 @@ export default function Underwriter() {
           </div>
           <div className="uw-stat">
             <div className="n">{track.accepted}</div>
-            <div className="l">underwritten</div>
+            <div className="l">accepted</div>
           </div>
           <div className="uw-stat">
             <div className="n">{usd(track.suppliedUsd)}</div>
@@ -98,83 +98,114 @@ export default function Underwriter() {
         </div>
       )}
 
-      {isLoading && <p className="muted">Loading decisions…</p>}
+      {isLoading && <p className="muted">Loading decisions...</p>}
       {!isLoading && decisions.length === 0 && (
         <p className="muted">
           No decisions yet. Run the agent:{" "}
-          <code>cd agent &amp;&amp; npm run once</code> — it publishes here.
+          <code>cd agent &amp;&amp; npm run once</code> - it publishes here.
         </p>
       )}
 
-      {decisions.map((d, i) => {
-        const probPct = d.input.impliedCrashProb * 100;
-        return (
-          <div className="uw-row" key={i}>
-            <div className="uw-main">
-              <div className="uw-market">
-                {d.input.symbol} &lt; {usd(d.input.strikeUsd)}{" "}
-                <span className="muted">
-                  · {daysTo(d.input.expiryMs)}d · ref{" "}
-                  {d.input.referencePriceUsd
-                    ? usd(d.input.referencePriceUsd)
-                    : "—"}
+      <div className="uw-receipts">
+        {decisions.map((d, i) => {
+          const probPct = d.input.impliedCrashProb * 100;
+          return (
+            <article
+              className={`uw-receipt ${
+                d.decision.accept ? "accepted" : "declined"
+              }`}
+              key={`${d.timestamp}-${i}`}
+            >
+              <div className="uw-receipt-head">
+                <div>
+                  <span>Sui testnet lab</span>
+                  <h4>
+                    {d.input.symbol} &lt; {usd(d.input.strikeUsd)}
+                  </h4>
+                  <p>
+                    {daysTo(d.input.expiryMs)}d to expiry / reference{" "}
+                    {d.input.referencePriceUsd
+                      ? usd(d.input.referencePriceUsd)
+                      : "unavailable"}
+                  </p>
+                </div>
+                <span
+                  className={`pill ${d.decision.accept ? "active" : "settled"}`}
+                >
+                  {d.decision.accept ? "accept" : "decline"}
                 </span>
               </div>
-              <div className="uw-prob">
-                <span className="uw-prob-v">{probPct.toFixed(2)}%</span>
-                <span className="muted"> implied crash prob</span>
-              </div>
-              <div className="uw-rationale muted">{d.decision.rationale}</div>
-            </div>
 
-            <div className="uw-side">
-              <span
-                className={`pill ${d.decision.accept ? "active" : "settled"}`}
-              >
-                {d.decision.accept ? "underwrite" : "decline"}
-              </span>
-              <span className={`uw-src ${d.decision.source}`}>
-                {d.decision.source === "claude" ? "AI" : "rules"}
-              </span>
-              <div className="uw-terms">
+              <div className="uw-probability">
                 <div>
-                  <span className="muted">capacity </span>
-                  {usd(d.decision.maxCapacityUsd)}
+                  <span>Market-implied failure risk</span>
+                  <strong>{probPct.toFixed(2)}%</strong>
+                </div>
+                <div className="uw-prob-bar" aria-hidden="true">
+                  <span style={{ width: `${Math.min(probPct, 100)}%` }} />
+                  <i style={{ left: "25%" }} />
+                </div>
+                <small>25% acceptance threshold</small>
+              </div>
+
+              <div className="uw-receipt-grid">
+                <div>
+                  <span>Engine</span>
+                  <strong>
+                    {d.decision.source === "claude" ? "AI review" : "Rules"}
+                  </strong>
                 </div>
                 <div>
-                  <span className="muted">premium </span>
-                  {d.decision.premiumBps} bps
+                  <span>Capacity</span>
+                  <strong>{usd(d.decision.maxCapacityUsd)}</strong>
+                </div>
+                <div>
+                  <span>Premium</span>
+                  <strong>{d.decision.premiumBps} bps</strong>
+                </div>
+                <div>
+                  <span>Execution</span>
+                  <strong>
+                    {d.execution.executed
+                      ? usd(d.execution.amountUsd)
+                      : d.execution.reason}
+                  </strong>
                 </div>
               </div>
-              {d.walrusUrl ? (
-                <a
-                  className="uw-verify"
-                  href={d.walrusUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Verify on Walrus ↗
-                </a>
-              ) : (
-                <span className="muted" style={{ fontSize: 12 }}>
-                  Walrus pending
-                </span>
-              )}
-              {d.execution.executed && (
-                <a
-                  className="uw-exec"
-                  href={txUrl(d.execution.digest)}
-                  target="_blank"
-                  rel="noreferrer"
-                  title="On-chain supply into the Predict vault"
-                >
-                  supplied {usd(d.execution.amountUsd)} on-chain ↗
-                </a>
-              )}
-            </div>
-          </div>
-        );
-      })}
+
+              <p className="uw-rationale">{d.decision.rationale}</p>
+
+              <div className="uw-links">
+                {d.walrusUrl ? (
+                  <a
+                    className="uw-verify"
+                    href={d.walrusUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Walrus proof
+                  </a>
+                ) : (
+                  <span className="muted" style={{ fontSize: 12 }}>
+                    Walrus pending
+                  </span>
+                )}
+                {d.execution.executed && (
+                  <a
+                    className="uw-exec"
+                    href={txUrl(d.execution.digest)}
+                    target="_blank"
+                    rel="noreferrer"
+                    title="On-chain supply into the Predict vault"
+                  >
+                    Sui execution
+                  </a>
+                )}
+              </div>
+            </article>
+          );
+        })}
+      </div>
     </div>
   );
 }

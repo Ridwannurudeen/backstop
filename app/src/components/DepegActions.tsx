@@ -561,16 +561,22 @@ export default function DepegActions() {
   return (
     <div className="card">
       <h3>
-        Mainnet depeg actions <span className="sub">- SUI collateral</span>
+        Mainnet cover desk <span className="sub">- SUI payout collateral</span>
       </h3>
       <p className="lead">
-        Buyer, LP, keeper, and claim transactions for the Pyth-settled depeg
-        pool. The production pool is prefilled; only rotate the package or pool
-        ID from Advanced when deploying a replacement pool.
+        Buy cover, review policy state, or underwrite the Pyth-settled pool.
+        Policy exposure may be USD-denominated in your source position, but
+        premiums and payouts settle in SUI.
       </p>
 
+      <nav className="depeg-mode-tabs" aria-label="Depeg cover modes">
+        <a href="#buy-cover">Buy Cover</a>
+        <a href="#my-policies">My Policies</a>
+        <a href="#underwrite-pool">Underwrite</a>
+      </nav>
+
       <details className="note" style={{ marginTop: 12 }}>
-        <summary>Advanced package and pool IDs</summary>
+        <summary>Advanced contract details</summary>
         <div className="row" style={{ marginTop: 12 }}>
           <div className="field">
             <label>Package ID</label>
@@ -1140,8 +1146,9 @@ export default function DepegActions() {
         )}
       </div>
 
-      <div className="row">
+      <div className="depeg-action-grid">
         <div className="field">
+          <h4 id="underwrite-pool">Underwrite</h4>
           <label>Provide liquidity (SUI)</label>
           <input
             type="number"
@@ -1155,6 +1162,7 @@ export default function DepegActions() {
           </button>
         </div>
         <div className="field">
+          <h4 id="buy-cover">Buy Cover</h4>
           <label>Buy cover (SUI payout)</label>
           <input
             type="number"
@@ -1211,7 +1219,9 @@ export default function DepegActions() {
 
       {notice && <Notice {...notice} />}
 
-      <h4 style={{ margin: "18px 0 6px" }}>My depeg positions</h4>
+      <h4 id="my-policies" style={{ margin: "18px 0 6px" }}>
+        My policies and LP shares
+      </h4>
       <p className="muted" style={{ marginTop: 0 }}>
         LP shares: {shareUnits(totalShareUnits)}
       </p>

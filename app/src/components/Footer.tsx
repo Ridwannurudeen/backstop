@@ -10,10 +10,10 @@ export default function Footer() {
       </div>
       <nav className="footer-links">
         <Link to="/how-it-works">How it works</Link>
-        <Link to="/markets/risk-index">Markets</Link>
         <Link to="/depeg">Depeg cover</Link>
         <Link to="/proof">Proof</Link>
         <Link to="/agent/ai">Agent</Link>
+        <Link to="/lab/buy">Testnet lab</Link>
       </nav>
       <span className="built-on-sui">
         <SuiDrop /> Built on Sui

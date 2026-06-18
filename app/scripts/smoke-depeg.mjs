@@ -8,7 +8,7 @@ const proofUrl =
     : baseUrl);
 const requiredHeadings = [
   /Depeg cover simulator/i,
-  /Mainnet depeg actions/i,
+  /Mainnet cover desk/i,
   /Mainnet proof health/i,
   /^Depeg cover/i,
 ];
@@ -35,7 +35,7 @@ async function checkPage(browser, name, options) {
   }
 
   const ids = await page
-    .locator(".card", { hasText: "Mainnet depeg actions" })
+    .locator(".card", { hasText: "Mainnet cover desk" })
     .locator("input.mono")
     .evaluateAll((inputs) =>
       inputs.map((input) =>
@@ -52,7 +52,7 @@ async function checkPage(browser, name, options) {
   await page.waitForFunction(
     () => {
       const card = Array.from(document.querySelectorAll(".card")).find((node) =>
-        node.textContent?.includes("Mainnet depeg actions"),
+        node.textContent?.includes("Mainnet cover desk"),
       );
       if (!card) return false;
       const stats = Array.from(card.querySelectorAll(".term-stat"));

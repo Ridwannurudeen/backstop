@@ -24,16 +24,6 @@ export const SECTIONS: NavSection[] = [
     tabs: [{ label: "Proof packet", to: "/proof" }],
   },
   {
-    id: "markets",
-    label: "Risk Feed",
-    base: "/markets",
-    wallet: false,
-    tabs: [
-      { label: "Sui Risk Index", to: "/markets/risk-index" },
-      { label: "Risk terminal", to: "/markets/risk-terminal" },
-    ],
-  },
-  {
     id: "agent",
     label: "Agent Proofs",
     base: "/agent",
@@ -45,7 +35,7 @@ export const SECTIONS: NavSection[] = [
   },
   {
     id: "lab",
-    label: "DeepBook Lab",
+    label: "Testnet Lab",
     base: "/lab",
     wallet: true,
     tabs: [

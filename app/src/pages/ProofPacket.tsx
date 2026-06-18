@@ -33,6 +33,37 @@ const updated = (ms?: number) =>
       })
     : "-";
 
+const evidenceType = (label: string) => {
+  if (
+    label.includes("tx") ||
+    label.includes("claim") ||
+    label.includes("cover")
+  )
+    return "Captured tx";
+  if (label.includes("custody") || label.includes("policy"))
+    return "Safety check";
+  return "Live read";
+};
+
+const safetyLabel = (label: string) => {
+  if (label.includes("Staged")) return "Staged proof";
+  if (label.includes("Admin")) return "Admin controlled";
+  return "Demo scale";
+};
+
+const proofBoundary = (label: string) => {
+  if (label.includes("Staged")) {
+    return "Proves the mechanism paid; does not prove organic external demand.";
+  }
+  if (label.includes("Admin")) {
+    return "Proves custody moved; does not replace multisig or external audit.";
+  }
+  if (label.includes("Production")) {
+    return "Proves live object state; does not prove large-scale loss history.";
+  }
+  return "Proves the referenced object or transaction resolves publicly.";
+};
+
 const proofObjects = [
   {
     label: "Cover package",
@@ -193,9 +224,65 @@ export default function ProofPacket() {
             {okCount}/{total || "-"}
           </span>
           <small>
-            {isFetching ? "refreshing" : `updated ${updated(data?.updatedAt)}`}
+            {total > 0 && okCount === total
+              ? "All required proof checks currently pass"
+              : "Proof checks require attention"}
           </small>
+          <small>
+            {isFetching
+              ? "refreshing"
+              : `last verified ${updated(data?.updatedAt)}`}
+          </small>
+          <small>source: live Sui mainnet reads</small>
         </div>
+      </section>
+
+      <section className="proof-matrix">
+        {data?.checks.map((item) => (
+          <a
+            className={`proof-matrix-row ${item.status}`}
+            href={item.href}
+            key={item.label}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <div className="proof-matrix-title">
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </div>
+            <div className="proof-tags">
+              <span>Mainnet</span>
+              <span>{evidenceType(item.label)}</span>
+              <span>{safetyLabel(item.label)}</span>
+            </div>
+            <p>{item.detail}</p>
+            <small>{proofBoundary(item.label)}</small>
+          </a>
+        ))}
+        {!data && (
+          <div className="proof-matrix-row">
+            <div className="proof-matrix-title">
+              <span>Reading proof state</span>
+              <strong>-</strong>
+            </div>
+            <p>Loading live Sui mainnet checks...</p>
+          </div>
+        )}
+      </section>
+
+      <section className="proof-command-card">
+        <div>
+          <span className="section-kicker">Verification command</span>
+          <h3>Run the same public checks locally.</h3>
+          <p className="muted">
+            This command verifies live site availability, Sui objects,
+            transaction digests, Walrus proofs, custody, UpgradeCap policy, and
+            the Pyth depeg deployment.
+          </p>
+        </div>
+        <pre>
+          <code>npm run verify:public</code>
+        </pre>
       </section>
 
       <section className="proof-grid-3">

@@ -29,9 +29,9 @@ function Gate({ label, children }: { label: string; children: ReactNode }) {
     <div className="card connect-prompt">
       <h3>Connect a wallet to {label}</h3>
       <p>
-        These DeepBook Predict lab actions run on Sui testnet. The Cover, Risk
-        Feed and Agent Proofs pages are public where possible, and the mainnet
-        depeg product lives under Cover.
+        Sui testnet lab actions use DeepBook Predict research markets. The
+        mainnet depeg cover product lives under Cover, and public proof checks
+        remain available without a wallet.
       </p>
       <ConnectButton />
     </div>
@@ -102,7 +102,7 @@ export default function App() {
           <Route
             path="/lab/buy"
             element={
-              <Gate label="use the DeepBook testnet lab">
+              <Gate label="use the Sui testnet lab">
                 <BuyProtection />
               </Gate>
             }
@@ -110,7 +110,7 @@ export default function App() {
           <Route
             path="/lab/treasury"
             element={
-              <Gate label="use the DeepBook testnet lab">
+              <Gate label="use the Sui testnet lab">
                 <TreasuryProtect />
               </Gate>
             }
@@ -118,7 +118,7 @@ export default function App() {
           <Route
             path="/lab/policies"
             element={
-              <Gate label="use the DeepBook testnet lab">
+              <Gate label="use the Sui testnet lab">
                 <Portfolio />
               </Gate>
             }
@@ -126,7 +126,7 @@ export default function App() {
           <Route
             path="/lab/underwrite"
             element={
-              <Gate label="use the DeepBook testnet lab">
+              <Gate label="use the Sui testnet lab">
                 <Underwrite />
               </Gate>
             }

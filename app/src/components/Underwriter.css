@@ -2,107 +2,194 @@
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
-  margin: 4px 0 8px;
+  margin: 16px 0 18px;
 }
 
 .uw-stat {
-  background: var(--panel-2);
+  min-width: 116px;
+  padding: 12px 14px;
   border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 10px 14px;
-  min-width: 92px;
+  border-radius: var(--r-sm);
+  background: var(--panel-2);
 }
 
 .uw-stat .n {
-  font-size: 18px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 20px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
 .uw-stat .l {
-  font-size: 11px;
-  color: var(--muted);
   margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
 }
 
-.uw-row {
+.uw-receipts {
+  display: grid;
+  gap: 14px;
+}
+
+.uw-receipt {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+}
+
+.uw-receipt.accepted {
+  border-color: color-mix(in srgb, var(--good) 34%, var(--line));
+}
+
+.uw-receipt.declined {
+  border-color: color-mix(in srgb, var(--warn) 34%, var(--line));
+}
+
+.uw-receipt-head {
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  padding: 16px 0;
-  border-top: 1px solid var(--line);
+  align-items: start;
 }
 
-.uw-main {
-  min-width: 0;
+.uw-receipt-head span,
+.uw-probability span,
+.uw-receipt-grid span {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
-.uw-market {
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-
-.uw-prob {
-  margin: 2px 0 6px;
-}
-
-.uw-prob-v {
-  font-size: 22px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
+.uw-receipt-head h4 {
+  margin: 6px 0 4px;
   color: var(--text);
+  font-size: 22px;
 }
 
-.uw-rationale {
+.uw-receipt-head p,
+.uw-rationale,
+.uw-probability small {
+  margin: 0;
+  color: var(--muted);
   font-size: 13px;
-  max-width: 460px;
+  line-height: 1.5;
 }
 
-.uw-side {
+.uw-probability {
+  display: grid;
+  gap: 8px;
+}
+
+.uw-probability > div:first-child {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.uw-probability strong {
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 30px;
+  font-variant-numeric: tabular-nums;
+}
+
+.uw-prob-bar {
+  position: relative;
+  height: 8px;
+  overflow: hidden;
+  border-radius: var(--r-pill);
+  background: var(--bg-soft);
+}
+
+.uw-prob-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--sui), var(--warn), var(--bad));
+}
+
+.uw-prob-bar i {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 2px;
+  background: var(--text);
+}
+
+.uw-receipt-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--line);
+}
+
+.uw-receipt-grid div {
+  min-width: 0;
+  padding: 12px;
+  background: var(--panel-2);
+}
+
+.uw-receipt-grid strong {
+  display: block;
+  min-width: 0;
+  margin-top: 6px;
+  overflow: hidden;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.uw-src {
-  font-size: 10px;
-  letter-spacing: 0.5px;
-  padding: 2px 6px;
-  border-radius: 999px;
+.uw-links {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.uw-verify,
+.uw-exec {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  padding: 7px 10px;
   border: 1px solid var(--line);
-  color: var(--muted);
-}
-
-.uw-src.claude {
-  color: var(--good);
-  border-color: var(--good);
-}
-
-.uw-terms {
-  text-align: right;
-  font-size: 14px;
-  font-variant-numeric: tabular-nums;
-}
-
-.uw-verify {
-  font-size: 13px;
+  border-radius: var(--r-sm);
   color: var(--accent);
+  font-family: var(--mono);
+  font-size: 12px;
   text-decoration: none;
-}
-
-.uw-verify:hover {
-  text-decoration: underline;
 }
 
 .uw-exec {
-  font-size: 13px;
-  font-weight: 600;
   color: var(--good);
+}
+
+.uw-verify:hover,
+.uw-exec:hover {
+  border-color: currentColor;
   text-decoration: none;
 }
 
-.uw-exec:hover {
-  text-decoration: underline;
+@media (max-width: 760px) {
+  .uw-receipt-head,
+  .uw-probability > div:first-child {
+    flex-direction: column;
+    align-items: start;
+  }
+
+  .uw-receipt-grid {
+    grid-template-columns: 1fr;
+  }
 }
