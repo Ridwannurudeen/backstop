@@ -31,7 +31,9 @@
   --r-pill: 980px;
   --maxw: 1080px;
 
-  --font: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font:
+    "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    sans-serif;
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Roboto Mono", monospace;
 
   color-scheme: dark;
@@ -51,7 +53,11 @@ body {
 
 body {
   background:
-    radial-gradient(900px 500px at 50% -10%, rgba(77, 162, 255, 0.06), transparent 70%),
+    radial-gradient(
+      900px 500px at 50% -10%,
+      rgba(77, 162, 255, 0.06),
+      transparent 70%
+    ),
     var(--bg);
   color: var(--text);
   font-size: 15px;
@@ -133,7 +139,9 @@ h4 {
   font-weight: 500;
   border-radius: var(--r-sm);
   cursor: pointer;
-  transition: color 0.15s, background 0.15s;
+  transition:
+    color 0.15s,
+    background 0.15s;
 }
 .nav a:hover {
   color: var(--text);
@@ -320,6 +328,9 @@ select:focus {
 }
 .val-good {
   color: var(--good);
+}
+.val-warn {
+  color: var(--warn);
 }
 .val-bad {
   color: var(--bad);
@@ -703,6 +714,159 @@ select:focus {
   padding: 12px 24px;
 }
 
+/* --- Proof packet --- */
+.proof-page {
+  display: grid;
+  gap: 16px;
+}
+
+.proof-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  gap: 20px;
+  align-items: end;
+  padding: 34px 0 18px;
+}
+
+.proof-kicker {
+  margin: 0 0 10px;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.proof-hero h1 {
+  max-width: 760px;
+  margin: 0 0 12px;
+  font-size: clamp(34px, 5vw, 56px);
+  line-height: 1.04;
+  letter-spacing: -0.035em;
+}
+
+.proof-hero p {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.proof-score-card {
+  min-height: 132px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--panel);
+  text-align: right;
+}
+
+.proof-score-card span {
+  display: block;
+  font-family: var(--mono);
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.proof-score-card .ok {
+  color: var(--good);
+}
+
+.proof-score-card .warn {
+  color: var(--warn);
+}
+
+.proof-score-card small {
+  color: var(--muted);
+}
+
+.proof-grid-3,
+.proof-flow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.proof-flow {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.proof-object-list,
+.proof-tx-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.proof-object-list a,
+.proof-tx-grid a {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--panel-2);
+  color: var(--text);
+}
+
+.proof-object-list a:hover,
+.proof-tx-grid a:hover {
+  border-color: var(--accent);
+  text-decoration: none;
+}
+
+.proof-object-list span,
+.proof-tx-grid strong {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.proof-object-list code,
+.proof-tx-grid code,
+.proof-snippets code {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.proof-object-list code,
+.proof-tx-grid code {
+  overflow-wrap: anywhere;
+}
+
+.proof-tx-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.proof-snippets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.proof-snippets article {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--bg-soft);
+  overflow: hidden;
+}
+
+.proof-snippets h4 {
+  margin: 0;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.proof-snippets pre {
+  margin: 0;
+  padding: 14px;
+  overflow-x: auto;
+  color: var(--text);
+  line-height: 1.55;
+}
+
 /* --- Mobile menu --- */
 .nav-toggle {
   display: none;
@@ -761,5 +925,16 @@ select:focus {
   }
   .steps {
     grid-template-columns: 1fr;
+  }
+  .proof-hero,
+  .proof-grid-3,
+  .proof-flow,
+  .proof-tx-grid,
+  .proof-snippets {
+    grid-template-columns: 1fr;
+  }
+  .proof-score-card {
+    min-height: 0;
+    text-align: left;
   }
 }

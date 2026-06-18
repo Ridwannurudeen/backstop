@@ -51,10 +51,12 @@ export type DepegReading = {
 const i64 = (v: { fields: { negative: boolean; magnitude: string } }): number =>
   (v.fields.negative ? -1 : 1) * Number(v.fields.magnitude);
 
-export async function fetchDepeg(): Promise<DepegReading[]> {
+export async function fetchDepegFromClient(
+  client: SuiClient,
+): Promise<DepegReading[]> {
   const readings = await Promise.all(
     DEPEG_FEEDS.map(async (f): Promise<DepegReading | null> => {
-      const o = await mainnet.getObject({
+      const o = await client.getObject({
         id: f.obj,
         options: { showContent: true },
       });
@@ -83,3 +85,5 @@ export async function fetchDepeg(): Promise<DepegReading[]> {
   );
   return readings.filter((r): r is DepegReading => r !== null);
 }
+
+export const fetchDepeg = () => fetchDepegFromClient(mainnet);

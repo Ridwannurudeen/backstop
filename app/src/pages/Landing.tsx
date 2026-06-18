@@ -40,42 +40,42 @@ const IconAgent = () => (
 
 const FEATURES = [
   {
-    icon: <IconFeed />,
-    title: "On-chain risk oracle",
-    body: "A market-implied probability-of-failure feed any Sui contract can read — bonded, challengeable, and Walrus-proven.",
-  },
-  {
     icon: <IconShield />,
-    title: "Parametric cover",
-    body: "Crash and stablecoin-depeg cover from a fully-collateralized pool: LPs underwrite, policies pay straight from the pool.",
+    title: "Mainnet depeg cover",
+    body: "SUI-collateralized suiUSDe cover from a fully-collateralized pool. LPs underwrite; eligible policies claim from the pool.",
   },
   {
     icon: <IconCheck />,
-    title: "Trustless settlement",
-    body: "Claims settle against Pyth on-chain with a freshness bound — no one has to trust Backstop to get paid.",
+    title: "Objective settlement",
+    body: "Payout conditions are checked on-chain against Pyth with freshness, confidence-band, activation-delay, and dwell requirements.",
+  },
+  {
+    icon: <IconFeed />,
+    title: "Risk oracle lineage",
+    body: "DeepBook Predict powers the testnet risk-feed and SRX surfaces; the production depeg product settles on Pyth today.",
   },
   {
     icon: <IconAgent />,
-    title: "Autonomous underwriter",
-    body: "A bonded agent prices and underwrites on-chain, logging every decision to Walrus — reputation earned, not asserted.",
+    title: "Agent proof layer",
+    body: "Agent, calibration, and arena modules are live accountability proofs, not yet a fully trustless production dispute system.",
   },
 ];
 
 const STEPS = [
   {
     n: "1",
-    title: "Price the risk",
-    body: "DeepBook Predict's on-chain volatility surface becomes a market-implied probability of failure — the RiskFeed any contract can read.",
+    title: "Detect exposure",
+    body: "Scan or import a NAVI/Suilend-like position and size USDe-family exposure into a SUI-denominated cover amount.",
   },
   {
     n: "2",
     title: "Buy cover",
-    body: "Protect a treasury or a stablecoin position with parametric cover from a fully-collateralized pool, priced off the live feed.",
+    body: "Buy mainnet depeg cover from the production pool using live capacity, headroom, and premium quotes.",
   },
   {
     n: "3",
-    title: "Settle trustlessly",
-    body: "When Pyth reports a breach, the policy pays straight from the pool. No claims process, no trust in Backstop.",
+    title: "Claim on breach",
+    body: "If Pyth's adverse band stays below the floor through the dwell window, the policy latches and can claim from the pool.",
   },
 ];
 
@@ -86,17 +86,18 @@ export default function Landing() {
 
       <section className="hero">
         <div className="hero-badge">
-          <SuiDrop /> Built on Sui · Overflow 2026
+          <SuiDrop /> Built on Sui - Overflow 2026
         </div>
         <h1>
-          Price, transfer, and prove
+          Depeg cover for
           <br />
-          risk on Sui.
+          Sui DeFi.
         </h1>
         <p>
-          Backstop is the risk &amp; trust layer for Sui — an on-chain
-          probability-of-failure oracle, parametric crash and depeg cover
-          settled trustlessly by Pyth, and a bonded autonomous underwriter.
+          Backstop protects Sui DeFi from depeg and bad-debt cascades before
+          emergency validator intervention is the only option: mainnet
+          Pyth-settled depeg cover now, with DeepBook/Walrus risk-oracle
+          primitives as the research layer.
         </p>
         <div className="hero-cta">
           <Link to="/depeg" className="btn">
@@ -113,10 +114,10 @@ export default function Landing() {
         <h2>Sui's only backstop today is a validator bailout.</h2>
         <p>
           When the $223M Cetus exploit hit in 2025, the "insurance" was a 90.9%
-          validator vote to roll back the chain — governance-by-emergency, not a
-          primitive. Less than 2% of DeFi is insured. Sui can execute and store,
-          but it can't yet price or transfer the risk that wipes people out.
-          Backstop is that missing layer.
+          validator vote to roll back the chain - governance-by-emergency, not a
+          primitive. Backstop starts narrower: production-shaped depeg cover,
+          priced by pool terms, settled objectively against Pyth, and exposed
+          through a wallet-connected app.
         </p>
       </section>
 
@@ -141,13 +142,13 @@ export default function Landing() {
       </section>
 
       <section className="closing">
-        <h2>Price your risk on Sui.</h2>
+        <h2>Protect depeg exposure on Sui.</h2>
         <div className="hero-cta">
           <Link to="/depeg" className="btn">
             Launch app
           </Link>
           <Link to="/markets/risk-index" className="btn ghost">
-            Explore the risk index
+            Explore the risk feed
           </Link>
         </div>
       </section>

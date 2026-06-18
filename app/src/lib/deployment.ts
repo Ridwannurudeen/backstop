@@ -16,7 +16,8 @@ export const READING_EVENT = `${RISK_FEED_PKG}::risk_feed::ReadingPublished`;
 export const WALRUS_AGGREGATOR =
   "https://aggregator.walrus-testnet.walrus.space/v1/blobs";
 
-// Native parametric CoverPool (Phase 2 capital lane), deployed 2026-06-10.
+// Legacy native CoverPool lane, deployed 2026-06-10. Kept for testnet research;
+// not exposed as a production-safe cover product.
 export const COVER_POOL_PKG = hx(
   "0ebde85d88b00ee0f4f1df16a82feb73",
   "87cde48ac6169d979db4a677de76082f",
@@ -53,7 +54,7 @@ export const POOL_REGISTRY_OBJ = hx(
 );
 export const REGISTERED_EVENT = `${POOL_REGISTRY_PKG}::pool_registry::PoolRegistered`;
 
-// SRX risk-index oracle + trustless oracle_pool, deployed 2026-06-11.
+// SRX risk-index oracle + DeepBook oracle_pool proof lane, deployed 2026-06-11.
 export const RISK_INDEX_PKG = hx(
   "9ecb5797bb9f2fc627871cd33670605e",
   "9a5d52970445f19c64fd755e2d9fe7d6",
@@ -82,51 +83,59 @@ export const ARENA_OBJ = hx(
 export const MAINNET = "mainnet" as const;
 export const HERMES = "https://hermes.pyth.network";
 export const PYTH_DEPEG_COVER_PKG = hx(
-  "761832702281966fac9dee6183b530d2",
-  "f73ecd779524c61cd3dd4705fa6ec968",
+  "51dd7287ac9e97147982023f5f2fa61b",
+  "f5df2939d671216b19d142938f34ab05",
 );
 export const PYTH_DEPEG_POOL = hx(
-  "5edc508a4258e1253563219049dadc8b",
-  "068cf309115e29732dad71698c168592",
+  "4ab0a68e6c299353811a54b660c7e1d8",
+  "cda7645a5f58c77b8593ca4bc617dc53",
 );
 export const PYTH_LENDING_PKG = hx(
-  "b448b63fd536525db0ee2bc26f6110cf",
-  "c3d7fa072280915d7b177568fb36c664",
+  "33cd7e03003948545527609769b77541",
+  "a9c0f3f8005894d8736fdf293cbf531a",
 );
 export const PYTH_LENDING_MARKET = hx(
-  "61759e759625dfce9ac7b83878fce699d",
-  "540ed59056134a4d57422b55fb6b7b3",
+  "27d3f2753ab05170d0484a70114191f4",
+  "fcdb35275db9b2ad9895db18cc92e712",
+);
+export const PYTH_STAGED_POOL = hx(
+  "9e188765145f3de7e246004979883ad8",
+  "ab173ff0cdc61153fbd76ce5081c4e62",
+);
+export const PYTH_STAGED_LENDING_MARKET = hx(
+  "41067a88643fc6339b70166120624b7d",
+  "e8393c8bf395c30be81fafc4fd787182",
 );
 export const PYTH_COVER_UPGRADE_CAP = hx(
-  "43a4d7e8fef6214c7dcc299beb15e44680",
-  "8c06a56f083f15d07df69cb3455e99",
+  "c75d9e099d792f269f88fb05e7bb057e",
+  "6f17cef671553ac763f8aae7427ec1d7",
 );
 export const PYTH_LENDING_UPGRADE_CAP = hx(
-  "f871ce8cf6b2381988ab71693cb2139a",
-  "47974653f0213f46951f0d0bc978afa0",
+  "7596f907c9e7c7fb5f5505e883312b90",
+  "d1e4a61f7cb6fc7de8e178adffd63367",
 );
 export const PYTH_PRODUCTION_ADMIN_CAP = hx(
-  "5a82b64e98ce691b086ef9bd2b32f0d",
-  "541ca4bf821e3d515c6c2374a5d04e5af",
+  "69a912b11990076a5de3c787165f6332",
+  "bf79ae07f70fbaaf11e81a8a40454007",
 );
 export const PYTH_STAGED_ADMIN_CAP = hx(
-  "de8a05cbbdcbea8f609c2be95eea3c6",
-  "c0d870dc379176e4ad9e83aef542cd5c9",
+  "d88b301589365045a1385046bd0cd38b",
+  "5cc93547c891513e559e32d958fad567",
 );
 export const PYTH_ADMIN_CUSTODY_OWNER = hx(
   "5f21a9aaf680f6b0e0190e6a99bb9d4e",
   "314e0761ff3c3bc809f298711e73d8e5",
 );
 export const PYTH_COVER_UPGRADE_LOCK_TX =
-  "Csrn2Vi94rnd9G1A922649UhUgpymj33rXPA58nwMTm6";
+  "7Yxfqa2fStqnfvYJ8qD97m5ZBznYcpUsTQncCZ8tavKy";
 export const PYTH_LENDING_UPGRADE_LOCK_TX =
-  "DFCpC9cLqDmcNrBMHC4deT98HfX2QFM2337wRAqyS7n3";
+  "7Yxfqa2fStqnfvYJ8qD97m5ZBznYcpUsTQncCZ8tavKy";
 export const PYTH_ADMIN_CUSTODY_TX =
-  "2ZxbH6RRjjn4nr12UVJ1Er2g8wi9ofVyT3suFhqMPHES";
+  "2PGfhTmFzDTJZxuGGKxfkhAgRNmcLjbkt3MXJdYfBhYx";
 export const PYTH_STAGED_CLAIM_TX =
-  "8uLrBjqfn2MFGpsoXE9xCVNQRmmhT5EiybWSckwdYnJ6";
+  "Dm9gywopkRe9p36J21HTiLJCeRaRhdjwYaDx13WA2ekC";
 export const PYTH_PRODUCTION_INSURE_TX =
-  "GBosDDCMqB4acaV5Kt7mLa2bgo1sfDdvCStsWf9mbTmA";
+  "HLteoSCKnBzRUhLjfboRFh267FF8wF7MrsUAiXHmYerU";
 export const PYTH_STATE = hx(
   "1f9310238ee9298fb703c3419030b35b",
   "22bb1cc37113e3bb5007c99aec79e5b8",

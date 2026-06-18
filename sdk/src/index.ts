@@ -1,14 +1,15 @@
 /**
- * @backstop/sdk — read Sui's on-chain risk layer in a few lines.
+ * @gudman/backstop-sdk - read Backstop's Sui risk primitives in a few lines.
  *
- * Backstop publishes risk as a public good on Sui testnet (over DeepBook Predict):
- *   • SRX — the Sui Risk Index (CRASH / VOL / TAIL), options-implied
- *   • RiskFeed — a market-implied probability-of-failure oracle any contract reads
- *   • Cover pools — parametric crash cover, claims settle on DeepBook's own oracle
+ * Backstop exposes the mainnet Pyth-settled depeg pool plus the older testnet
+ * DeepBook/Walrus risk primitives:
+ *   - Depeg cover - SUI-collateralized suiUSDe cover settled by Pyth
+ *   - SRX - the Sui Risk Index (CRASH / VOL / TAIL), options-implied
+ *   - RiskFeed - market-implied probability-of-failure readings
  *
  * Example:
  *   import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
- *   import { readSrx } from "@backstop/sdk";
+ *   import { readSrx } from "@gudman/backstop-sdk";
  *   const client = new SuiClient({ url: getFullnodeUrl("testnet") });
  *   const srx = await readSrx(client);   // { crashBps, volBps, tailBps, ... }
  */
@@ -39,6 +40,43 @@ import {
 export * from "./deployment.js";
 
 const ZERO = "0x" + "0".repeat(64);
+const BPS = 10_000n;
+const PREMIUM_PERIOD_SECS = 2_592_000n;
+const DAY_SECS = 86_400;
+
+type Fields = Record<string, unknown>;
+
+const isRecord = (v: unknown): v is Fields =>
+  typeof v === "object" && v !== null;
+
+const fieldsOf = (v: unknown): Fields | null => {
+  if (!isRecord(v)) return null;
+  const fields = v.fields;
+  return isRecord(fields) ? fields : null;
+};
+
+const u64 = (v: unknown): bigint => {
+  if (typeof v === "bigint") return v;
+  if (typeof v === "number" || typeof v === "string") return BigInt(v);
+  const fields = fieldsOf(v);
+  if (fields?.value !== undefined) return u64(fields.value);
+  throw new Error("unexpected u64 field");
+};
+
+const optionalU64 = (v: unknown): bigint | null =>
+  v === undefined ? null : u64(v);
+
+const optionalU64Number = (v: unknown): number | null => {
+  const parsed = optionalU64(v);
+  return parsed === null ? null : Number(parsed);
+};
+
+const feedIdHex = (v: unknown): string => {
+  if (Array.isArray(v)) {
+    return v.map((n) => Number(n).toString(16).padStart(2, "0")).join("");
+  }
+  return String(v);
+};
 
 export type SrxReading = {
   crashBps: number; // P(>=20% drawdown), basis points
@@ -255,12 +293,20 @@ export type DepegPoolState = {
   expoNeg: boolean;
   expoMag: number;
   maxAgeSecs: number;
+  /** Maximum accepted Pyth confidence width in basis points. */
+  maxConfBps: number;
+  /** Required sustained-breach dwell time before claimability. */
+  minDwellSecs: number;
+  /** Delay before a newly bought policy can be armed. */
+  activationDelaySecs: number;
   /** Base premium rate (bps) at 0% utilization; the charged rate is on a curve. */
   premiumBps: number;
   /** Additional premium rate (bps) at 100% utilization. */
   surgePremiumBps: number;
   /** Max cover per policy in MIST (0 = uncapped). */
   maxCoverPerPolicyMist: bigint;
+  /** Max policy term in seconds (null on legacy v1 pools). */
+  maxPolicyDurationSecs: number | null;
   /** Max aggregate cover in MIST (0 = bounded only by full collateralization). */
   maxTotalCoverMist: bigint;
   /** Protocol fee skimmed from each paid premium, in basis points. */
@@ -273,7 +319,17 @@ export type DepegPoolState = {
   paused: boolean;
   /** Governance timelock (seconds) on parameter updates. */
   timelockSecs: number;
+  /** Pool-level depeg epoch id (null on pre-epoch pools). */
+  epochId: number | null;
+  /** True after the first pool-level below-floor read starts dwell. */
+  epochArmed: boolean;
+  epochFirstBreachMs: number | null;
+  /** True once the pool-level dwell has confirmed. */
+  epochBreached: boolean;
+  epochConfirmedMs: number | null;
+  epochBreachPrice: bigint | null;
   fundsMist: bigint;
+  totalShares: bigint;
   totalCoverMist: bigint;
 };
 
@@ -285,8 +341,8 @@ export type DepegPoolState = {
 export function quoteDepegPremium(
   pool: DepegPoolState,
   coverMist: bigint,
+  termDays = 30,
 ): bigint {
-  const BPS = 10_000n;
   const utilBps =
     pool.fundsMist === 0n
       ? BPS
@@ -296,7 +352,11 @@ export function quoteDepegPremium(
         })();
   const rateBps =
     BigInt(pool.premiumBps) + (BigInt(pool.surgePremiumBps) * utilBps) / BPS;
-  return (coverMist * rateBps) / BPS;
+  if (pool.maxPolicyDurationSecs === null) return (coverMist * rateBps) / BPS;
+  const durationSecs = BigInt(Math.ceil(termDays * DAY_SECS));
+  if (durationSecs <= 0n) return 0n;
+  const denom = BPS * PREMIUM_PERIOD_SECS;
+  return (coverMist * rateBps * durationSecs + denom - 1n) / denom;
 }
 
 /** Read a DepegCoverPool's on-chain state (capital, liability, terms). */
@@ -308,29 +368,39 @@ export async function readDepegPool(
     id: poolId,
     options: { showContent: true },
   });
-  const f = (o.data?.content as { fields?: Record<string, unknown> })?.fields;
+  const f = (o.data?.content as { fields?: Fields })?.fields;
   if (!f) throw new Error("depeg pool not found");
-  const feed = f.feed_id;
-  const feedIdHex = Array.isArray(feed)
-    ? feed.map((n) => Number(n).toString(16).padStart(2, "0")).join("")
-    : String(feed);
   return {
-    feedIdHex,
-    thresholdScaled: BigInt(f.threshold as string),
+    feedIdHex: feedIdHex(f.feed_id),
+    thresholdScaled: u64(f.threshold),
     expoNeg: Boolean(f.expo_neg),
-    expoMag: Number(f.expo_mag),
-    maxAgeSecs: Number(f.max_age_secs),
-    premiumBps: Number(f.premium_bps),
-    surgePremiumBps: Number(f.surge_premium_bps),
-    maxCoverPerPolicyMist: BigInt(f.max_cover_per_policy as string),
-    maxTotalCoverMist: BigInt(f.max_total_cover as string),
-    treasuryFeeBps: Number(f.treasury_fee_bps),
-    keeperBountyMist: BigInt(f.keeper_bounty as string),
-    treasuryMist: BigInt(f.treasury as string),
+    expoMag: Number(u64(f.expo_mag)),
+    maxAgeSecs: Number(u64(f.max_age_secs)),
+    maxConfBps: Number(u64(f.max_conf_bps)),
+    minDwellSecs: Number(u64(f.min_dwell_secs)),
+    activationDelaySecs: Number(u64(f.activation_delay_secs)),
+    premiumBps: Number(u64(f.premium_bps)),
+    surgePremiumBps: Number(u64(f.surge_premium_bps)),
+    maxCoverPerPolicyMist: u64(f.max_cover_per_policy),
+    maxPolicyDurationSecs:
+      f.max_policy_duration_secs === undefined
+        ? null
+        : Number(u64(f.max_policy_duration_secs)),
+    maxTotalCoverMist: u64(f.max_total_cover),
+    treasuryFeeBps: Number(u64(f.treasury_fee_bps)),
+    keeperBountyMist: u64(f.keeper_bounty),
+    treasuryMist: u64(f.treasury),
     paused: Boolean(f.paused),
-    timelockSecs: Number(f.timelock_secs),
-    fundsMist: BigInt(f.funds as string),
-    totalCoverMist: BigInt(f.total_cover as string),
+    timelockSecs: Number(u64(f.timelock_secs)),
+    epochId: optionalU64Number(f.epoch_id),
+    epochArmed: Boolean(f.epoch_armed),
+    epochFirstBreachMs: optionalU64Number(f.epoch_first_breach_ms),
+    epochBreached: Boolean(f.epoch_breached),
+    epochConfirmedMs: optionalU64Number(f.epoch_confirmed_ms),
+    epochBreachPrice: optionalU64(f.epoch_breach_price),
+    fundsMist: u64(f.funds),
+    totalShares: u64(f.total_shares),
+    totalCoverMist: u64(f.total_cover),
   };
 }
 
@@ -395,6 +465,18 @@ export function buildDepegWithdrawLpTx(p: {
   return tx;
 }
 
+async function buildPythUpdateTx(client: SuiClient, feedId: string) {
+  const tx = new Transaction();
+  const updates = await new SuiPriceServiceConnection(
+    HERMES,
+  ).getPriceFeedsUpdateData([feedId]);
+  const pyth = new SuiPythClient(client, PYTH_STATE, WORMHOLE_STATE);
+  const [priceInfoObjectId] = await pyth.updatePriceFeeds(tx, updates, [
+    feedId,
+  ]);
+  return { tx, priceInfoObjectId };
+}
+
 /**
  * Build a tx to **record a sub-threshold observation** on a policy: refreshes Pyth
  * and, if the feed is below its floor, advances the policy's dwell latch. Settlement
@@ -411,20 +493,58 @@ export async function buildDepegRecordBreachTx(p: {
   feedId?: string;
 }): Promise<Transaction> {
   const feedId = p.feedId ?? SUIUSDE_FEED_ID;
-  const tx = new Transaction();
-  const updates = await new SuiPriceServiceConnection(
-    HERMES,
-  ).getPriceFeedsUpdateData([feedId]);
-  const pyth = new SuiPythClient(p.client, PYTH_STATE, WORMHOLE_STATE);
-  const [priceInfoObjectId] = await pyth.updatePriceFeeds(tx, updates, [
-    feedId,
-  ]);
+  const { tx, priceInfoObjectId } = await buildPythUpdateTx(p.client, feedId);
   tx.moveCall({
     target: `${p.pkg}::pyth_cover_pool::record_breach`,
     typeArguments: [SUI_TYPE],
     arguments: [
       tx.object(p.poolId),
       tx.object(p.policyId),
+      tx.object(priceInfoObjectId),
+      tx.object(CLOCK),
+    ],
+  });
+  return tx;
+}
+
+/**
+ * Build a tx to record a pool-level breach observation. On epoch-enabled pools,
+ * one sustained pool epoch can make all eligible active policies claimable.
+ */
+export async function buildDepegRecordPoolBreachTx(p: {
+  client: SuiClient;
+  pkg: string;
+  poolId: string;
+  feedId?: string;
+}): Promise<Transaction> {
+  const feedId = p.feedId ?? SUIUSDE_FEED_ID;
+  const { tx, priceInfoObjectId } = await buildPythUpdateTx(p.client, feedId);
+  tx.moveCall({
+    target: `${p.pkg}::pyth_cover_pool::record_pool_breach`,
+    typeArguments: [SUI_TYPE],
+    arguments: [
+      tx.object(p.poolId),
+      tx.object(priceInfoObjectId),
+      tx.object(CLOCK),
+    ],
+  });
+  return tx;
+}
+
+/** Build a tx to close an armed or confirmed pool epoch after Pyth recovery. */
+export async function buildDepegRecordPoolRecoveryTx(p: {
+  client: SuiClient;
+  pkg: string;
+  poolId: string;
+  feedId?: string;
+}): Promise<Transaction> {
+  const feedId = p.feedId ?? SUIUSDE_FEED_ID;
+  const { tx, priceInfoObjectId } = await buildPythUpdateTx(p.client, feedId);
+  tx.moveCall({
+    target: `${p.pkg}::pyth_cover_pool::record_pool_recovery`,
+    typeArguments: [SUI_TYPE],
+    arguments: [
+      tx.object(p.poolId),
       tx.object(priceInfoObjectId),
       tx.object(CLOCK),
     ],
@@ -446,5 +566,59 @@ export function buildDepegClaimLatchedTx(p: {
     arguments: [tx.object(p.poolId), tx.object(p.policyId)],
   });
   tx.transferObjects([payout], p.owner);
+  return tx;
+}
+
+/** Read whether a policy is claimable because of a confirmed pool-level epoch. */
+export async function readDepegPolicyClaimableByPoolEpoch(
+  client: SuiClient,
+  p: {
+    pkg: string;
+    poolId: string;
+    policyId: string;
+  },
+): Promise<boolean> {
+  const tx = new Transaction();
+  tx.moveCall({
+    target: `${p.pkg}::pyth_cover_pool::policy_claimable_by_pool_epoch`,
+    typeArguments: [SUI_TYPE],
+    arguments: [tx.object(p.poolId), tx.object(p.policyId)],
+  });
+  const res = await client.devInspectTransactionBlock({
+    sender: ZERO,
+    transactionBlock: tx,
+  });
+  const returned = res.results?.[res.results.length - 1]?.returnValues;
+  if (!returned?.[0]) return false;
+  return bcs.bool().parse(Uint8Array.from(returned[0][0]));
+}
+
+/** Build a tx to release an expired, unlatched policy object. */
+export function buildDepegExpirePolicyTx(p: {
+  pkg: string;
+  poolId: string;
+  policyId: string;
+}): Transaction {
+  const tx = new Transaction();
+  tx.moveCall({
+    target: `${p.pkg}::pyth_cover_pool::expire_policy`,
+    typeArguments: [SUI_TYPE],
+    arguments: [tx.object(p.poolId), tx.object(p.policyId), tx.object(CLOCK)],
+  });
+  return tx;
+}
+
+/** Build a tx to permissionlessly sweep an expired, unlatched v2 policy by ID. */
+export function buildDepegExpirePolicyByIdTx(p: {
+  pkg: string;
+  poolId: string;
+  policyId: string;
+}): Transaction {
+  const tx = new Transaction();
+  tx.moveCall({
+    target: `${p.pkg}::pyth_cover_pool::expire_policy_by_id`,
+    typeArguments: [SUI_TYPE],
+    arguments: [tx.object(p.poolId), tx.pure.id(p.policyId), tx.object(CLOCK)],
+  });
   return tx;
 }

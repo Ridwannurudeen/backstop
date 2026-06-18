@@ -1,9 +1,10 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
+import { SuiClient } from "@mysten/sui/client";
 import { Transaction } from "@mysten/sui/transactions";
 import { normalizeSuiAddress } from "@mysten/sui/utils";
+import { suiRpcUrl } from "./rpc.js";
 import { loadSuiKeypair } from "./suiSigner.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -81,7 +82,7 @@ async function main(): Promise<void> {
 
   const kp = loadSuiKeypair();
   const sender = kp.getPublicKey().toSuiAddress();
-  const client = new SuiClient({ url: getFullnodeUrl("mainnet") });
+  const client = new SuiClient({ url: suiRpcUrl("mainnet") });
   const adminCaps = [productionAdminCap, stagedAdminCap];
 
   await assertOwnedBy(

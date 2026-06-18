@@ -27,10 +27,11 @@ module pyth_cover_pool::pyth_cover_pool_tests {
     const DWELL_SECS: u64 = 10;        // a breach must persist 10s before it latches
     const ACT_SECS: u64 = 5;           // cover is not claimable until 5s after purchase
     const ACT_MS: u64 = 5_000;         // ACT_SECS in ms (first claimable instant)
-    const TIMELOCK_SECS: u64 = 100;    // governance delay on parameter updates
+    const TIMELOCK_SECS: u64 = 3_600;  // governance delay on parameter updates
     const ARM_MS: u64 = ACT_MS;        // arm at activation (t=0 buy)
     const CONFIRM_MS: u64 = 15_000;    // ARM_MS + DWELL_SECS*1000
-    const EXPIRY: u64 = 1_000_000;     // far beyond activation + dwell
+    const MAX_TERM_SECS: u64 = 2_592_000; // 30d max term
+    const EXPIRY: u64 = 2_592_000_000;    // 30d, far beyond activation + dwell
 
     fun fund(amount: u64, ctx: &mut TxContext): coin::Coin<TESTCOIN> {
         coin::from_balance(balance::create_for_testing<TESTCOIN>(amount), ctx)
@@ -43,8 +44,8 @@ module pyth_cover_pool::pyth_cover_pool_tests {
     fun new_pool(premium_bps: u64, ctx: &mut TxContext): DepegCoverPool<TESTCOIN> {
         pyth_cover_pool::new_pool_for_testing<TESTCOIN>(
             FEED, true, EXPO_MAG, THRESHOLD, MAX_AGE, premium_bps, SURGE_BPS,
-            MAX_CONF_BPS, DWELL_SECS, ACT_SECS, 0, 0, TIMELOCK_SECS,
-            TREASURY_FEE_BPS, KEEPER_BOUNTY, ctx,
+            MAX_CONF_BPS, DWELL_SECS, ACT_SECS, MAX_TERM_SECS, 0, 0,
+            TIMELOCK_SECS, TREASURY_FEE_BPS, KEEPER_BOUNTY, ctx,
         )
     }
 
@@ -55,8 +56,8 @@ module pyth_cover_pool::pyth_cover_pool_tests {
     ): DepegCoverPool<TESTCOIN> {
         pyth_cover_pool::new_pool_for_testing<TESTCOIN>(
             FEED, true, EXPO_MAG, THRESHOLD, MAX_AGE, PREMIUM_BPS, SURGE_BPS,
-            MAX_CONF_BPS, DWELL_SECS, ACT_SECS, max_cover_per_policy, max_total_cover,
-            TIMELOCK_SECS, TREASURY_FEE_BPS, KEEPER_BOUNTY, ctx,
+            MAX_CONF_BPS, DWELL_SECS, ACT_SECS, MAX_TERM_SECS, max_cover_per_policy,
+            max_total_cover, TIMELOCK_SECS, TREASURY_FEE_BPS, KEEPER_BOUNTY, ctx,
         )
     }
 
@@ -68,7 +69,7 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         clock: &Clock,
         ctx: &mut TxContext,
     ): Policy<TESTCOIN> {
-        let premium = pyth_cover_pool::premium_for(pool, cover);
+        let premium = pyth_cover_pool::premium_for_duration(pool, cover, (expiry + 999) / 1000);
         pyth_cover_pool::buy_cover(pool, fund(premium, ctx), cover, expiry, clock, ctx)
     }
 
@@ -105,6 +106,19 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         // 1000 cover → 100% utilization → ceiling rate = 200 + 800 = 1000 bps; 1000*10%.
         assert!(pyth_cover_pool::premium_rate_bps(&pool, 1000) == 1000, 2);
         assert!(pyth_cover_pool::premium_for(&pool, 1000) == 100, 3);
+
+        unit_test::destroy(lp);
+        unit_test::destroy(pool);
+    }
+
+    #[test]
+    fun premium_scales_with_duration() {
+        let mut ctx = tx_context::dummy();
+        let mut pool = new_pool(PREMIUM_BPS, &mut ctx);
+        let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(1000, &mut ctx), &mut ctx);
+
+        assert!(pyth_cover_pool::premium_for_duration(&pool, 500, 7 * 86_400) == 7, 0);
+        assert!(pyth_cover_pool::premium_for_duration(&pool, 500, 30 * 86_400) == 30, 1);
 
         unit_test::destroy(lp);
         unit_test::destroy(pool);
@@ -344,6 +358,151 @@ module pyth_cover_pool::pyth_cover_pool_tests {
     }
 
     #[test]
+    #[expected_failure(abort_code = pyth_cover_pool::EPolicyDurationTooLong)]
+    fun buy_aborts_above_max_term() {
+        let mut ctx = tx_context::dummy();
+        let clock = clock::create_for_testing(&mut ctx);
+        let mut pool = new_pool(PREMIUM_BPS, &mut ctx);
+        let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(1000, &mut ctx), &mut ctx);
+        let policy = pyth_cover_pool::buy_cover(
+            &mut pool, fund(1000, &mut ctx), 500, EXPIRY + 1000, &clock, &mut ctx,
+        );
+
+        unit_test::destroy(policy);
+        unit_test::destroy(lp);
+        clock::destroy_for_testing(clock);
+        unit_test::destroy(pool);
+    }
+
+    #[test]
+    fun pool_epoch_makes_eligible_policies_claimable() {
+        let mut ctx = tx_context::dummy();
+        let mut clock = clock::create_for_testing(&mut ctx);
+        let mut pool = new_pool(PREMIUM_BPS, &mut ctx);
+        let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(2_000, &mut ctx), &mut ctx);
+        let p1 = buy(&mut pool, 500, EXPIRY, &clock, &mut ctx);
+        let p2 = buy(&mut pool, 400, EXPIRY, &clock, &mut ctx);
+
+        clock::set_for_testing(&mut clock, ARM_MS);
+        pyth_cover_pool::latch_pool_at_price_for_testing(
+            &mut pool, DEPEG, 0, &clock, &mut ctx,
+        );
+        assert!(pyth_cover_pool::epoch_armed(&pool), 0);
+        assert!(!pyth_cover_pool::epoch_breached(&pool), 1);
+        assert!(pyth_cover_pool::epoch_id(&pool) == 0, 2);
+
+        clock::set_for_testing(&mut clock, CONFIRM_MS);
+        pyth_cover_pool::latch_pool_at_price_for_testing(
+            &mut pool, DEPEG, 0, &clock, &mut ctx,
+        );
+        assert!(pyth_cover_pool::epoch_breached(&pool), 3);
+        assert!(pyth_cover_pool::epoch_confirmed_ms(&pool) == CONFIRM_MS, 4);
+        assert!(pyth_cover_pool::policy_claimable_by_pool_epoch(&pool, &p1), 5);
+        assert!(pyth_cover_pool::policy_claimable_by_pool_epoch(&pool, &p2), 6);
+
+        let out1 = pyth_cover_pool::claim_latched(&mut pool, p1, &mut ctx);
+        let out2 = pyth_cover_pool::claim_latched(&mut pool, p2, &mut ctx);
+        assert!(coin::value(&out1) == 500, 7);
+        assert!(coin::value(&out2) == 400, 8);
+        assert!(pyth_cover_pool::total_cover(&pool) == 0, 9);
+
+        coin::burn_for_testing(out1);
+        coin::burn_for_testing(out2);
+        unit_test::destroy(lp);
+        clock::destroy_for_testing(clock);
+        unit_test::destroy(pool);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = pyth_cover_pool::ENotBreached)]
+    fun pool_epoch_does_not_cover_policy_inactive_at_arm() {
+        let mut ctx = tx_context::dummy();
+        let mut clock = clock::create_for_testing(&mut ctx);
+        let mut pool = new_pool(PREMIUM_BPS, &mut ctx);
+        let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(1_000, &mut ctx), &mut ctx);
+        let policy = buy(&mut pool, 500, EXPIRY, &clock, &mut ctx);
+
+        // Pool epoch starts before this policy's activation delay elapsed.
+        pyth_cover_pool::latch_pool_at_price_for_testing(
+            &mut pool, DEPEG, 0, &clock, &mut ctx,
+        );
+        clock::set_for_testing(&mut clock, DWELL_SECS * 1000);
+        pyth_cover_pool::latch_pool_at_price_for_testing(
+            &mut pool, DEPEG, 0, &clock, &mut ctx,
+        );
+        assert!(!pyth_cover_pool::policy_claimable_by_pool_epoch(&pool, &policy), 0);
+        let payout = pyth_cover_pool::claim_latched(&mut pool, policy, &mut ctx);
+
+        coin::burn_for_testing(payout);
+        unit_test::destroy(lp);
+        clock::destroy_for_testing(clock);
+        unit_test::destroy(pool);
+    }
+
+    #[test]
+    fun pool_epoch_blocks_new_cover_until_recovery() {
+        let mut ctx = tx_context::dummy();
+        let mut clock = clock::create_for_testing(&mut ctx);
+        let mut pool = new_pool(PREMIUM_BPS, &mut ctx);
+        let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(1_000, &mut ctx), &mut ctx);
+
+        clock::set_for_testing(&mut clock, ARM_MS);
+        pyth_cover_pool::latch_pool_at_price_for_testing(
+            &mut pool, DEPEG, 0, &clock, &mut ctx,
+        );
+        pyth_cover_pool::recover_pool_at_price_for_testing(&mut pool, PEG, 0, &clock);
+        assert!(!pyth_cover_pool::epoch_armed(&pool), 0);
+        assert!(pyth_cover_pool::epoch_id(&pool) == 0, 1);
+
+        let p1 = buy(&mut pool, 200, EXPIRY, &clock, &mut ctx);
+        assert!(pyth_cover_pool::policy_epoch_id(&p1) == 0, 2);
+        clock::set_for_testing(&mut clock, ARM_MS + DWELL_SECS * 1000);
+        pyth_cover_pool::latch_pool_at_price_for_testing(
+            &mut pool, DEPEG, 0, &clock, &mut ctx,
+        );
+        clock::set_for_testing(&mut clock, ARM_MS + DWELL_SECS * 2000);
+        pyth_cover_pool::latch_pool_at_price_for_testing(
+            &mut pool, DEPEG, 0, &clock, &mut ctx,
+        );
+        assert!(pyth_cover_pool::epoch_breached(&pool), 3);
+
+        pyth_cover_pool::recover_pool_at_price_for_testing(&mut pool, PEG, 0, &clock);
+        assert!(!pyth_cover_pool::epoch_breached(&pool), 4);
+        assert!(pyth_cover_pool::epoch_id(&pool) == 1, 5);
+        assert!(pyth_cover_pool::policy_claimable_by_pool_epoch(&pool, &p1), 6);
+        let payout = pyth_cover_pool::claim_latched(&mut pool, p1, &mut ctx);
+        assert!(coin::value(&payout) == 200, 7);
+        let p2 = buy(&mut pool, 200, EXPIRY, &clock, &mut ctx);
+        assert!(pyth_cover_pool::policy_epoch_id(&p2) == 1, 8);
+
+        coin::burn_for_testing(payout);
+        unit_test::destroy(p2);
+        unit_test::destroy(lp);
+        clock::destroy_for_testing(clock);
+        unit_test::destroy(pool);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = pyth_cover_pool::EPoolEpochOpen)]
+    fun buy_blocked_while_pool_epoch_armed() {
+        let mut ctx = tx_context::dummy();
+        let mut clock = clock::create_for_testing(&mut ctx);
+        let mut pool = new_pool(PREMIUM_BPS, &mut ctx);
+        let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(1_000, &mut ctx), &mut ctx);
+
+        clock::set_for_testing(&mut clock, ARM_MS);
+        pyth_cover_pool::latch_pool_at_price_for_testing(
+            &mut pool, DEPEG, 0, &clock, &mut ctx,
+        );
+        let policy = buy(&mut pool, 200, EXPIRY, &clock, &mut ctx);
+
+        unit_test::destroy(policy);
+        unit_test::destroy(lp);
+        clock::destroy_for_testing(clock);
+        unit_test::destroy(pool);
+    }
+
+    #[test]
     #[expected_failure(abort_code = pyth_cover_pool::ENotBreached)]
     fun arm_only_is_not_claimable() {
         let mut ctx = tx_context::dummy();
@@ -445,18 +604,14 @@ module pyth_cover_pool::pyth_cover_pool_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = pyth_cover_pool::EZeroPremium)]
-    fun dust_cover_rejected() {
+    fun short_duration_premium_rounds_up_to_one() {
         let mut ctx = tx_context::dummy();
-        let clock = clock::create_for_testing(&mut ctx);
         // 0.1% base into a 1000 pool: 50 cover → ~0.14% rate → premium rounds to 0.
         let mut pool = new_pool(10, &mut ctx);
         let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(1000, &mut ctx), &mut ctx);
-        let policy = buy(&mut pool, 50, EXPIRY, &clock, &mut ctx);
+        assert!(pyth_cover_pool::premium_for_duration(&pool, 50, 1) == 1, 0);
 
-        unit_test::destroy(policy);
         unit_test::destroy(lp);
-        clock::destroy_for_testing(clock);
         unit_test::destroy(pool);
     }
 
@@ -482,6 +637,34 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         let out = pyth_cover_pool::withdraw_lp(&mut pool, lp, &mut ctx);
         assert!(coin::value(&out) == 1000 + premium - fee, 1);
         assert!(pyth_cover_pool::pool_value(&pool) == 0, 2);
+
+        coin::burn_for_testing(out);
+        clock::destroy_for_testing(clock);
+        unit_test::destroy(pool);
+    }
+
+    #[test]
+    fun keeper_can_release_expired_unbreached_policy_by_id() {
+        let mut ctx = tx_context::dummy();
+        let mut clock = clock::create_for_testing(&mut ctx);
+        let mut pool = new_pool(PREMIUM_BPS, &mut ctx);
+        let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(1000, &mut ctx), &mut ctx);
+
+        let premium = pyth_cover_pool::premium_for_duration(&pool, 400, 8);
+        let fee = treasury_fee(premium);
+        let policy = pyth_cover_pool::buy_cover(
+            &mut pool, fund(premium, &mut ctx), 400, 8000, &clock, &mut ctx,
+        );
+        let policy_id = pyth_cover_pool::policy_id(&policy);
+        clock::set_for_testing(&mut clock, 9000);
+        pyth_cover_pool::expire_policy_by_id(&mut pool, policy_id, &clock);
+        assert!(pyth_cover_pool::total_cover(&pool) == 0, 0);
+
+        // Holder can still burn the now-stale owned policy object, but it does not
+        // release liability twice.
+        pyth_cover_pool::expire_policy(&mut pool, policy, &clock);
+        let out = pyth_cover_pool::withdraw_lp(&mut pool, lp, &mut ctx);
+        assert!(coin::value(&out) == 1000 + premium - fee, 1);
 
         coin::burn_for_testing(out);
         clock::destroy_for_testing(clock);
@@ -742,6 +925,23 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         clock::set_for_testing(&mut clock, TIMELOCK_SECS * 1000);
         pyth_cover_pool::execute_param_update(&mut pool, &cap, &clock);
         assert!(pyth_cover_pool::treasury_fee_bps(&pool) == 750, 0);
+
+        unit_test::destroy(cap);
+        clock::destroy_for_testing(clock);
+        unit_test::destroy(pool);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = pyth_cover_pool::EBadParamValue)]
+    fun bad_treasury_fee_update_rejected() {
+        let mut ctx = tx_context::dummy();
+        let clock = clock::create_for_testing(&mut ctx);
+        let mut pool = new_pool(PREMIUM_BPS, &mut ctx);
+        let cap = pyth_cover_pool::new_admin_cap_for_testing(&pool, &mut ctx);
+
+        pyth_cover_pool::propose_param_update(
+            &mut pool, &cap, K_TREASURY_FEE_BPS, 2_001, &clock,
+        );
 
         unit_test::destroy(cap);
         clock::destroy_for_testing(clock);

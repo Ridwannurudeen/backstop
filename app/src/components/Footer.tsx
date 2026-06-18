@@ -6,12 +6,13 @@ export default function Footer() {
     <footer className="site-footer">
       <div className="footer-left">
         <span className="footer-brand">Backstop</span>
-        <span className="footer-tag">The risk &amp; trust layer for Sui.</span>
+        <span className="footer-tag">Mainnet depeg cover for Sui DeFi.</span>
       </div>
       <nav className="footer-links">
         <Link to="/how-it-works">How it works</Link>
         <Link to="/markets/risk-index">Markets</Link>
         <Link to="/depeg">Depeg cover</Link>
+        <Link to="/proof">Proof</Link>
         <Link to="/agent/ai">Agent</Link>
       </nav>
       <span className="built-on-sui">

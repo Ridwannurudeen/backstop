@@ -8,6 +8,10 @@
 ///
 /// The pool is always fully collateralized: `value(funds) >= total_cover`. A
 /// parametric mutual must be able to pay every outstanding liability at all times.
+///
+/// Production note: this legacy RiskFeed-settled lane is disabled for new buys and
+/// claims. RiskFeed challenge resolution is not objective enough for direct pool
+/// settlement, so only LP deposits/withdrawals and policy expiry cleanup remain.
 module cover_pool::cover_pool {
     use std::string::{Self, String};
     use sui::balance::{Self, Balance};
@@ -32,6 +36,8 @@ module cover_pool::cover_pool {
     /// Policy has expired (claim) / has not yet expired (expire_policy).
     const EPolicyExpired: u64 = 5;
     const ENotExpired: u64 = 6;
+    /// Legacy RiskFeed-settled buy/claim lane is intentionally disabled.
+    const ELegacyLaneDisabled: u64 = 7;
 
     /// Shared mutualized cover pool underwriting one RiskFeed market in coin `T`.
     public struct CoverPool<phantom T> has key {
@@ -188,6 +194,7 @@ module cover_pool::cover_pool {
         clock: &Clock,
         ctx: &mut TxContext,
     ): Policy<T> {
+        abort ELegacyLaneDisabled;
         assert!(cover > 0, EZeroAmount);
         assert!(expiry_ms > clock::timestamp_ms(clock), EPolicyExpired);
         let required = premium_for(pool, feed, cover);
@@ -224,6 +231,7 @@ module cover_pool::cover_pool {
         clock: &Clock,
         ctx: &mut TxContext,
     ): Coin<T> {
+        abort ELegacyLaneDisabled;
         let prob_bps = risk_feed::probability_bps(feed, policy.market);
         settle(pool, prob_bps, policy, clock, ctx)
     }
@@ -239,6 +247,7 @@ module cover_pool::cover_pool {
         max_age_ms: u64,
         ctx: &mut TxContext,
     ): Coin<T> {
+        abort ELegacyLaneDisabled;
         let prob_bps = risk_feed::probability_bps_fresh(feed, policy.market, clock, max_age_ms);
         settle(pool, prob_bps, policy, clock, ctx)
     }
@@ -294,5 +303,23 @@ module cover_pool::cover_pool {
         ctx: &mut TxContext,
     ): CoverPool<T> {
         new_pool<T>(market, trigger_bps, loading_bps, ctx)
+    }
+
+    #[test_only]
+    public fun policy_for_testing<T>(
+        pool: &CoverPool<T>,
+        cover: u64,
+        expiry_ms: u64,
+        ctx: &mut TxContext,
+    ): Policy<T> {
+        Policy {
+            id: object::new(ctx),
+            pool_id: object::id(pool),
+            market: pool.market,
+            trigger_bps: pool.trigger_bps,
+            cover,
+            premium_paid: 0,
+            expiry_ms,
+        }
     }
 }

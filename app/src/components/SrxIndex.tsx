@@ -17,17 +17,17 @@ export default function SrxIndex() {
   return (
     <div className="card">
       <h3>
-        SRX · the Sui Risk Index{" "}
-        <span className="sub">· on-chain, options-implied</span>
+        SRX - the Sui Risk Index{" "}
+        <span className="sub">- on-chain, options-implied</span>
       </h3>
       <p className="lead">
-        The market's full risk-neutral distribution — read trustlessly from
-        DeepBook Predict's binary options, published on-chain by a bonded
-        publisher with Walrus evidence, and slashable on challenge. Market{" "}
+        A risk-neutral distribution derived from DeepBook Predict binary
+        options, published on-chain by a bonded publisher with Walrus evidence.
+        This testnet version still uses admin-resolved challenge logic. Market{" "}
         {SRX_MARKET}.
       </p>
 
-      {isLoading && <p className="muted">Reading the index on-chain…</p>}
+      {isLoading && <p className="muted">Reading the index on-chain...</p>}
       {!isLoading && !data && (
         <p className="muted">No SRX reading published yet.</p>
       )}
@@ -38,7 +38,7 @@ export default function SrxIndex() {
             <div className="term-stat">
               <div className="k">SRX-CRASH</div>
               <div className="v">{pct(data.crashBps)}</div>
-              <div className="k">P(≥20% drop)</div>
+              <div className="k">P(20%+ drop)</div>
             </div>
             <div className="term-stat">
               <div className="k">SRX-VOL</div>
@@ -63,19 +63,19 @@ export default function SrxIndex() {
           </div>
 
           <p className="muted">
-            Bonded publisher ·{" "}
-            {data.challenged ? "under challenge" : "unchallenged"} ·{" "}
+            Bonded publisher -{" "}
+            {data.challenged ? "under challenge" : "unchallenged"} -{" "}
             <a
               href={`${WALRUS_AGGREGATOR}/${data.cdfBlob}`}
               target="_blank"
               rel="noreferrer"
             >
-              Verify the input CDF on Walrus ↗
+              Verify the input CDF on Walrus
             </a>
           </p>
           <p className="note">
             Derived from DeepBook Predict's binary CDF across a strike grid (see
-            INDEX.md). Risk-neutral, not a physical forecast — the market's
+            INDEX.md). Risk-neutral, not a physical forecast: the market's
             priced probability of failure, reproducible from the evidence above.
           </p>
         </>

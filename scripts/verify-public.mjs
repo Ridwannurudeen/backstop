@@ -9,8 +9,8 @@ import { dirname, join } from "node:path";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..");
-const RPC = "https://fullnode.testnet.sui.io:443";
-const MAINNET_RPC = "https://fullnode.mainnet.sui.io:443";
+const RPC = "https://public-rpc.testnet.sui.io:443";
+const MAINNET_RPC = "https://public-rpc.mainnet.sui.io:443";
 const AGG = "https://aggregator.walrus-testnet.walrus.space/v1/blobs";
 const SITE = "https://backstop.gudman.xyz";
 

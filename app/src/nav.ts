@@ -1,4 +1,4 @@
-// Shared navigation map — primary sections and their pages (routes).
+// Shared navigation map - primary sections and their pages (routes).
 export type NavTab = { label: string; to: string };
 export type NavSection = {
   id: string;
@@ -10,49 +10,49 @@ export type NavSection = {
 
 export const SECTIONS: NavSection[] = [
   {
-    id: "markets",
-    label: "Markets",
-    base: "/markets",
-    wallet: false,
-    tabs: [
-      { label: "Risk index", to: "/markets/risk-index" },
-      { label: "Risk terminal", to: "/markets/risk-terminal" },
-    ],
-  },
-  {
     id: "depeg",
-    label: "Depeg cover",
+    label: "Cover",
     base: "/depeg",
     wallet: false,
     tabs: [{ label: "Depeg cover", to: "/depeg" }],
   },
   {
-    id: "insure",
-    label: "Insure",
-    base: "/insure",
-    wallet: true,
+    id: "proof",
+    label: "Proof",
+    base: "/proof",
+    wallet: false,
+    tabs: [{ label: "Proof packet", to: "/proof" }],
+  },
+  {
+    id: "markets",
+    label: "Risk Feed",
+    base: "/markets",
+    wallet: false,
     tabs: [
-      { label: "Buy protection", to: "/insure/buy" },
-      { label: "Treasury", to: "/insure/treasury" },
-      { label: "Cover pool", to: "/insure/cover" },
-      { label: "My policies", to: "/insure/policies" },
+      { label: "Sui Risk Index", to: "/markets/risk-index" },
+      { label: "Risk terminal", to: "/markets/risk-terminal" },
     ],
   },
   {
-    id: "underwrite",
-    label: "Underwrite",
-    base: "/underwrite",
-    wallet: true,
-    tabs: [{ label: "Underwrite", to: "/underwrite" }],
-  },
-  {
     id: "agent",
-    label: "Agent",
+    label: "Agent Proofs",
     base: "/agent",
     wallet: false,
     tabs: [
       { label: "AI underwriter", to: "/agent/ai" },
       { label: "Accountability", to: "/agent/accountability" },
+    ],
+  },
+  {
+    id: "lab",
+    label: "DeepBook Lab",
+    base: "/lab",
+    wallet: true,
+    tabs: [
+      { label: "Buy protection", to: "/lab/buy" },
+      { label: "Treasury", to: "/lab/treasury" },
+      { label: "My policies", to: "/lab/policies" },
+      { label: "Underwrite", to: "/lab/underwrite" },
     ],
   },
 ];

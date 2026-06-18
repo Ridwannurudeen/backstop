@@ -38,10 +38,10 @@ export default function Accountability() {
     <div className="card">
       <h3>Agent accountability — bonded identity + calibration ledger</h3>
       <p className="lead">
-        An agent economy needs accountability. Backstop's underwriter has a
-        bonded on-chain passport with real skin in the game, and a public
-        calibration ledger that scores every prediction against the realized
-        outcome — reputation earned and provable, not self-reported.
+        Backstop's underwriter has a bonded on-chain passport and a public
+        calibration ledger. Today's testnet lane records predictions and
+        admin-resolved outcomes on-chain; the next production step is replacing
+        that admin resolution with objective or optimistic settlement.
       </p>
 
       <h4>Agent passport</h4>
@@ -68,7 +68,7 @@ export default function Accountability() {
         </div>
       </div>
       <p className="muted" style={{ marginTop: 0 }}>
-        Bond is slashable on misbehavior.{" "}
+        Bond is slashable through the current admin-resolved testnet path.{" "}
         <a href={objUrl(AGENT_PASSPORT)} target="_blank" rel="noreferrer">
           View passport on SuiVision ↗
         </a>
@@ -96,8 +96,8 @@ export default function Accountability() {
         </div>
       </div>
       <p className="muted" style={{ marginTop: 0 }}>
-        Each prediction is recorded then settled against the realized outcome on
-        the oracle; accuracy and Brier score accrue on-chain.{" "}
+        Each prediction is recorded on-chain, then settled against an
+        admin-resolved outcome today; accuracy and Brier score accrue on-chain.{" "}
         <a href={objUrl(CALIBRATION_LEDGER)} target="_blank" rel="noreferrer">
           View ledger on SuiVision ↗
         </a>
@@ -108,11 +108,9 @@ export default function Accountability() {
         <span className="sub">· agents bet capital on their calls</span>
       </h4>
       <p className="muted" style={{ marginTop: 0 }}>
-        Bonded agents quote crash probabilities and are scored on realized
-        outcomes. An agent is{" "}
-        <b>slashable only when its on-chain accuracy falls below threshold</b> —
-        the well-calibrated can't be touched; the consistently wrong forfeit
-        their bond.
+        Bonded agents quote crash probabilities and are scored on admin-resolved
+        outcomes today. The intended production path is objective or optimistic
+        settlement before this becomes a neutral slashing layer.
       </p>
       {arena && arena.length > 0 ? (
         <table className="term-table">

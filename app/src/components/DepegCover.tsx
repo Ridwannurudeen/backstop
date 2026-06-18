@@ -16,19 +16,19 @@ export default function DepegCover() {
   return (
     <div className="card">
       <h3>
-        Depeg cover <span className="sub">· settled trustlessly by Pyth</span>
+        Depeg cover <span className="sub">- settled objectively by Pyth</span>
       </h3>
       <p className="lead">
         Parametric cover on stablecoin exposure. A policy pays from a
         fully-collateralized pool after Pyth's adverse band stays at or below{" "}
         {`$${DEPEG_THRESHOLD.toFixed(3)}`} with confidence at most{" "}
-        {DEPEG_MAX_CONF_BPS} bps — settlement reads Pyth on-chain, so no one has
-        to trust Backstop to get paid.
+        {DEPEG_MAX_CONF_BPS} bps. Settlement reads Pyth on-chain and follows the
+        pool's objective payout rules.
       </p>
 
-      {isLoading && <p className="muted">Reading Pyth on Sui mainnet…</p>}
+      {isLoading && <p className="muted">Reading Pyth on Sui mainnet...</p>}
       {!isLoading && !data?.length && (
-        <p className="muted">Mainnet Pyth feeds unavailable — retrying.</p>
+        <p className="muted">Mainnet Pyth feeds unavailable - retrying.</p>
       )}
 
       {!!data?.length && (
@@ -46,7 +46,7 @@ export default function DepegCover() {
                     {r.triggered
                       ? "adverse band below floor"
                       : `adverse $${r.adversePrice.toFixed(4)}`}{" "}
-                    · {ageS}s old
+                    - {ageS}s old
                   </div>
                 </div>
               );
@@ -54,36 +54,35 @@ export default function DepegCover() {
           </div>
 
           <p className="muted">
-            Live on-chain Pyth prices ·{" "}
+            Live on-chain Pyth prices -{" "}
             <a
               href={`${SUIVISION}/${data.find((r) => r.flagship)?.objId ?? data[0].objId}`}
               target="_blank"
               rel="noreferrer"
             >
-              Inspect the suiUSDe PriceInfoObject ↗
+              Inspect the suiUSDe PriceInfoObject
             </a>
           </p>
           <p className="note">
-            suiUSDe is the flagship market — Ethena-backed, live across Sui
-            DeFi. Pricing is set off-chain; settlement is objective and
-            on-chain. The mainnet pool is deployed, and the staged claim path
-            has paid out from the pool on-chain.
+            suiUSDe is the flagship market - Ethena-backed, live across Sui
+            DeFi. Pricing is set by pool terms; settlement is objective and
+            on-chain. The production mainnet pool is live, while the paid claim
+            proof is a staged mechanism test against a separate proof pool.
           </p>
 
           <h4>Reference consumer</h4>
           <p className="lead">
-            <code>pyth_lending_demo</code> — a SUI-reserve lending market that
-            buys this exact cover and claims the payout straight into its
-            reserve on a breach.{" "}
+            <code>pyth_lending_demo</code> is a SUI-reserve lending market that
+            buys this cover and claims the payout into its reserve on a breach.{" "}
             {flagship &&
               (flagship.triggered
-                ? "suiUSDe's adverse band is below the floor now, so a holder's breach dwell can latch on-chain."
+                ? "suiUSDe's adverse band is below the floor now, so an active policy's breach dwell can latch on-chain."
                 : "suiUSDe's adverse band is above the floor now, so the market keeps its cover active and premiums accrue to LPs; on a sustained breach the payout latches into the reserve.")}
           </p>
           <p className="note">
-            An on-chain consumer of the live feed above — 4/4 Move tests, built
-            and deployed against mainnet Pyth/Wormhole, with a live claim paid
-            into its reserve.
+            The lending consumer is deployed against mainnet Pyth/Wormhole and
+            covered by 4/4 Move tests. Its paid-claim evidence is a staged
+            mechanism test, not a real production depeg event.
           </p>
         </>
       )}

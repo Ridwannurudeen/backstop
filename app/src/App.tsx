@@ -4,9 +4,10 @@ import { ConnectButton, useCurrentAccount } from "@mysten/dapp-kit";
 import Layout from "./components/Layout";
 import Landing from "./pages/Landing";
 
-// Route content is lazy-loaded so each page ships as its own chunk — the initial
+// Route content is lazy-loaded so each page ships as its own chunk - the initial
 // bundle stays small (landing + layout + router + wallet core only).
 const HowItWorks = lazy(() => import("./pages/HowItWorks"));
+const ProofPacket = lazy(() => import("./pages/ProofPacket"));
 const SrxIndex = lazy(() => import("./components/SrxIndex"));
 const DepegSimulator = lazy(() => import("./components/DepegSimulator"));
 const DepegActions = lazy(() => import("./components/DepegActions"));
@@ -16,7 +17,6 @@ const RiskTerminal = lazy(() => import("./components/RiskTerminal"));
 const OnchainRiskFeed = lazy(() => import("./components/OnchainRiskFeed"));
 const BuyProtection = lazy(() => import("./components/BuyProtection"));
 const TreasuryProtect = lazy(() => import("./components/TreasuryProtect"));
-const CoverPool = lazy(() => import("./components/CoverPool"));
 const Portfolio = lazy(() => import("./components/Portfolio"));
 const Underwrite = lazy(() => import("./components/Underwrite"));
 const Underwriter = lazy(() => import("./components/Underwriter"));
@@ -29,8 +29,9 @@ function Gate({ label, children }: { label: string; children: ReactNode }) {
     <div className="card connect-prompt">
       <h3>Connect a wallet to {label}</h3>
       <p>
-        These actions run on Sui testnet. The Markets, Depeg cover and Agent
-        pages are live and read-only — no wallet required.
+        These DeepBook Predict lab actions run on Sui testnet. The Cover, Risk
+        Feed and Agent Proofs pages are public where possible, and the mainnet
+        depeg product lives under Cover.
       </p>
       <ConnectButton />
     </div>
@@ -42,7 +43,7 @@ export default function App() {
     <Suspense
       fallback={
         <div className="card">
-          <p className="muted">Loading…</p>
+          <p className="muted">Loading...</p>
         </div>
       }
     >
@@ -64,6 +65,7 @@ export default function App() {
               </>
             }
           />
+          <Route path="/proof" element={<ProofPacket />} />
           <Route
             path="/depeg"
             element={
@@ -75,46 +77,56 @@ export default function App() {
               </>
             }
           />
-          <Route
-            path="/insure"
-            element={<Navigate to="/insure/buy" replace />}
-          />
+          <Route path="/insure" element={<Navigate to="/lab/buy" replace />} />
           <Route
             path="/insure/buy"
+            element={<Navigate to="/lab/buy" replace />}
+          />
+          <Route
+            path="/insure/treasury"
+            element={<Navigate to="/lab/treasury" replace />}
+          />
+          <Route
+            path="/insure/cover"
+            element={<Navigate to="/lab/buy" replace />}
+          />
+          <Route
+            path="/insure/policies"
+            element={<Navigate to="/lab/policies" replace />}
+          />
+          <Route
+            path="/underwrite"
+            element={<Navigate to="/lab/underwrite" replace />}
+          />
+          <Route path="/lab" element={<Navigate to="/lab/buy" replace />} />
+          <Route
+            path="/lab/buy"
             element={
-              <Gate label="buy protection">
+              <Gate label="use the DeepBook testnet lab">
                 <BuyProtection />
               </Gate>
             }
           />
           <Route
-            path="/insure/treasury"
+            path="/lab/treasury"
             element={
-              <Gate label="insure a treasury">
+              <Gate label="use the DeepBook testnet lab">
                 <TreasuryProtect />
               </Gate>
             }
           />
           <Route
-            path="/insure/cover"
+            path="/lab/policies"
             element={
-              <Gate label="use the cover pool">
-                <CoverPool />
-              </Gate>
-            }
-          />
-          <Route
-            path="/insure/policies"
-            element={
-              <Gate label="view your policies">
+              <Gate label="use the DeepBook testnet lab">
                 <Portfolio />
               </Gate>
             }
           />
           <Route
-            path="/underwrite"
+            path="/lab/underwrite"
             element={
-              <Gate label="underwrite">
+              <Gate label="use the DeepBook testnet lab">
                 <Underwrite />
               </Gate>
             }

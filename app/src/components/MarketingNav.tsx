@@ -9,9 +9,10 @@ export default function MarketingNav() {
       </Link>
       <nav className="landing-links">
         <Link to="/how-it-works">How it works</Link>
-        <Link to="/markets/risk-index">Markets</Link>
-        <Link to="/depeg">Depeg cover</Link>
-        <Link to="/agent/ai">Agent</Link>
+        <Link to="/depeg">Cover</Link>
+        <Link to="/proof">Proof</Link>
+        <Link to="/markets/risk-index">Risk Feed</Link>
+        <Link to="/agent/ai">Agent Proofs</Link>
       </nav>
       <Link to="/depeg" className="btn-sm">
         Launch app

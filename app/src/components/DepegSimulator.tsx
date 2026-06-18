@@ -11,7 +11,7 @@ import { usd } from "../lib/format";
 import "./terminal.css";
 
 // Simple simulator estimate; the live pool prices on utilization.
-const EST_PREMIUM_RATE = 0.02; // 2% of cover per term
+const EST_PREMIUM_RATE = 0.02;
 const TERMS = [7, 30, 90];
 
 export default function DepegSimulator() {
@@ -42,12 +42,12 @@ export default function DepegSimulator() {
   return (
     <div className="card" id="depeg-simulator">
       <h3>
-        Depeg cover simulator <span className="sub">· no wallet needed</span>
+        Depeg cover simulator <span className="sub">- no wallet needed</span>
       </h3>
       <p className="lead">
-        Size a policy and see the premium, payout, and exactly how it settles —
-        then connect a wallet to execute on mainnet. Settlement reads Pyth
-        on-chain, so no one has to trust Backstop to get paid.
+        Size a policy and see the premium, payout, and settlement path, then
+        connect a wallet to execute on mainnet. Settlement reads Pyth on-chain
+        and follows the pool's objective payout rules.
       </p>
 
       <div className="row">
@@ -57,7 +57,7 @@ export default function DepegSimulator() {
             {DEPEG_FEEDS.map((f) => (
               <option key={f.label} value={f.label}>
                 {f.label}
-                {f.flagship ? " ★" : ""}
+                {f.flagship ? " *" : ""}
               </option>
             ))}
           </select>
@@ -100,7 +100,7 @@ export default function DepegSimulator() {
           <div className="k">Estimated premium</div>
           <div className="v">{usd(premium)}</div>
           <div className="k">
-            ~{(EST_PREMIUM_RATE * 100).toFixed(1)}% of cover · est.
+            ~{(EST_PREMIUM_RATE * 100).toFixed(1)}% of cover - estimate
           </div>
         </div>
         <div className="term-stat">
@@ -111,11 +111,11 @@ export default function DepegSimulator() {
         <div className="term-stat">
           <div className="k">{asset} now</div>
           <div className={`v ${triggeredNow ? "val-bad" : ""}`}>
-            {price != null ? `$${price.toFixed(4)}` : "—"}
+            {price != null ? `$${price.toFixed(4)}` : "-"}
           </div>
           <div className="k">
             {price == null
-              ? "reading Pyth…"
+              ? "reading Pyth..."
               : triggeredNow
                 ? "adverse band below floor"
                 : `adverse ${adversePrice != null ? `$${adversePrice.toFixed(4)}` : "n/a"}`}
@@ -138,15 +138,15 @@ export default function DepegSimulator() {
         the dwell window.
       </p>
       <p className="note">
-        <strong>3.</strong> You claim — the pool pays {usd(maxPayout)} straight
-        to you, settled trustlessly off Pyth. No claims committee.
+        <strong>3.</strong> You claim - the pool pays {usd(maxPayout)} under the
+        Pyth-settled pool rules. No claims committee.
       </p>
 
       <div style={{ marginTop: 16 }}>
         <ConnectButton />
         <p className="note">
           Connect to execute against the deployed mainnet pool. The premium here
-          is an estimate — the live pool prices on utilization.
+          is an estimate; the live pool prices on utilization.
         </p>
       </div>
     </div>

@@ -5,11 +5,11 @@
 /// publishes the result here. Any Sui contract can then read a market's latest
 /// probability and gate its own logic on it — the shared risk primitive Sui lacks.
 ///
-/// Trust model (credibly neutral, not a single key):
-///   • Anyone can become a publisher by staking a slashable SUI bond.
-///   • A published reading can be **challenged** by posting a bond; the challenge
-///     resolves by slashing the wrong side — cryptoeconomic accountability.
-///   • Reads can demand **freshness** (`*_fresh`), so consumers never settle on a
+/// Trust model (research/testnet, admin-resolved today):
+///   - Anyone can become a publisher by staking a slashable SUI bond.
+///   - A published reading can be **challenged** by posting a bond; resolution is
+///     still made through `PublisherCap`, so this is accountable but not trustless.
+///   - Reads can demand **freshness** (`*_fresh`), so consumers never settle on a
 ///     stale reading (the failure mode a naive parametric trigger is prone to).
 ///
 /// `publish` (capability-gated) remains as a bootstrap/admin path; the production

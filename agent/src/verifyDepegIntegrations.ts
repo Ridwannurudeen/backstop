@@ -1,4 +1,4 @@
-import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
+import { SuiClient } from "@mysten/sui/client";
 import { normalizeSuiAddress } from "@mysten/sui/utils";
 import type { SuiObjectData } from "@mysten/sui/client";
 import {
@@ -10,6 +10,8 @@ import {
   summarizeNaviPositions,
 } from "../../app/src/lib/depegPosition";
 import { readSuiUsdPrice } from "../../app/src/lib/pythPrice";
+import { retryTransient } from "./retry.js";
+import { suiRpcUrl } from "./rpc.js";
 
 const hx = (a: string, b: string) => "0x" + a + b;
 
@@ -24,13 +26,16 @@ const USDE_COIN_TYPE =
   "::usde::USDE";
 
 const ok = (message: string) => console.log(`ok ${message}`);
+const skip = (message: string) => console.log(`skip ${message}`);
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
 async function verifyPyth(client: SuiClient) {
-  const price = await readSuiUsdPrice(client);
+  const price = await retryTransient("read Pyth SUI/USD", () =>
+    readSuiUsdPrice(client),
+  );
   assert(price.price > 0, "SUI/USD price must be positive");
   assert(Number.isFinite(price.confBps), "SUI/USD confidence must be finite");
   ok(
@@ -39,10 +44,12 @@ async function verifyPyth(client: SuiClient) {
 }
 
 async function verifySuilendParser(client: SuiClient) {
-  const object = await client.getObject({
-    id: PUBLIC_SUILEND_USDE_OBLIGATION,
-    options: { showContent: true, showType: true },
-  });
+  const object = await retryTransient("read public Suilend obligation", () =>
+    client.getObject({
+      id: PUBLIC_SUILEND_USDE_OBLIGATION,
+      options: { showContent: true, showType: true },
+    }),
+  );
   assert(object.data, "public Suilend obligation not found");
 
   const lines = parseSuilendObligationObjects([object.data]);
@@ -149,7 +156,10 @@ function verifyNaviFixtureParser() {
 }
 
 async function verifyEmptyOwnerReads(client: SuiClient) {
-  const suilend = await fetchSuilendExposure(client, EMPTY_OWNER);
+  const suilend = await retryTransient(
+    "read empty-owner Suilend exposure",
+    () => fetchSuilendExposure(client, EMPTY_OWNER),
+  );
   assert(
     suilend.ownerCapCount === 0,
     "empty owner should not have Suilend caps",
@@ -160,13 +170,22 @@ async function verifyEmptyOwnerReads(client: SuiClient) {
   );
   ok("Suilend empty-owner read returns an empty summary");
 
-  const navi = await fetchNaviExposure(client, EMPTY_OWNER);
-  assert(navi.lines.length === 0, "empty owner should not have NAVI lines");
-  ok("NAVI dynamic import and empty-owner read return an empty summary");
+  try {
+    const navi = await fetchNaviExposure(client, EMPTY_OWNER);
+    assert(navi.lines.length === 0, "empty owner should not have NAVI lines");
+    ok("NAVI dynamic import and empty-owner read return an empty summary");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (/fetch failed|ENOTFOUND|EAI_AGAIN|getaddrinfo/i.test(message)) {
+      skip(`NAVI live empty-owner read unavailable: ${message}`);
+      return;
+    }
+    throw error;
+  }
 }
 
 async function main() {
-  const client = new SuiClient({ url: getFullnodeUrl("mainnet") });
+  const client = new SuiClient({ url: suiRpcUrl("mainnet") });
   verifySuilendFixtureParser();
   verifyNaviFixtureParser();
   await verifyPyth(client);

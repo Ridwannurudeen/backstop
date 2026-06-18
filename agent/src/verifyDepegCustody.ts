@@ -1,8 +1,10 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
+import { SuiClient } from "@mysten/sui/client";
 import { normalizeSuiAddress } from "@mysten/sui/utils";
+import { retryTransient } from "./retry.js";
+import { suiRpcUrl } from "./rpc.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..", "..");
@@ -56,10 +58,12 @@ function ownerAddress(owner: unknown): string | null {
 }
 
 async function getObject(client: SuiClient, id: string) {
-  const object = await client.getObject({
-    id,
-    options: { showContent: true, showOwner: true, showType: true },
-  });
+  const object = await retryTransient(`get object ${id.slice(0, 10)}...`, () =>
+    client.getObject({
+      id,
+      options: { showContent: true, showOwner: true, showType: true },
+    }),
+  );
   assert(object.data, `object not found: ${id}`);
   return object.data;
 }
@@ -133,7 +137,7 @@ async function main(): Promise<void> {
       ? normalizeSuiAddress(pyth.adminCustody.owner)
       : null;
   const deployer = pyth.deployer ? normalizeSuiAddress(pyth.deployer) : null;
-  const client = new SuiClient({ url: getFullnodeUrl("mainnet") });
+  const client = new SuiClient({ url: suiRpcUrl("mainnet") });
 
   await verifyUpgradeCap(client, pyth.coverUpgradeCap, "cover UpgradeCap");
   await verifyUpgradeCap(client, pyth.lendingUpgradeCap, "lending UpgradeCap");

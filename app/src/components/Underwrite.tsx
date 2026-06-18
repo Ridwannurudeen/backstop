@@ -30,10 +30,10 @@ export default function Underwrite() {
 
   return (
     <div className="card">
-      <h3>Underwrite — earn premiums</h3>
+      <h3>Underwrite - DeepBook Lab</h3>
       <p className="muted">
-        Deposit DUSDC into the shared Predict vault. You receive PLP and earn
-        the premiums buyers pay for protection.
+        Testnet-only DeepBook Predict vault. Deposit DUSDC, receive PLP, and
+        earn the premiums lab buyers pay for protection.
       </p>
       <div className="field" style={{ maxWidth: 240 }}>
         <label>Amount to supply ($)</label>
@@ -44,7 +44,7 @@ export default function Underwrite() {
         />
       </div>
       <button className="btn" disabled={isPending} onClick={supply}>
-        {isPending ? "Supplying…" : "Supply liquidity"}
+        {isPending ? "Supplying..." : "Supply liquidity"}
       </button>
       {notice && <Notice {...notice} />}
     </div>
