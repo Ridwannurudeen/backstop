@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Logo } from "./Brand";
+import ThemeToggle from "./ThemeToggle";
 
 export default function MarketingNav() {
   return (
@@ -14,9 +15,12 @@ export default function MarketingNav() {
         <Link to="/markets/risk-index">Risk Feed</Link>
         <Link to="/agent/ai">Agent Proofs</Link>
       </nav>
-      <Link to="/depeg" className="btn-sm">
-        Launch app
-      </Link>
+      <div className="landing-actions">
+        <ThemeToggle />
+        <Link to="/depeg" className="btn-sm">
+          Launch app
+        </Link>
+      </div>
     </header>
   );
 }

@@ -4,6 +4,7 @@ import { ConnectButton } from "@mysten/dapp-kit";
 import { SECTIONS } from "../nav";
 import { Logo } from "./Brand";
 import Footer from "./Footer";
+import ThemeToggle from "./ThemeToggle";
 
 export default function Layout() {
   const { pathname } = useLocation();
@@ -40,6 +41,7 @@ export default function Layout() {
           ))}
         </nav>
         <div className="header-cta">
+          <ThemeToggle />
           <ConnectButton />
         </div>
       </header>

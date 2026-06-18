@@ -52,30 +52,82 @@ const FLOW = [
   ],
 ];
 
-const COVER_DESK = [
+const COVER_VAULTS = [
   {
-    market: "suiUSDe depeg",
-    buyer: "Wallets, vaults, lending markets",
-    trigger: "Pyth price below floor, confidence rejected, dwell confirmed",
-    status: "Live v3",
+    cover: "100%",
+    term: "30d",
+    provider: "Backstop",
+    market: "Covered suiUSDe Depeg",
+    metric: "Live v3",
+    description:
+      "SUI-payout cover for suiUSDe-family exposure, settled by Pyth price, confidence band, activation delay, and dwell.",
+    links: ["Policy", "Proof", "SDK"],
+    rows: [
+      ["Cover capacity", "0.05 / 1.0019 SUI"],
+      ["Trigger", "Pyth <= $0.985 + dwell"],
+      ["Position import", "NAVI / Suilend"],
+    ],
+    primary: "Buy cover",
+    secondary: "Verify",
+    primaryTo: "/depeg",
+    secondaryTo: "/proof",
   },
   {
-    market: "NAVI / Suilend position cover",
-    buyer: "Borrowers and position managers",
-    trigger: "USDe-family exposure imported into the same cover pool",
-    status: "Integration kit",
+    cover: "100%",
+    term: "PTB",
+    provider: "Protocol kit",
+    market: "Covered Lending Reserve",
+    metric: "Ready",
+    description:
+      "Protocol-owned policy objects that can be bought at position creation and claimed into reserves during a covered depeg.",
+    links: ["SDK", "PTB", "Audit"],
+    rows: [
+      ["Buyer", "Risk teams"],
+      ["Payout route", "Reserve or keeper account"],
+      ["Integration", "Copy-paste examples"],
+    ],
+    primary: "Read SDK",
+    secondary: "Proof",
+    primaryTo: "/proof",
+    secondaryTo: "/proof",
   },
   {
-    market: "Protocol reserve protection",
-    buyer: "Risk teams and treasury operators",
-    trigger: "Covered depeg loss paid to reserve or keeper account",
-    status: "PTB pattern",
+    cover: "1:1",
+    term: "LP",
+    provider: "Underwriting",
+    market: "SUI Cover Capital",
+    metric: "Funded",
+    description:
+      "LP capital backs explicit outstanding liabilities; premiums accrue while claims stay available through guarded settlement paths.",
+    links: ["Terms", "Proof", "Pool"],
+    rows: [
+      ["Collateral", "SUI"],
+      ["Liability model", "Fully collateralized"],
+      ["Exit path", "Withdraw share object"],
+    ],
+    primary: "Underwrite",
+    secondary: "Pool proof",
+    primaryTo: "/depeg",
+    secondaryTo: "/proof",
   },
   {
-    market: "Oracle or liquidity incident cover",
-    buyer: "DEXs and structured vaults",
-    trigger: "Spec-defined incident, future pool, external review required",
-    status: "Next pool",
+    cover: "Spec",
+    term: "Review",
+    provider: "Next pool",
+    market: "Oracle / Liquidity Incident",
+    metric: "Queued",
+    description:
+      "A future reviewed pool for DEXs and vaults that need explicit incident definitions before capital is accepted.",
+    links: ["Spec", "Review", "Scope"],
+    rows: [
+      ["Buyer", "DEXs and vaults"],
+      ["Settlement", "Spec-defined event"],
+      ["Status", "External review required"],
+    ],
+    primary: "Read mechanism",
+    secondary: "Proof",
+    primaryTo: "/how-it-works",
+    secondaryTo: "/proof",
   },
 ];
 
@@ -205,19 +257,86 @@ export default function Landing() {
           <div className="desk-head">
             <span className="section-kicker">Cover desk</span>
             <h2>
-              Markets are stated like risk contracts, not landing-page features.
+              A vault-style market for Sui cover, with proof beside every lane.
             </h2>
             <p>
-              The page now shows what a buyer is buying, who it is for, how the
-              claim can become valid, and whether that lane is live, integration
-              ready, or still a future reviewed pool.
+              OpenCover's vault interface works because every card answers the
+              same questions fast: what is covered, who curates it, what capital
+              backs it, and where the proof lives. Backstop applies that pattern
+              to Sui-native depeg risk.
             </p>
+          </div>
+
+          <div className="vault-tabs" aria-label="Cover market filters">
+            <span className="active">Sui mainnet</span>
+            <span>Position cover</span>
+            <span>LP capital</span>
+            <span>Future pools</span>
+          </div>
+
+          <div className="vault-grid">
+            {COVER_VAULTS.map((vault) => (
+              <article className="vault-card" key={vault.market}>
+                <div className="vault-band">
+                  <div className="vault-chips">
+                    <span>{vault.cover}</span>
+                    <span>{vault.term}</span>
+                  </div>
+                  <button type="button" aria-label={`${vault.market} actions`}>
+                    <span />
+                    <span />
+                    <span />
+                  </button>
+                </div>
+
+                <div className="vault-provider">
+                  <SuiDrop size={30} />
+                  <strong>{vault.provider}</strong>
+                </div>
+
+                <div className="vault-title-row">
+                  <h3>{vault.market}</h3>
+                  <div>
+                    <strong>{vault.metric}</strong>
+                    <span className="vault-shield">verified</span>
+                  </div>
+                </div>
+
+                <p>{vault.description}</p>
+
+                <div className="vault-links">
+                  {vault.links.map((link) => (
+                    <Link to="/proof" key={`${vault.market}-${link}`}>
+                      {link}
+                    </Link>
+                  ))}
+                </div>
+
+                <div className="vault-rows">
+                  {vault.rows.map(([label, value]) => (
+                    <div className="vault-row" key={`${vault.market}-${label}`}>
+                      <span>{label}</span>
+                      <strong>{value}</strong>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="vault-actions">
+                  <Link to={vault.secondaryTo} className="btn ghost">
+                    {vault.secondary}
+                  </Link>
+                  <Link to={vault.primaryTo} className="btn hero-primary">
+                    {vault.primary}
+                  </Link>
+                </div>
+              </article>
+            ))}
           </div>
 
           <div
             className="desk-table"
             role="table"
-            aria-label="Backstop cover desk"
+            aria-label="Backstop cover terms"
           >
             <div className="desk-row desk-row-head" role="row">
               <span role="columnheader">Market</span>
@@ -225,14 +344,14 @@ export default function Landing() {
               <span role="columnheader">Trigger</span>
               <span role="columnheader">Status</span>
             </div>
-            {COVER_DESK.map((row) => (
-              <div className="desk-row" role="row" key={row.market}>
-                <strong role="cell">{row.market}</strong>
-                <span role="cell">{row.buyer}</span>
-                <span role="cell">{row.trigger}</span>
-                <code role="cell">{row.status}</code>
-              </div>
-            ))}
+            <div className="desk-row" role="row">
+              <strong role="cell">suiUSDe depeg</strong>
+              <span role="cell">Wallets, vaults, lending markets</span>
+              <span role="cell">
+                Pyth price below floor, confidence rejected, dwell confirmed
+              </span>
+              <code role="cell">Live v3</code>
+            </div>
           </div>
         </section>
 
