@@ -75,8 +75,9 @@ Say:
 The real wedge is protocol integration. NAVI, Suilend, wallets, and treasury
 tools should not each rebuild insurance mechanics. They can quote, buy, record,
 claim, and verify Backstop policies through the SDK. For NAVI and Suilend, the
-adapter contract is explicit about the object evidence needed before Backstop
-can claim live account-level validation.
+adapter contract is explicit about the object evidence needed. Suilend now has
+a sample-validated obligation parser and consented pilot; NAVI still needs a
+confirmed account or vault object sample.
 
 ## 2:15-2:55 Risk Clearinghouse
 
@@ -112,7 +113,9 @@ missing layer between market liquidity and user trust.
 - Mainnet depeg cover is live but unaudited.
 - Use small amounts in any wallet demo.
 - Keeper execution is wallet-gated; the public monitor is dry-run.
-- NAVI/Suilend adapters are specs until partner object samples are confirmed.
+- Suilend has sample-validated parsing and a consented pilot route, not
+  production auto-cover.
+- NAVI remains a spec until a partner object sample is confirmed.
 - DeepBook Predict and agent underwriting are research lanes until the next
   production pool rollout.
 - Submission requires explicit human approval before final submission.

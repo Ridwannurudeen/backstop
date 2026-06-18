@@ -1,6 +1,6 @@
 # Backstop Risk Report
 
-Generated: 2026-06-18T22:43:00.767Z
+Generated: 2026-06-18T23:08:08.116Z
 
 ## Positioning
 
@@ -37,7 +37,7 @@ Mode: dry-run public reads; signed execution is wallet-gated
 ## Adapter boundary
 
 - NAVI: Confirm one borrower/vault object sample and lock parser
-- Suilend: Convert sample parser into consented production auto-cover flow
+- Suilend: Capture first signed adapter-bound policy digest and lock supported market caps
 
 ## Deployment boundary
 

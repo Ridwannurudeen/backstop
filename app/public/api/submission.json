@@ -1,71 +1,71 @@
 ﻿{
-    "project":  "Backstop",
-    "track":  "DeepBook specialized track",
-    "oneLiner":  "Backstop is the DeepBook-priced cover desk and risk clearinghouse for Sui DeFi.",
-    "live":  {
-                 "app":  "https://backstop.gudman.xyz",
-                 "submission":  "https://backstop.gudman.xyz/submission",
-                 "proof":  "https://backstop.gudman.xyz/proof",
-                 "coverDesk":  "https://backstop.gudman.xyz/depeg",
-                 "protocolKit":  "https://backstop.gudman.xyz/protocol",
-                 "riskIndex":  "https://backstop.gudman.xyz/risk-index",
-                 "suilendPilot":  "https://backstop.gudman.xyz/suilend",
-                 "buildout":  "https://backstop.gudman.xyz/buildout"
-             },
-    "mainnetEvidence":  {
-                            "packageId":  "0x761832702281966fac9dee6183b530d2f73ecd779524c61cd3dd4705fa6ec968",
-                            "poolId":  "0x5edc508a4258e1253563219049dadc8b068cf309115e29732dad71698c168592",
-                            "priceObjectId":  "0x9b2028bfc829127d2e5ead1691dc3002de9e9b8d8076b4915e5ecc7d9b99d63f",
-                            "activePolicyId":  "0x3863ad1bf44904af1fcc3ead38589977378e6800e14ceacebf1205187ce695ec",
-                            "latestPolicyPurchase":  {
-                                                         "txDigest":  "5AGzShNPABk9RMGmmFursqRgJiGLssLpdjW5b6z4kb74",
-                                                         "policyId":  "0xcfd02fb3db64b76ca57f39bf2669a6cae6766713f593c0a52eaa5fa02aa79a46",
-                                                         "sampleTx":  "2PBCaEbBHiFLU7fDwU4zihUq4CQtKArbXXC9JygTL169",
-                                                         "sender":  "0x5f21a9aaf680f6b0e0190e6a99bb9d4e314e0761ff3c3bc809f298711e73d8e5",
-                                                         "cover":  "10 SUI",
-                                                         "premium":  "0.000255 SUI",
-                                                         "coverMist":  10000000,
-                                                         "premiumMist":  255000,
-                                                         "mintedPolicyAt":  "2026-06-18T00:24:31.449Z",
-                                                         "explorer":  "https://suivision.xyz/txblock/5AGzShNPABk9RMGmmFursqRgJiGLssLpdjW5b6z4kb74"
-                                                     }
-                        },
-    "demoFlow":  [
-                     "Open /submission for the judge command center",
-                     "Open /proof for mainnet package/pool/policy lifecycle proof",
-                     "Open /depeg to quote mainnet depeg cover",
-                     "Open /protocol for SDK/PTB integration snippets",
-                     "Open /risk-index for the risk clearinghouse roadmap",
-                     "Open /suilend for the consented Suilend sample-to-policy flow",
-                     "Open /buildout for vaults, wallet warnings, reports, reputation, and hedge-router modules"
-                 ],
-    "postHackathonThesis":  [
-                                "Lock one NAVI or Suilend sample object and ship a production parser",
-                                "Fund a keeper signer and publish signed breach/claim/expiry receipts",
-                                "LP vaults split by risk class",
-                                "DeepBook hedge router",
-                                "Wallet risk warnings"
-                            ],
-    "scripts":  [
-                    "npm run keeper:depeg",
-                    "npm run adapter:probe",
-                    "npm run report:generate"
-                ],
-    "keeperOps":  [
-                      {
-                          "lane":  "public monitor",
-                          "status":  "live dry-run",
-                          "boundary":  "reads pool, price, and policy state; does not sign"
-                      },
-                      {
-                          "lane":  "breach / claim / expiry",
-                          "status":  "wallet-gated",
-                          "boundary":  "requires funded signer and wallet approval"
-                      },
-                      {
-                          "lane":  "protocol exposure sync",
-                          "status":  "partner-gated",
-                          "boundary":  "requires confirmed NAVI/Suilend object schema"
-                      }
-                  ]
+  "project": "Backstop",
+  "track": "DeepBook specialized track",
+  "oneLiner": "Backstop is the DeepBook-priced cover desk and risk clearinghouse for Sui DeFi.",
+  "live": {
+    "app": "https://backstop.gudman.xyz",
+    "submission": "https://backstop.gudman.xyz/submission",
+    "proof": "https://backstop.gudman.xyz/proof",
+    "coverDesk": "https://backstop.gudman.xyz/depeg",
+    "protocolKit": "https://backstop.gudman.xyz/protocol",
+    "riskIndex": "https://backstop.gudman.xyz/risk-index",
+    "suilendPilot": "https://backstop.gudman.xyz/suilend",
+    "buildout": "https://backstop.gudman.xyz/buildout"
+  },
+  "mainnetEvidence": {
+    "packageId": "0x761832702281966fac9dee6183b530d2f73ecd779524c61cd3dd4705fa6ec968",
+    "poolId": "0x5edc508a4258e1253563219049dadc8b068cf309115e29732dad71698c168592",
+    "priceObjectId": "0x9b2028bfc829127d2e5ead1691dc3002de9e9b8d8076b4915e5ecc7d9b99d63f",
+    "activePolicyId": "0x3863ad1bf44904af1fcc3ead38589977378e6800e14ceacebf1205187ce695ec",
+    "latestPolicyPurchase": {
+      "txDigest": "5AGzShNPABk9RMGmmFursqRgJiGLssLpdjW5b6z4kb74",
+      "policyId": "0xcfd02fb3db64b76ca57f39bf2669a6cae6766713f593c0a52eaa5fa02aa79a46",
+      "sampleTx": "2PBCaEbBHiFLU7fDwU4zihUq4CQtKArbXXC9JygTL169",
+      "sender": "0x5f21a9aaf680f6b0e0190e6a99bb9d4e314e0761ff3c3bc809f298711e73d8e5",
+      "cover": "10 SUI",
+      "premium": "0.000255 SUI",
+      "coverMist": 10000000,
+      "premiumMist": 255000,
+      "mintedPolicyAt": "2026-06-18T00:24:31.449Z",
+      "explorer": "https://suivision.xyz/txblock/5AGzShNPABk9RMGmmFursqRgJiGLssLpdjW5b6z4kb74"
+    }
+  },
+  "demoFlow": [
+    "Open /submission for the judge command center",
+    "Open /proof for mainnet package/pool/policy lifecycle proof",
+    "Open /depeg to quote mainnet depeg cover",
+    "Open /protocol for SDK/PTB integration snippets",
+    "Open /risk-index for the risk clearinghouse roadmap",
+    "Open /suilend for the consented Suilend sample-to-policy flow",
+    "Open /buildout for vaults, wallet warnings, reports, reputation, and hedge-router modules"
+  ],
+  "postHackathonThesis": [
+    "Capture the first signed Suilend adapter-bound policy digest and lock one NAVI sample object",
+    "Fund a keeper signer and publish signed breach/claim/expiry receipts",
+    "LP vaults split by risk class",
+    "DeepBook hedge router",
+    "Wallet risk warnings"
+  ],
+  "scripts": [
+    "npm run keeper:depeg",
+    "npm run adapter:probe",
+    "npm run report:generate"
+  ],
+  "keeperOps": [
+    {
+      "lane": "public monitor",
+      "status": "live dry-run",
+      "boundary": "reads pool, price, and policy state; does not sign"
+    },
+    {
+      "lane": "breach / claim / expiry",
+      "status": "wallet-gated",
+      "boundary": "requires funded signer and wallet approval"
+    },
+    {
+      "lane": "protocol exposure sync",
+      "status": "partner-gated",
+      "boundary": "requires confirmed NAVI object schema plus partner-approved Suilend parser versioning and consent/governance"
+    }
+  ]
 }

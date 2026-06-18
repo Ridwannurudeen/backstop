@@ -31,6 +31,11 @@ const judgeSteps = [
     why: "Read SDK/PTB snippets a protocol can adapt immediately.",
   },
   {
+    label: "Open Suilend pilot",
+    path: "/suilend",
+    why: "Show the consent-gated path from a live Suilend obligation sample to a Backstop quote.",
+  },
+  {
     label: "Read SRX",
     path: "/risk-index",
     why: "See how Backstop expands from one pool into a risk clearinghouse.",
@@ -38,7 +43,7 @@ const judgeSteps = [
 ];
 
 const buildPlan = [
-  "Lock one NAVI or Suilend sample object and turn the adapter contract into a production parser.",
+  "Capture the first signed Suilend adapter-bound policy digest and lock one NAVI sample object.",
   "Fund a keeper wallet, publish signed breach/claim/expiry receipts, and add reward accounting.",
   "LP vaults split by risk class: stablecoin depeg, SUI drawdown, and LP tail risk.",
   "DeepBook hedge router that budgets cover exposure against Predict market signals.",
@@ -98,10 +103,10 @@ export default function CommandCenter() {
         </article>
         <article>
           <span>Adapters</span>
-          <strong>{PROTOCOL_ADAPTERS.length} verified specs</strong>
+          <strong>{PROTOCOL_ADAPTERS.length} adapter lanes</strong>
           <p>
-            NAVI and Suilend integration contracts are source-bounded, not
-            overclaimed.
+            Suilend is sample-validated; NAVI remains source-bounded until a
+            partner object sample is confirmed.
           </p>
         </article>
         <article>

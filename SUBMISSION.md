@@ -21,6 +21,7 @@ research. These are supporting surfaces, not the primary submission track.
 - Cover desk: https://backstop.gudman.xyz/depeg
 - Protocol kit: https://backstop.gudman.xyz/protocol
 - Risk index: https://backstop.gudman.xyz/risk-index
+- Suilend pilot: https://backstop.gudman.xyz/suilend
 - Proof JSON: https://backstop.gudman.xyz/api/proof.json
 - Risk index JSON: https://backstop.gudman.xyz/api/risk-index.json
 - Submission JSON: https://backstop.gudman.xyz/api/submission.json
@@ -36,7 +37,9 @@ Use `DEMO_SCRIPT.md` for the timed recording.
    cover policy, and show the premium/payout relationship.
 4. Open `/protocol` and show how a protocol can quote, buy, record breach, and
    claim through SDK/PTB builders.
-5. Open `/risk-index` and show the roadmap from one live depeg pool into a risk
+5. Open `/suilend` and show the consent gate that binds a live Suilend
+   obligation sample to a Backstop policy quote.
+6. Open `/risk-index` and show the roadmap from one live depeg pool into a risk
    clearinghouse: SUI drawdown, stablecoin basket, lending collateral, and LP
    tail-risk cover.
 
@@ -57,11 +60,12 @@ Use `DEMO_SCRIPT.md` for the timed recording.
   next-action derivation.
 - Breach observation, claim, and expiry sweep are wallet-gated transaction
   builders, not claimed autonomous keeper logs.
-- `/protocol` and `/risk-index` include NAVI and Suilend adapter specs grounded
-  in their public lending concepts: account or vault evidence for NAVI, and
-  LendingMarket / Reserve / Obligation evidence for Suilend.
-- Production account-level integration requires one confirmed object sample and
-  a consent/governance path from the partner protocol.
+- `/protocol` and `/risk-index` include a NAVI adapter spec grounded in account
+  or vault evidence, plus a sample-validated Suilend parser grounded in
+  LendingMarket / Reserve / Obligation evidence.
+- Production account-level integration still requires partner-approved parser
+  versioning, consent UX, and governance caps. NAVI also needs one confirmed
+  borrower or vault object sample.
 
 ## Why It Should Win
 
@@ -76,6 +80,8 @@ settleable, auditable primitive.
 - Use small policy and LP amounts during demo.
 - Keeper execution is wallet-gated in this checkout; the public monitor is
   read-only.
-- NAVI/Suilend adapters are not live production parsers yet.
+- Suilend parsing is sample-validated with a consented pilot route, not live
+  production auto-cover.
+- NAVI remains a spec until one confirmed object sample is available.
 - DeepBook Predict and agent underwriting surfaces are research lanes until the
   next pool rollout connects them to production cover capacity.

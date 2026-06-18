@@ -116,7 +116,7 @@
       "sampleTx": "2PBCaEbBHiFLU7fDwU4zihUq4CQtKArbXXC9JygTL169",
       "obligationId": "0xffff7cfccd5049bc6f5adb20a770a822f920a3f78690213b08c231884763bf6a",
       "ownerCapId": "0x16ee69982511332c08dc697c878c3d943e52d6be8c303ec27807a406207d6122",
-      "next": "Convert sample parser into consented production auto-cover flow"
+      "next": "Capture first signed adapter-bound policy digest and lock supported market caps"
     }
   ]
 }

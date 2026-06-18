@@ -1,5 +1,5 @@
 {
-  "generated": "2026-06-18T22:43:00.763Z",
+  "generated": "2026-06-18T23:08:08.113Z",
   "proof": {
     "project": "Backstop",
     "primaryTrack": "DeepBook",
@@ -194,7 +194,7 @@
         "sampleTx": "2PBCaEbBHiFLU7fDwU4zihUq4CQtKArbXXC9JygTL169",
         "obligationId": "0xffff7cfccd5049bc6f5adb20a770a822f920a3f78690213b08c231884763bf6a",
         "ownerCapId": "0x16ee69982511332c08dc697c878c3d943e52d6be8c303ec27807a406207d6122",
-        "next": "Convert sample parser into consented production auto-cover flow"
+        "next": "Capture first signed adapter-bound policy digest and lock supported market caps"
       }
     ]
   },
@@ -397,7 +397,7 @@
       "Open /buildout for vaults, wallet warnings, reports, reputation, and hedge-router modules"
     ],
     "postHackathonThesis": [
-      "Lock one NAVI or Suilend sample object and ship a production parser",
+      "Capture the first signed Suilend adapter-bound policy digest and lock one NAVI sample object",
       "Fund a keeper signer and publish signed breach/claim/expiry receipts",
       "LP vaults split by risk class",
       "DeepBook hedge router",
@@ -422,7 +422,7 @@
       {
         "lane": "protocol exposure sync",
         "status": "partner-gated",
-        "boundary": "requires confirmed NAVI/Suilend object schema"
+        "boundary": "requires confirmed NAVI object schema plus partner-approved Suilend parser versioning and consent/governance"
       }
     ]
   },

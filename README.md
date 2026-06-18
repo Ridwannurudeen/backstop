@@ -33,17 +33,17 @@ Primary track: **Sui Overflow 2026 / DeepBook specialized track**
 
 ## Live evidence
 
-| Network | Artifact               | Value                                                                 |
-| ------- | ---------------------- | --------------------------------------------------------------------- |
-| mainnet | Pyth depeg package     | `0x761832702281966fac9dee6183b530d2f73ecd779524c61cd3dd4705fa6ec968`  |
-| mainnet | Pyth depeg pool        | `0x5edc508a4258e1253563219049dadc8b068cf309115e29732dad71698c168592`  |
-| mainnet | Pyth price object      | `0x9b2028bfc829127d2e5ead1691dc3002de9e9b8d8076b4915e5ecc7d9b99d63f`  |
-| mainnet | Active policy example  | `0x3863ad1bf44904af1fcc3ead38589977378e6800e14ceacebf1205187ce695ec`  |
+| Network | Artifact                           | Value                                                                 |
+| ------- | ---------------------------------- | --------------------------------------------------------------------- |
+| mainnet | Pyth depeg package                 | `0x761832702281966fac9dee6183b530d2f73ecd779524c61cd3dd4705fa6ec968`  |
+| mainnet | Pyth depeg pool                    | `0x5edc508a4258e1253563219049dadc8b068cf309115e29732dad71698c168592`  |
+| mainnet | Pyth price object                  | `0x9b2028bfc829127d2e5ead1691dc3002de9e9b8d8076b4915e5ecc7d9b99d63f`  |
+| mainnet | Active policy example              | `0x3863ad1bf44904af1fcc3ead38589977378e6800e14ceacebf1205187ce695ec`  |
 | mainnet | Latest judge-grade policy purchase | `0xcfd02fb3db64b76ca57f39bf2669a6cae6766713f593c0a52eaa5fa02aa79a46`  |
-| mainnet | Latest policy tx digest | `5AGzShNPABk9RMGmmFursqRgJiGLssLpdjW5b6z4kb74`  |
-| testnet | RiskFeed package       | `0xefda410b91a3caec4cdb34f459a87909ad6b89c00f1ca392ce345c292f4cc6ef`  |
-| testnet | RiskFeed shared object | `0xa48b3769723ac4441fec2f9c87582b88f2cf8d0d551642e17aebae1609da1ddf4` |
-| testnet | Staged claim replay    | `G2X8UFPRjgYf76dA7FBziGg6cyUAkoepGnTuCakzCcBP`                        |
+| mainnet | Latest policy tx digest            | `5AGzShNPABk9RMGmmFursqRgJiGLssLpdjW5b6z4kb74`                        |
+| testnet | RiskFeed package                   | `0xefda410b91a3caec4cdb34f459a87909ad6b89c00f1ca392ce345c292f4cc6ef`  |
+| testnet | RiskFeed shared object             | `0xa48b3769723ac4441fec2f9c87582b88f2cf8d0d551642e17aebae1609da1ddf4` |
+| testnet | Staged claim replay                | `G2X8UFPRjgYf76dA7FBziGg6cyUAkoepGnTuCakzCcBP`                        |
 
 Machine-readable artifacts:
 
@@ -123,7 +123,8 @@ The `/proof` page includes a public dry-run keeper monitor:
 - Breach observation is wallet-gated.
 - Dwell confirmation and claim are wallet-gated.
 - Expiry sweep is wallet-gated.
-- NAVI/Suilend exposure sync is partner-gated.
+- Suilend exposure sync is sample-validated and consent-gated; NAVI exposure
+  sync is still partner-gated.
 - DeepBook hedge routing is post-hackathon until a funded budget exists.
 
 The public monitor does not sign transactions and does not claim keeper-run logs
@@ -190,5 +191,7 @@ Backstop exposure rows.
 - The DeepBook Predict / RiskFeed / Walrus agent lane is a testnet research
   lane and is isolated from the mainnet cover pool.
 - The legacy testnet cover-pool lane is not the production product.
-- NAVI and Suilend integrations are adapter specs until object-level partner
-  validation is complete.
+- Suilend has a live sample parser and consented pilot route; production
+  auto-cover still needs partner-approved parser versioning and governance caps.
+- NAVI remains an adapter spec until one borrower or vault object sample is
+  confirmed.

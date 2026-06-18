@@ -346,12 +346,12 @@ export const PROTOCOL_ADAPTERS: ProtocolAdapterSpec[] = [
       "evidence",
     ],
     coverDecision:
-      "Cover borrower or vault buckets only after SDK refresh and reserve/obligation evidence is recorded.",
+      "Quote the sample exposure through the consented pilot; production buckets still need approved market caps.",
     policyBinding:
       "Map Backstop policy IDs to obligation IDs so claims can require both oracle breach and covered-position evidence.",
     currentBoundary:
       "Sample-validated parser is live; production auto-cover requires partner approval for consent, governance caps, and supported markets.",
-    next: "Convert the sample parser into a consented Suilend auto-cover flow.",
+    next: "Capture the first signed adapter-bound policy digest and lock supported market caps.",
   },
 ];
 
