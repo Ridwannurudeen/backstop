@@ -1,0 +1,34 @@
+{
+  "ts": "2026-06-18T18:19:13.416Z",
+  "mode": "dry-run",
+  "packageId": "0x761832702281966fac9dee6183b530d2f73ecd779524c61cd3dd4705fa6ec968",
+  "poolId": "0x5edc508a4258e1253563219049dadc8b068cf309115e29732dad71698c168592",
+  "price": {
+    "priceUsd": 0.999889,
+    "adversePriceUsd": 1.00288867,
+    "thresholdUsd": 0.985,
+    "triggered": false,
+    "publishMs": 1781806744000
+  },
+  "pool": {
+    "fundsSui": 1.0123769,
+    "totalCoverSui": 0.07,
+    "keeperBountySui": 0.0001,
+    "paused": false
+  },
+  "policies": [
+    {
+      "policyId": "0x3863ad1bf44904af1fcc3ead38589977378e6800e14ceacebf1205187ce695ec",
+      "type": "0x761832702281966fac9dee6183b530d2f73ecd779524c61cd3dd4705fa6ec968::pyth_cover_pool::Policy<0x2::sui::SUI>",
+      "exists": true,
+      "action": "observe",
+      "executable": false,
+      "reason": "price is above threshold and policy is not expired or latched",
+      "builder": null,
+      "coverMist": "10000000",
+      "expiryMs": 1784302662908,
+      "breachObservedAt": null,
+      "execution": null
+    }
+  ]
+}

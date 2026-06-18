@@ -1,96 +1,194 @@
 # Backstop
 
-**The risk & trust layer for Sui — crash insurance priced by DeepBook Predict, proven on Walrus.**
+**The DeepBook-priced cover desk and risk clearinghouse for Sui DeFi.**
 
-> Insure your treasury against a crash in one click — priced live off an on-chain options oracle, underwritten by an autonomous agent, settled trustlessly in <400ms.
+Backstop turns risk into a product surface protocols can use: quote cover,
+create policies, monitor breach conditions, settle valid claims, and publish
+proof receipts users can inspect.
 
-**Live:** https://backstop.gudman.xyz · Sui Overflow 2026 · DeepBook track (primary) · cross-listing Agentic Web + Walrus.
+Live: https://backstop.gudman.xyz
 
-The **Risk terminal** and **AI underwriter** tabs are public (no wallet) — the underwriter rows link to the agent's real on-chain supplies.
+Primary track: **Sui Overflow 2026 / DeepBook specialized track**
 
----
+## What this is
 
-## The thesis
+- `Mainnet depeg cover`: buy SUI-collateralized suiUSDe depeg protection from
+  the deployed Pyth-settled pool.
+- `Cover desk`: manage policies, create treasury cover, and supply liquidity as
+  an underwriter.
+- `Proof center`: inspect package, pool, policy lifecycle, and
+  isolated testnet research artifacts.
+- `Keeper operations`: public dry-run monitor for pool health, Pyth trigger
+  state, policy actions, and wallet-gated execution boundaries.
+- `Risk index`: SRX market table for depeg, SUI drawdown, stablecoin basket,
+  lending collateral, and LP tail-risk lanes.
+- `Buildout`: LP vaults, DeepBook hedge router modules, wallet risk warnings,
+  institutional reports, and reputation signals.
+- `Suilend pilot`: binds the first parsed Suilend obligation sample to an
+  explicit-consent Backstop policy quote.
+- `Protocol kit`: copy-paste SDK/PTB examples for NAVI/Suilend-style adapters,
+  wallet quote widgets, and risk passports.
+- `Agent underwriting ledger`: DeepBook/Walrus research lane for probability of
+  failure and underwriting receipts.
 
-In May 2025 a $223M exploit hit Sui's largest DEX. The backstop wasn't insurance — it was a **90.9% validator vote to roll back the chain**. That's governance-by-emergency, and it doesn't scale. Less than 2% of DeFi is insured, and nothing on Sui lets you *price* or *transfer* the risk that actually wipes people out: a crash or a depeg.
+## Live evidence
 
-Backstop is that missing layer. **DeepBook Predict gives us the price of risk; Walrus gives us verifiable truth.** Insurance is the first product on top.
+| Network | Artifact               | Value                                                                 |
+| ------- | ---------------------- | --------------------------------------------------------------------- |
+| mainnet | Pyth depeg package     | `0x761832702281966fac9dee6183b530d2f73ecd779524c61cd3dd4705fa6ec968`  |
+| mainnet | Pyth depeg pool        | `0x5edc508a4258e1253563219049dadc8b068cf309115e29732dad71698c168592`  |
+| mainnet | Pyth price object      | `0x9b2028bfc829127d2e5ead1691dc3002de9e9b8d8076b4915e5ecc7d9b99d63f`  |
+| mainnet | Active policy example  | `0x3863ad1bf44904af1fcc3ead38589977378e6800e14ceacebf1205187ce695ec`  |
+| mainnet | Latest judge-grade policy purchase | `0xcfd02fb3db64b76ca57f39bf2669a6cae6766713f593c0a52eaa5fa02aa79a46`  |
+| mainnet | Latest policy tx digest | `5AGzShNPABk9RMGmmFursqRgJiGLssLpdjW5b6z4kb74`  |
+| testnet | RiskFeed package       | `0xefda410b91a3caec4cdb34f459a87909ad6b89c00f1ca392ce345c292f4cc6ef`  |
+| testnet | RiskFeed shared object | `0xa48b3769723ac4441fec2f9c87582b88f2cf8d0d551642e17aebae1609da1ddf4` |
+| testnet | Staged claim replay    | `G2X8UFPRjgYf76dA7FBziGg6cyUAkoepGnTuCakzCcBP`                        |
 
-## What it does
+Machine-readable artifacts:
 
-A buyer mints a **DOWN binary** on a BTC oracle — it pays out if BTC settles below the strike at expiry (a crash payout). An underwriter `supply()`s capital to the vault to back those payouts and earn premium. Both sides settle trustlessly on DeepBook Predict.
+- `https://backstop.gudman.xyz/api/proof.json`
+- `https://backstop.gudman.xyz/api/risk-index.json`
+- `https://backstop.gudman.xyz/api/submission.json`
+- `https://backstop.gudman.xyz/api/buildout.json`
+- `https://backstop.gudman.xyz/api/report.json`
 
-Four pillars on that foundation:
+Demo script:
 
-1. **Portfolio crash protection** — read a wallet's holdings, compute drawdown exposure, one-click mint a basket of DOWN-binary policies ("insure my treasury against a 20% crash").
-2. **Autonomous AI underwriter** — a Node agent reads Predict's on-chain volatility surface, turns each market's DOWN-binary price into an **implied probability of failure**, prices capacity + premium (Claude in the loop, deterministic-rules fallback), **supplies capital on-chain sized to its own decision**, and logs every decision + outcome to **Walrus** as verifiable memory.
-3. **Live risk terminal** — implied-crash-probability curves across strikes (binary price = risk-neutral probability, a Sui-unique on-chain data product), straight from `devInspect` reads.
-4. **On-chain RiskFeed** — a published probability-of-failure oracle (`RiskFeed` Move package) any Sui protocol can read to back its own solvency, each reading anchored to a Walrus blob.
+- `DEMO_SCRIPT.md`
 
-## Live on testnet
+Judge flow:
 
-Everything below is deployed and executed on Sui testnet. **Canonical full IDs live in [`deployment.json`](./deployment.json)** (object IDs abbreviated here).
+1. Open `https://backstop.gudman.xyz/submission`.
+2. Open `https://backstop.gudman.xyz/proof`.
+3. Verify the mainnet package, pool, active policy, and proof health rows.
+4. Open `https://suivision.xyz/txblock/5AGzShNPABk9RMGmmFursqRgJiGLssLpdjW5b6z4kb74` and confirm the policy created.
+5. Open `https://backstop.gudman.xyz/depeg` and quote mainnet cover.
+6. Open `https://backstop.gudman.xyz/protocol` and inspect the SDK/PTB adapter.
+7. Open `https://backstop.gudman.xyz/risk-index` and inspect the expansion plan.
+8. Open `https://backstop.gudman.xyz/suilend` and inspect the sample-validated
+   Suilend obligation-to-policy flow.
 
-| Artifact | ID / digest |
-|---|---|
-| Network | `testnet` |
-| RiskFeed package | `0xefda…cc6ef` |
-| RiskFeed shared object | `0xa48b…1ddf4` |
-| Predict manager | `0x630f…123ac` |
-| **Live insurance mint** — DOWN BTC<$56,901, $10 cover, 0.2886 DUSDC premium | tx `G2X8UFPRjgYf76dA7FBziGg6cyUAkoepGnTuCakzCcBP` |
-| **RiskFeed readings published** — 3 probabilities-of-failure, Walrus-linked | tx `Ad5Fcr6otec41vioS5mTPJGY89GaaKcQPdRUZc2bvbEz` |
-| **Agent capacity-sized supply** — $100k capacity → $10.00 on-chain | tx `EcRYQ3dLuATkef6Kv7P6Rj11B7bkriWHqXkRCLk8ogVa` |
+## Protocol integration
 
-Explore any digest at `https://testnet.suivision.xyz/txblock/<digest>`; read any Walrus decision at `https://aggregator.walrus-testnet.walrus.space/v1/blobs/<blobId>`.
+Install the SDK:
 
-## Architecture
-
-Monorepo, no shared build — each part runs independently.
-
+```bash
+npm install @gudman/backstop-sdk @mysten/sui
 ```
-app/         Vite + React frontend (dapp-kit). Tabs: Buy protection · Insure my
-             treasury · My policies · Underwrite · Risk terminal · AI underwriter.
-             Risk terminal + AI underwriter are public (read-only, no wallet).
-agent/       Autonomous AI underwriter (Node + tsx). Reads oracles → prices risk →
-             Claude/rules decision → supplies on-chain → logs to Walrus.
-contracts/   risk_feed/ — the on-chain RiskFeed Move package (probability-of-failure oracle).
-spike/       Runnable verification harness for the Predict PTBs (the verified foundation).
+
+Quote mainnet depeg cover:
+
+```ts
+import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
+import { quoteDepegPremium, readDepegPool } from "@gudman/backstop-sdk";
+
+const PYTH_DEPEG_POOL =
+  "0x5edc508a4258e1253563219049dadc8b068cf309115e29732dad71698c168592";
+
+const client = new SuiClient({ url: getFullnodeUrl("mainnet") });
+const pool = await readDepegPool(client, PYTH_DEPEG_POOL);
+const coverMist = 50_000_000n;
+const premiumMist = quoteDepegPremium(pool, coverMist, 30);
 ```
 
-**Stack:** Move (Sui) · DeepBook Predict (binary markets + SVI vol oracle) · Walrus (verifiable agent memory) · `@mysten/dapp-kit` 0.20 + `@mysten/sui` 1.x · React 18 + Vite · Node + tsx · Anthropic SDK (Claude underwriting).
+Build a buy-cover PTB:
 
-## Run it
+```ts
+import { buildDepegBuyCoverTx } from "@gudman/backstop-sdk";
 
-Node v24 + npm. No pnpm required.
+const tx = buildDepegBuyCoverTx({
+  pkg: "0x761832702281966fac9dee6183b530d2f73ecd779524c61cd3dd4705fa6ec968",
+  poolId: PYTH_DEPEG_POOL,
+  premiumMist,
+  coverMist,
+  expiryMs: BigInt(Date.now() + 30 * 86_400_000 - 60_000),
+  owner,
+});
+```
 
-### Frontend
+Important SDK boundary:
+
+- The app passes current v3 mainnet package and pool IDs from
+  `app/src/lib/proofData.ts`.
+- The published npm package `@gudman/backstop-sdk@0.1.0` still has stale
+  exported deployment constants. Use the builders and pass the IDs explicitly
+  until a new SDK release is approved and published.
+
+## Keeper operations
+
+The `/proof` page includes a public dry-run keeper monitor:
+
+- Pool solvency watch is public now.
+- Breach observation is wallet-gated.
+- Dwell confirmation and claim are wallet-gated.
+- Expiry sweep is wallet-gated.
+- NAVI/Suilend exposure sync is partner-gated.
+- DeepBook hedge routing is post-hackathon until a funded budget exists.
+
+The public monitor does not sign transactions and does not claim keeper-run logs
+unless an exact transaction digest exists.
+
+## Why DeepBook matters
+
+Backstop is not a generic insurance UI. DeepBook is the market layer that makes
+the risk legible:
+
+- DeepBook Predict surfaces calibrate crash/depeg probability.
+- DeepBook liquidity depth informs capacity and hedge limits.
+- Risk markets become tradable, underwritable, and auditable instead of hidden
+  governance promises.
+- Backstop can route future hedge budgets into DeepBook-priced instruments.
+
+## Run locally
+
 ```bash
 cd app
 npm install
-npm run dev        # http://localhost:5173 — Risk terminal + AI underwriter work with no wallet
+npm run dev
 ```
 
-### AI underwriter agent
+Agent underwriting ledger:
+
 ```bash
 cd agent
 npm install
-npm run once       # one cycle: read oracles → price → decide → log to Walrus
-                   # writes app/public/agent-decisions.json (the UI reads it)
+npm run once
 ```
 
-Optional flags:
+Operational scripts:
 
-| Env var | Effect |
-|---|---|
-| `ANTHROPIC_API_KEY` | Use Claude for the underwriting decision (else deterministic rules; decisions tagged `AI` vs `rules`). |
-| `AGENT_EXECUTE=1` + `SUI_PRIVATE_KEY` | **Execute on-chain** — supply DUSDC into the Predict vault for each accepted market. Off by default (recommend-and-log only). |
-| `AGENT_CAPACITY_BPS` | Fraction of the agent's recommended capacity to commit per call (default `1` = 1bp; raise toward `10000` = 100% with a funded production vault signer). |
-| `AGENT_MAX_SUPPLY_USD` | Per-call safety ceiling (default `25`). |
+```bash
+cd app
+npm run keeper:depeg
+npm run adapter:probe
+npm run adapter:suilend
+npm run report:generate
+```
 
-The signer needs testnet SUI (faucet) and gated DUSDC. With execution enabled, supply scales with the agent's risk assessment — proven live: $100k-capacity market → $10.00 supplied, $36,652-capacity → $3.6652, each settled on-chain.
+`keeper:depeg` is dry-run by default. Execution requires
+`BACKSTOP_DEPEG_KEEPER_EXECUTE=1` plus `SUI_PRIVATE_KEY`.
 
-## What's live vs. roadmap
+For the public proof UI, use:
 
-**Live now:** live quotes + risk terminal + AI underwriter + Walrus proof (all read-only, no wallet); buy / underwrite / treasury *transactions* (need gated DUSDC); the `RiskFeed` on-chain oracle; the agent executing its own underwriting on-chain.
+```bash
+cd app
+npm run keeper:depeg:publish
+```
 
-**Roadmap (next, not shipped):** mutualized capital pool / protocol cover, multi-asset + stablecoin-depeg markets (the RWA wave), agent bonding, mainnet deploy once DeepBook Predict ships to mainnet. The depeg framing is why this is a risk *layer*, not a single app.
+This writes `app/public/api/keeper-operations.json` with the latest lane snapshot
+and populates the "Keeper receipts" section under `/proof`.
+
+`adapter:suilend` parses the first live Suilend sample obligation from
+transaction `2PBCaEbBHiFLU7fDwU4zihUq4CQtKArbXXC9JygTL169` into normalized
+Backstop exposure rows.
+
+## Current boundaries
+
+- Mainnet depeg cover is live and unaudited; use small amounts until external
+  review and liquidity policy are complete.
+- The DeepBook Predict / RiskFeed / Walrus agent lane is a testnet research
+  lane and is isolated from the mainnet cover pool.
+- The legacy testnet cover-pool lane is not the production product.
+- NAVI and Suilend integrations are adapter specs until object-level partner
+  validation is complete.

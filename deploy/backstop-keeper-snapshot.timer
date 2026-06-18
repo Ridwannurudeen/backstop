@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Backstop keeper snapshot refresh every 5 minutes
+
+[Timer]
+OnBootSec=2m
+OnUnitActiveSec=5m
+Persistent=true
+Unit=backstop-keeper-snapshot.service
+
+[Install]
+WantedBy=timers.target

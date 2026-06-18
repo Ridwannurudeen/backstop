@@ -4,9 +4,15 @@ export type NoticeState = {
   kind: "ok" | "err";
   text: string;
   digest?: string;
+  network?: "testnet" | "mainnet";
 };
 
-export function Notice({ kind, text, digest }: NoticeState) {
+export function Notice({
+  kind,
+  text,
+  digest,
+  network = "testnet",
+}: NoticeState) {
   return (
     <div className={`note ${kind}`}>
       {text}
@@ -14,8 +20,8 @@ export function Notice({ kind, text, digest }: NoticeState) {
       {digest && (
         <>
           {" · "}
-          <a href={txUrl(digest)} target="_blank" rel="noreferrer">
-            View on SuiVision ↗
+          <a href={txUrl(digest, network)} target="_blank" rel="noreferrer">
+            View on explorer
           </a>
         </>
       )}

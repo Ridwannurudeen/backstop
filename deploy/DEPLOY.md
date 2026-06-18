@@ -87,6 +87,42 @@ Any time the app or the baked-in agent decisions change:
 bash deploy/deploy.sh
 ```
 
+## Keeper-lane live snapshots (recommended)
+
+If you want `/proof` to show continuously fresh keeper snapshots, generate the
+lane snapshot locally and upload only the small JSON file to the VPS API path.
+
+```bash
+cd backstop/deploy
+BACKSTOP_KEEPER_OUT=../app/public/api/keeper-operations.json \
+BACKSTOP_KEEPER_TARGET=root@75.119.153.252:/opt/backstop/web/api/keeper-operations.json \
+./refresh-keeper-snapshot.sh
+```
+
+To run this as a VPS-managed 5-minute timer on the server (recommended), set the service
+to write locally:
+
+```bash
+scp deploy/backstop-keeper-snapshot.service root@75.119.153.252:/etc/systemd/system/
+scp deploy/backstop-keeper-snapshot.timer root@75.119.153.252:/etc/systemd/system/
+ssh root@75.119.153.252 'systemctl daemon-reload && systemctl enable --now backstop-keeper-snapshot.timer'
+ssh root@75.119.153.252 'systemctl status --no-pager backstop-keeper-snapshot.timer'
+```
+
+Then keep the repo in `/opt/backstop` on the VPS and ensure the script is executable:
+
+```bash
+ssh root@75.119.153.252 'chmod +x /opt/backstop/deploy/refresh-keeper-snapshot.sh'
+ssh root@75.119.153.252 'sed -i "s#BACKSTOP_KEEPER_TARGET=.*#BACKSTOP_KEEPER_TARGET=/opt/backstop/web/api/keeper-operations.json#g" /etc/systemd/system/backstop-keeper-snapshot.service && systemctl daemon-reload && systemctl restart backstop-keeper-snapshot.service'
+```
+
+For local/manual mode from your machine, keep `BACKSTOP_KEEPER_TARGET` as an `scp`
+target (host:path).
+
+```bash
+ssh root@75.119.153.252 'chmod +x /opt/backstop/deploy/refresh-keeper-snapshot.sh'
+```
+
 ### Refreshing the AI-underwriter feed
 
 `agent-decisions.json` is baked into the build from `app/public/`. To publish a fresh

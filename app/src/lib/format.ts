@@ -5,7 +5,7 @@ export const usd = (n: number) =>
     maximumFractionDigits: 2,
   });
 
-// Chain scales: quantities/DUSDC are 1e6; strikes are 1e9 (provisional — confirm at live mint).
+// Chain scales: quantities/DUSDC are 1e6; strikes are 1e9.
 export const fromMicro = (raw: string | bigint) =>
   Number(BigInt(raw)) / 1_000_000;
 export const fromStrike = (raw: string | bigint) =>
@@ -17,5 +17,14 @@ export const shortDate = (ms: string | number) =>
     day: "numeric",
   });
 
-export const txUrl = (digest: string) =>
-  `https://testnet.suivision.xyz/txblock/${digest}`;
+type SuiNetwork = "testnet" | "mainnet";
+
+export const txUrl = (digest: string, network: SuiNetwork = "testnet") =>
+  network === "mainnet"
+    ? `https://suivision.xyz/txblock/${digest}`
+    : `https://testnet.suivision.xyz/txblock/${digest}`;
+
+export const objectUrl = (id: string, network: SuiNetwork = "testnet") =>
+  network === "mainnet"
+    ? `https://suivision.xyz/object/${id}`
+    : `https://testnet.suivision.xyz/object/${id}`;

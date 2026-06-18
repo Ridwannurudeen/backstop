@@ -1,0 +1,35 @@
+﻿{
+    "project":  "Backstop",
+    "generatedFor":  "Sui protocol adapter evidence",
+    "samples":  [
+                    {
+                        "protocol":  "Suilend",
+                        "status":  "sample-validated",
+                        "sampleTx":  "2PBCaEbBHiFLU7fDwU4zihUq4CQtKArbXXC9JygTL169",
+                        "sender":  "0x5f21a9aaf680f6b0e0190e6a99bb9d4e314e0761ff3c3bc809f298711e73d8e5",
+                        "lendingMarketId":  "0x84030d26d85eaa7035084a057f2f11f701b7e2e4eda87551becbc7c97505ece1",
+                        "obligationId":  "0xffff7cfccd5049bc6f5adb20a770a822f920a3f78690213b08c231884763bf6a",
+                        "ownerCapId":  "0x16ee69982511332c08dc697c878c3d943e52d6be8c303ec27807a406207d6122",
+                        "assetType":  "0x2::sui::SUI",
+                        "depositedValueUsd":  0.14290999127930098,
+                        "borrowedValueUsd":  0,
+                        "allowedBorrowUsd":  0.10003699389551068,
+                        "unhealthyBorrowUsd":  0.10718249345947574,
+                        "parser":  "npm run adapter:suilend",
+                        "policyFlow":  "https://backstop.gudman.xyz/suilend",
+                        "boundary":  "This proves object-level parsing for a Suilend sample. It is not yet consented production auto-cover.",
+                        "latestPolicyPurchase":  {
+                                                     "txDigest":  "5AGzShNPABk9RMGmmFursqRgJiGLssLpdjW5b6z4kb74",
+                                                     "policyId":  "0xcfd02fb3db64b76ca57f39bf2669a6cae6766713f593c0a52eaa5fa02aa79a46",
+                                                     "sampleTx":  "2PBCaEbBHiFLU7fDwU4zihUq4CQtKArbXXC9JygTL169",
+                                                     "sender":  "0x5f21a9aaf680f6b0e0190e6a99bb9d4e314e0761ff3c3bc809f298711e73d8e5",
+                                                     "cover":  "10 SUI",
+                                                     "premium":  "0.000255 SUI",
+                                                     "coverMist":  10000000,
+                                                     "premiumMist":  255000,
+                                                     "mintedPolicyAt":  "2026-06-18T00:24:31.449Z",
+                                                     "explorer":  "https://suivision.xyz/txblock/5AGzShNPABk9RMGmmFursqRgJiGLssLpdjW5b6z4kb74"
+                                                 }
+                    }
+                ]
+}

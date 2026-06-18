@@ -1,0 +1,122 @@
+{
+  "project": "Backstop",
+  "liveUrl": "https://backstop.gudman.xyz/buildout",
+  "purpose": "Machine-readable map of the ambitious post-audit buildout modules.",
+  "lpVaults": [
+    {
+      "name": "Stablecoin depeg vault",
+      "status": "live",
+      "riskClass": "Peg failure",
+      "coverMarkets": "suiUSDe now, USDC / BUCK / issuer basket next",
+      "gatingRule": "Capacity capped by pool funds, oracle confidence, and SRX score"
+    },
+    {
+      "name": "SUI drawdown vault",
+      "status": "capital-gated",
+      "riskClass": "Market drawdown",
+      "coverMarkets": "Treasury drawdown, borrower collateral shock",
+      "gatingRule": "Requires funded pool and hedge budget before production"
+    },
+    {
+      "name": "LP tail-risk vault",
+      "status": "partner-gated",
+      "riskClass": "Liquidity and inventory shock",
+      "coverMarkets": "LP inventory drawdown, depth collapse, correlated depeg",
+      "gatingRule": "Requires partner LP receipt parser and venue-specific risk caps"
+    }
+  ],
+  "hedgeRouter": [
+    {
+      "name": "Capacity governor",
+      "status": "scripted",
+      "output": "Capacity receipt in the proof report"
+    },
+    {
+      "name": "DeepBook depth check",
+      "status": "capital-gated",
+      "output": "Hedge budget and max policy size"
+    },
+    {
+      "name": "Predict crash curve",
+      "status": "capital-gated",
+      "output": "Crash premium band and hedge trigger"
+    }
+  ],
+  "walletWarnings": [
+    {
+      "id": "sui",
+      "status": "live",
+      "match": "0x2::sui::SUI",
+      "route": "/risk-index"
+    },
+    {
+      "id": "stablecoin",
+      "status": "live",
+      "match": "USDC, USDE, BUCK, USDY",
+      "route": "/depeg"
+    },
+    {
+      "id": "lp",
+      "status": "partner-gated",
+      "match": "LP, CLMM, DEEP",
+      "route": "/risk-index"
+    }
+  ],
+  "reports": [
+    {
+      "name": "Public proof report",
+      "status": "scripted",
+      "output": "/api/report.json plus reports/backstop-risk-report.md"
+    },
+    {
+      "name": "Protocol risk passport",
+      "status": "partner-gated",
+      "output": "Partner-specific coverage and evidence report"
+    },
+    {
+      "name": "Underwriter statement",
+      "status": "capital-gated",
+      "output": "Epoch report for underwriting performance"
+    }
+  ],
+  "reputation": [
+    {
+      "name": "Keeper reliability",
+      "status": "wallet-gated",
+      "proof": "Transaction digest and policy state delta"
+    },
+    {
+      "name": "Underwriter solvency",
+      "status": "capital-gated",
+      "proof": "Pool state, policy state, and claim digest"
+    },
+    {
+      "name": "Adapter accuracy",
+      "status": "partner-gated",
+      "proof": "Adapter probe output and partner-approved parser version"
+    }
+  ],
+  "scripts": {
+    "keeper": "npm run keeper:depeg",
+    "adapterProbe": "npm run adapter:probe",
+    "suilendExposure": "npm run adapter:suilend",
+    "report": "npm run report:generate"
+  },
+  "protocolSamples": [
+    {
+      "protocol": "Suilend",
+      "status": "sample-validated",
+      "sampleTx": "2PBCaEbBHiFLU7fDwU4zihUq4CQtKArbXXC9JygTL169",
+      "obligationId": "0xffff7cfccd5049bc6f5adb20a770a822f920a3f78690213b08c231884763bf6a",
+      "ownerCapId": "0x16ee69982511332c08dc697c878c3d943e52d6be8c303ec27807a406207d6122",
+      "parser": "npm run adapter:suilend",
+      "boundary": "Production auto-cover still needs user consent, risk caps, and partner-approved parser versioning."
+    }
+  ],
+  "hardBoundaries": [
+    "Keeper execution requires BACKSTOP_DEPEG_KEEPER_EXECUTE=1 and SUI_PRIVATE_KEY.",
+    "Suilend parser is sample-validated; production use requires partner-approved parser versioning.",
+    "DeepBook hedge routing requires a funded hedge budget.",
+    "SDK 0.1.1 publish requires explicit approval and npm OTP."
+  ]
+}

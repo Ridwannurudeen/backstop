@@ -1,0 +1,488 @@
+{
+  "generated": "2026-06-18T22:43:00.763Z",
+  "proof": {
+    "project": "Backstop",
+    "primaryTrack": "DeepBook",
+    "positioning": "DeepBook-priced cover desk and risk clearinghouse for Sui DeFi",
+    "liveUrl": "https://backstop.gudman.xyz",
+    "network": "sui:mainnet",
+    "product": "suiUSDe depeg cover",
+    "sdk": "@gudman/backstop-sdk",
+    "mainnet": {
+      "packageId": "0x761832702281966fac9dee6183b530d2f73ecd779524c61cd3dd4705fa6ec968",
+      "poolId": "0x5edc508a4258e1253563219049dadc8b068cf309115e29732dad71698c168592",
+      "priceObjectId": "0x9b2028bfc829127d2e5ead1691dc3002de9e9b8d8076b4915e5ecc7d9b99d63f",
+      "activePolicyId": "0x3863ad1bf44904af1fcc3ead38589977378e6800e14ceacebf1205187ce695ec",
+      "verifier": "Pyth PriceInfo object with on-chain dwell and latch rules",
+      "upgradeCapLocked": true,
+      "latestPolicyPurchase": {
+        "txDigest": "5AGzShNPABk9RMGmmFursqRgJiGLssLpdjW5b6z4kb74",
+        "policyId": "0xcfd02fb3db64b76ca57f39bf2669a6cae6766713f593c0a52eaa5fa02aa79a46",
+        "sampleTx": "2PBCaEbBHiFLU7fDwU4zihUq4CQtKArbXXC9JygTL169",
+        "sender": "0x5f21a9aaf680f6b0e0190e6a99bb9d4e314e0761ff3c3bc809f298711e73d8e5",
+        "cover": "10 SUI",
+        "premium": "0.000255 SUI",
+        "coverMist": 10000000,
+        "premiumMist": 255000,
+        "mintedPolicyAt": "2026-06-18T00:24:31.449Z",
+        "explorer": "https://suivision.xyz/txblock/5AGzShNPABk9RMGmmFursqRgJiGLssLpdjW5b6z4kb74"
+      }
+    },
+    "keeperOps": {
+      "publicMonitor": "https://backstop.gudman.xyz/proof",
+      "mode": "dry-run public reads; signed execution is wallet-gated",
+      "policyIds": [
+        "0x3863ad1bf44904af1fcc3ead38589977378e6800e14ceacebf1205187ce695ec",
+        "0xcfd02fb3db64b76ca57f39bf2669a6cae6766713f593c0a52eaa5fa02aa79a46"
+      ],
+      "lanes": [
+        "pool solvency watch",
+        "breach observation",
+        "dwell confirmation and claim",
+        "expiry sweep",
+        "protocol exposure sync",
+        "DeepBook hedge budget"
+      ]
+    },
+    "testnetResearch": {
+      "riskFeedPackageId": "0xefda410b91a3caec4cdb34f459a87909ad6b89c00f1ca392ce345c292f4cc6ef",
+      "riskFeedObjectId": "0xa48b3769723ac4441fec2f9c87582b88f2cf8d0d551642e17aebae1609da1ddf4",
+      "predictObjectId": "0xc8736204d12f0a7277c86388a68bf8a194b0a14c5538ad13f22cbd8e2a38028a",
+      "stagedClaimDigest": "G2X8UFPRjgYf76dA7FBziGg6cyUAkoepGnTuCakzCcBP"
+    },
+    "proofPages": [
+      "https://backstop.gudman.xyz/proof",
+      "https://backstop.gudman.xyz/depeg",
+      "https://backstop.gudman.xyz/protocol",
+      "https://backstop.gudman.xyz/risk-index",
+      "https://backstop.gudman.xyz/buildout"
+    ],
+    "judgeFlow": [
+      "Open /proof",
+      "Verify mainnet package and pool",
+      "Inspect mainnet policy lifecycle panel",
+      "Open isolated testnet research replay if needed",
+      "Open /depeg and quote mainnet cover",
+      "Open /protocol and inspect SDK/PTB adapter snippets"
+    ],
+    "mainnetLifecycle": [
+      "package deployed",
+      "pool funded",
+      "policy object issued",
+      "breach observation fields inspected",
+      "claim latch fields inspected",
+      "expiry/sweep path available"
+    ],
+    "report": "https://backstop.gudman.xyz/api/report.json",
+    "sdkBoundary": "The app passes current v3 mainnet package and pool IDs from proofData; npm @gudman/backstop-sdk@0.1.0 exported deployment constants are not the source of truth until 0.1.1 is published."
+  },
+  "risk": {
+    "project": "Backstop",
+    "index": "SRX",
+    "generatedFor": "Sui Overflow 2026",
+    "primaryTrack": "DeepBook",
+    "methodology": {
+      "oracleIntegrity": 25,
+      "deepBookLiquidityAndHedgeDepth": 20,
+      "volatilityAndPegDrift": 20,
+      "protocolConcentration": 20,
+      "proofReadiness": 15
+    },
+    "markets": [
+      {
+        "id": "suiusde-depeg",
+        "title": "suiUSDe depeg cover",
+        "status": "mainnet-live",
+        "score": 84,
+        "signal": "Pyth price object, dwell window, on-chain pool state",
+        "deepBookRole": "Predict surface calibrates crash probability and hedge budget"
+      },
+      {
+        "id": "sui-crash",
+        "title": "SUI drawdown cover",
+        "status": "integration-ready",
+        "score": 78,
+        "signal": "DeepBook Predict strike ladder plus Pyth reference price",
+        "deepBookRole": "Predict is the market-implied crash curve for cover quotes"
+      },
+      {
+        "id": "stablecoin-basket",
+        "title": "Stablecoin basket failure",
+        "status": "integration-ready",
+        "score": 72,
+        "signal": "Peg drift, oracle freshness, redemption depth, venue liquidity",
+        "deepBookRole": "DeepBook liquidity depth gates max capacity and hedge routing"
+      },
+      {
+        "id": "lending-collateral",
+        "title": "Lending collateral shock",
+        "status": "research-lane",
+        "score": 67,
+        "signal": "Borrow utilization, collateral drawdown, oracle staleness",
+        "deepBookRole": "Predict probability informs reserve factor and cover cost"
+      },
+      {
+        "id": "lp-tail",
+        "title": "LP tail-risk cover",
+        "status": "research-lane",
+        "score": 63,
+        "signal": "Volatility, inventory skew, volume shock, depth collapse",
+        "deepBookRole": "Hedge router can buy Predict protection against tail moves"
+      }
+    ],
+    "protocolPassports": [
+      {
+        "protocol": "NAVI",
+        "readiness": "integration-blueprint",
+        "coveredExposure": "Borrower/vault exposure to suiUSDe and correlated stablecoin collateral",
+        "trigger": "Sustained oracle breach below policy threshold plus protocol-side exposure match",
+        "partnerAsk": "Confirm object schema and permission path for exposure reads"
+      },
+      {
+        "protocol": "Suilend",
+        "readiness": "sample-validated",
+        "coveredExposure": "Borrower collateral and isolated vault exposure to depeg or sharp drawdown",
+        "trigger": "Oracle depeg breach plus borrower bucket included in covered policy registry",
+        "partnerAsk": "Approve parser versioning, user consent, and governance-safe auto-cover UX"
+      },
+      {
+        "protocol": "Bucket",
+        "readiness": "design-ready",
+        "coveredExposure": "Stablecoin holders and treasury buckets exposed to peg drift",
+        "trigger": "Peg breach, redemption depth stress, or oracle confidence threshold",
+        "partnerAsk": "Define accepted peg oracle and redemption-liquidity disclosure fields"
+      },
+      {
+        "protocol": "Wallets",
+        "readiness": "design-ready",
+        "coveredExposure": "Wallet holdings, LP receipts, and lending positions with available cover",
+        "trigger": "Wallet surfaces quote and proof entrypoints; no automatic claim trigger",
+        "partnerAsk": "Add covered/uncovered labels and deep links into Backstop quote state"
+      }
+    ],
+    "keeperOperations": [
+      {
+        "id": "pool-watch",
+        "status": "public-now",
+        "action": "Publish pool health, capacity, and proof rows without a signer"
+      },
+      {
+        "id": "breach-observer",
+        "status": "wallet-gated",
+        "action": "Build a record-breach PTB for a keeper wallet to sign"
+      },
+      {
+        "id": "claim-latch",
+        "status": "wallet-gated",
+        "action": "Build claim-latched PTB after sustained breach"
+      },
+      {
+        "id": "adapter-sync",
+        "status": "partner-gated",
+        "action": "Normalize covered protocol exposure and bind policy IDs"
+      }
+    ],
+    "protocolAdapters": [
+      {
+        "protocol": "NAVI",
+        "sourceBoundary": "Official docs expose SDK and account-data concepts; old navi-sdk package is legacy",
+        "next": "Confirm one borrower/vault object sample and lock parser"
+      },
+      {
+        "protocol": "Suilend",
+        "sourceBoundary": "Docs define LendingMarket, Reserves, Obligations, cTokens, and SDK refresh/parser surfaces",
+        "sampleTx": "2PBCaEbBHiFLU7fDwU4zihUq4CQtKArbXXC9JygTL169",
+        "obligationId": "0xffff7cfccd5049bc6f5adb20a770a822f920a3f78690213b08c231884763bf6a",
+        "ownerCapId": "0x16ee69982511332c08dc697c878c3d943e52d6be8c303ec27807a406207d6122",
+        "next": "Convert sample parser into consented production auto-cover flow"
+      }
+    ]
+  },
+  "buildout": {
+    "project": "Backstop",
+    "liveUrl": "https://backstop.gudman.xyz/buildout",
+    "purpose": "Machine-readable map of the ambitious post-audit buildout modules.",
+    "lpVaults": [
+      {
+        "name": "Stablecoin depeg vault",
+        "status": "live",
+        "riskClass": "Peg failure",
+        "coverMarkets": "suiUSDe now, USDC / BUCK / issuer basket next",
+        "gatingRule": "Capacity capped by pool funds, oracle confidence, and SRX score"
+      },
+      {
+        "name": "SUI drawdown vault",
+        "status": "capital-gated",
+        "riskClass": "Market drawdown",
+        "coverMarkets": "Treasury drawdown, borrower collateral shock",
+        "gatingRule": "Requires funded pool and hedge budget before production"
+      },
+      {
+        "name": "LP tail-risk vault",
+        "status": "partner-gated",
+        "riskClass": "Liquidity and inventory shock",
+        "coverMarkets": "LP inventory drawdown, depth collapse, correlated depeg",
+        "gatingRule": "Requires partner LP receipt parser and venue-specific risk caps"
+      }
+    ],
+    "hedgeRouter": [
+      {
+        "name": "Capacity governor",
+        "status": "scripted",
+        "output": "Capacity receipt in the proof report"
+      },
+      {
+        "name": "DeepBook depth check",
+        "status": "capital-gated",
+        "output": "Hedge budget and max policy size"
+      },
+      {
+        "name": "Predict crash curve",
+        "status": "capital-gated",
+        "output": "Crash premium band and hedge trigger"
+      }
+    ],
+    "walletWarnings": [
+      {
+        "id": "sui",
+        "status": "live",
+        "match": "0x2::sui::SUI",
+        "route": "/risk-index"
+      },
+      {
+        "id": "stablecoin",
+        "status": "live",
+        "match": "USDC, USDE, BUCK, USDY",
+        "route": "/depeg"
+      },
+      {
+        "id": "lp",
+        "status": "partner-gated",
+        "match": "LP, CLMM, DEEP",
+        "route": "/risk-index"
+      }
+    ],
+    "reports": [
+      {
+        "name": "Public proof report",
+        "status": "scripted",
+        "output": "/api/report.json plus reports/backstop-risk-report.md"
+      },
+      {
+        "name": "Protocol risk passport",
+        "status": "partner-gated",
+        "output": "Partner-specific coverage and evidence report"
+      },
+      {
+        "name": "Underwriter statement",
+        "status": "capital-gated",
+        "output": "Epoch report for underwriting performance"
+      }
+    ],
+    "reputation": [
+      {
+        "name": "Keeper reliability",
+        "status": "wallet-gated",
+        "proof": "Transaction digest and policy state delta"
+      },
+      {
+        "name": "Underwriter solvency",
+        "status": "capital-gated",
+        "proof": "Pool state, policy state, and claim digest"
+      },
+      {
+        "name": "Adapter accuracy",
+        "status": "partner-gated",
+        "proof": "Adapter probe output and partner-approved parser version"
+      }
+    ],
+    "scripts": {
+      "keeper": "npm run keeper:depeg",
+      "adapterProbe": "npm run adapter:probe",
+      "suilendExposure": "npm run adapter:suilend",
+      "report": "npm run report:generate"
+    },
+    "protocolSamples": [
+      {
+        "protocol": "Suilend",
+        "status": "sample-validated",
+        "sampleTx": "2PBCaEbBHiFLU7fDwU4zihUq4CQtKArbXXC9JygTL169",
+        "obligationId": "0xffff7cfccd5049bc6f5adb20a770a822f920a3f78690213b08c231884763bf6a",
+        "ownerCapId": "0x16ee69982511332c08dc697c878c3d943e52d6be8c303ec27807a406207d6122",
+        "parser": "npm run adapter:suilend",
+        "boundary": "Production auto-cover still needs user consent, risk caps, and partner-approved parser versioning."
+      }
+    ],
+    "hardBoundaries": [
+      "Keeper execution requires BACKSTOP_DEPEG_KEEPER_EXECUTE=1 and SUI_PRIVATE_KEY.",
+      "Suilend parser is sample-validated; production use requires partner-approved parser versioning.",
+      "DeepBook hedge routing requires a funded hedge budget.",
+      "SDK 0.1.1 publish requires explicit approval and npm OTP."
+    ]
+  },
+  "protocolSamples": {
+    "project": "Backstop",
+    "generatedFor": "Sui protocol adapter evidence",
+    "samples": [
+      {
+        "protocol": "Suilend",
+        "status": "sample-validated",
+        "sampleTx": "2PBCaEbBHiFLU7fDwU4zihUq4CQtKArbXXC9JygTL169",
+        "sender": "0x5f21a9aaf680f6b0e0190e6a99bb9d4e314e0761ff3c3bc809f298711e73d8e5",
+        "lendingMarketId": "0x84030d26d85eaa7035084a057f2f11f701b7e2e4eda87551becbc7c97505ece1",
+        "obligationId": "0xffff7cfccd5049bc6f5adb20a770a822f920a3f78690213b08c231884763bf6a",
+        "ownerCapId": "0x16ee69982511332c08dc697c878c3d943e52d6be8c303ec27807a406207d6122",
+        "assetType": "0x2::sui::SUI",
+        "depositedValueUsd": 0.14290999127930099,
+        "borrowedValueUsd": 0,
+        "allowedBorrowUsd": 0.10003699389551068,
+        "unhealthyBorrowUsd": 0.10718249345947574,
+        "parser": "npm run adapter:suilend",
+        "policyFlow": "https://backstop.gudman.xyz/suilend",
+        "boundary": "This proves object-level parsing for a Suilend sample. It is not yet consented production auto-cover.",
+        "latestPolicyPurchase": {
+          "txDigest": "5AGzShNPABk9RMGmmFursqRgJiGLssLpdjW5b6z4kb74",
+          "policyId": "0xcfd02fb3db64b76ca57f39bf2669a6cae6766713f593c0a52eaa5fa02aa79a46",
+          "sampleTx": "2PBCaEbBHiFLU7fDwU4zihUq4CQtKArbXXC9JygTL169",
+          "sender": "0x5f21a9aaf680f6b0e0190e6a99bb9d4e314e0761ff3c3bc809f298711e73d8e5",
+          "cover": "10 SUI",
+          "premium": "0.000255 SUI",
+          "coverMist": 10000000,
+          "premiumMist": 255000,
+          "mintedPolicyAt": "2026-06-18T00:24:31.449Z",
+          "explorer": "https://suivision.xyz/txblock/5AGzShNPABk9RMGmmFursqRgJiGLssLpdjW5b6z4kb74"
+        }
+      }
+    ]
+  },
+  "submission": {
+    "project": "Backstop",
+    "track": "DeepBook specialized track",
+    "oneLiner": "Backstop is the DeepBook-priced cover desk and risk clearinghouse for Sui DeFi.",
+    "live": {
+      "app": "https://backstop.gudman.xyz",
+      "submission": "https://backstop.gudman.xyz/submission",
+      "proof": "https://backstop.gudman.xyz/proof",
+      "coverDesk": "https://backstop.gudman.xyz/depeg",
+      "protocolKit": "https://backstop.gudman.xyz/protocol",
+      "riskIndex": "https://backstop.gudman.xyz/risk-index",
+      "suilendPilot": "https://backstop.gudman.xyz/suilend",
+      "buildout": "https://backstop.gudman.xyz/buildout"
+    },
+    "mainnetEvidence": {
+      "packageId": "0x761832702281966fac9dee6183b530d2f73ecd779524c61cd3dd4705fa6ec968",
+      "poolId": "0x5edc508a4258e1253563219049dadc8b068cf309115e29732dad71698c168592",
+      "priceObjectId": "0x9b2028bfc829127d2e5ead1691dc3002de9e9b8d8076b4915e5ecc7d9b99d63f",
+      "activePolicyId": "0x3863ad1bf44904af1fcc3ead38589977378e6800e14ceacebf1205187ce695ec",
+      "latestPolicyPurchase": {
+        "txDigest": "5AGzShNPABk9RMGmmFursqRgJiGLssLpdjW5b6z4kb74",
+        "policyId": "0xcfd02fb3db64b76ca57f39bf2669a6cae6766713f593c0a52eaa5fa02aa79a46",
+        "sampleTx": "2PBCaEbBHiFLU7fDwU4zihUq4CQtKArbXXC9JygTL169",
+        "sender": "0x5f21a9aaf680f6b0e0190e6a99bb9d4e314e0761ff3c3bc809f298711e73d8e5",
+        "cover": "10 SUI",
+        "premium": "0.000255 SUI",
+        "coverMist": 10000000,
+        "premiumMist": 255000,
+        "mintedPolicyAt": "2026-06-18T00:24:31.449Z",
+        "explorer": "https://suivision.xyz/txblock/5AGzShNPABk9RMGmmFursqRgJiGLssLpdjW5b6z4kb74"
+      }
+    },
+    "demoFlow": [
+      "Open /submission for the judge command center",
+      "Open /proof for mainnet package/pool/policy lifecycle proof",
+      "Open /depeg to quote mainnet depeg cover",
+      "Open /protocol for SDK/PTB integration snippets",
+      "Open /risk-index for the risk clearinghouse roadmap",
+      "Open /suilend for the consented Suilend sample-to-policy flow",
+      "Open /buildout for vaults, wallet warnings, reports, reputation, and hedge-router modules"
+    ],
+    "postHackathonThesis": [
+      "Lock one NAVI or Suilend sample object and ship a production parser",
+      "Fund a keeper signer and publish signed breach/claim/expiry receipts",
+      "LP vaults split by risk class",
+      "DeepBook hedge router",
+      "Wallet risk warnings"
+    ],
+    "scripts": [
+      "npm run keeper:depeg",
+      "npm run adapter:probe",
+      "npm run report:generate"
+    ],
+    "keeperOps": [
+      {
+        "lane": "public monitor",
+        "status": "live dry-run",
+        "boundary": "reads pool, price, and policy state; does not sign"
+      },
+      {
+        "lane": "breach / claim / expiry",
+        "status": "wallet-gated",
+        "boundary": "requires funded signer and wallet approval"
+      },
+      {
+        "lane": "protocol exposure sync",
+        "status": "partner-gated",
+        "boundary": "requires confirmed NAVI/Suilend object schema"
+      }
+    ]
+  },
+  "deployment": {
+    "project": "Backstop",
+    "primaryTrack": "DeepBook",
+    "liveUrl": "https://backstop.gudman.xyz",
+    "network": "mainnet",
+    "mainnetDepeg": {
+      "package": "0x761832702281966fac9dee6183b530d2f73ecd779524c61cd3dd4705fa6ec968",
+      "pool": "0x5edc508a4258e1253563219049dadc8b068cf309115e29732dad71698c168592",
+      "priceObject": "0x9b2028bfc829127d2e5ead1691dc3002de9e9b8d8076b4915e5ecc7d9b99d63f",
+      "activePolicy": "0x3863ad1bf44904af1fcc3ead38589977378e6800e14ceacebf1205187ce695ec",
+      "verifier": "Pyth PriceInfo object with dwell and latch rules",
+      "upgradeCapLocked": true,
+      "status": "live-unaudited"
+    },
+    "keeperOps": {
+      "publicMonitor": "https://backstop.gudman.xyz/proof",
+      "mode": "dry-run public reads; signed execution requires wallet approval",
+      "lanes": [
+        "pool-watch",
+        "breach-observer",
+        "claim-latch",
+        "expiry-sweep",
+        "adapter-sync",
+        "hedge-router"
+      ]
+    },
+    "testnetResearch": {
+      "network": "testnet",
+      "publisherAddress": "0x5990779ec202d909c2b9240f98754895af99d92ed68f4e25c4ba6571638966d6",
+      "riskFeed": {
+        "package": "0xefda410b91a3caec4cdb34f459a87909ad6b89c00f1ca392ce345c292f4cc6ef",
+        "feedObject": "0xa48b3769723ac4441fec2f9c87582b88f2cf8d0d551642e17aebae1609da1ddf4",
+        "publisherCap": "0xf74913abfb1f51ddb602958b186c22adb494f62f1dee87f18619c946d9d0bcb4",
+        "publishDigest": "DR3VpymbSeMFwo6uGuc6x4jCF4cFyTNhRrXWMYwNKZNB",
+        "readingsPublishedDigest": "Ad5Fcr6otec41vioS5mTPJGY89GaaKcQPdRUZc2bvbEz"
+      },
+      "predictManager": "0x630f524dfb52a42fb112c161e03d15772386e1916e2d6f02c4f987bc99b123ac",
+      "livePolicyMint": {
+        "digest": "G2X8UFPRjgYf76dA7FBziGg6cyUAkoepGnTuCakzCcBP",
+        "market": "BTC<56901@1780992000000",
+        "coverUsd": 10,
+        "premiumDusdc": 0.288596,
+        "status": "active"
+      },
+      "riskGuard": {
+        "package": "0xe74811df78258af8dfa59df997aa1df0b622b1306fcfdbe414e224ee9f0e6d8e",
+        "publishDigest": "6dtyv7uPFJHo76xkvJkqYpMRxJdGSQB7LuthBKQgoqsy",
+        "consumesRiskFeed": "0xefda410b91a3caec4cdb34f459a87909ad6b89c00f1ca392ce345c292f4cc6ef",
+        "guardedTreasury": "0x784ef2373738bc19120926ab92edb519650428d79c0ffb15def82b229fd4ddb6",
+        "treasuryCoinType": "0x2::sui::SUI",
+        "market": "BTC<56901@1780992000000",
+        "toleranceBps": 500,
+        "createDigest": "AFMA9saypdJ1sc9UbCcgsrh27MxYxR23jKAwL5ofBYH6",
+        "withdrawDigest": "7eGTCiTQMsqzZNW519GRRHiv5AUWWu4uyBsuwcsjc8We",
+        "note": "GuardedTreasury<SUI> consumed the testnet RiskFeed; isolated research lane."
+      }
+    },
+    "sdkBoundary": "Current app constants live in app/src/lib/proofData.ts. npm @gudman/backstop-sdk@0.1.0 exported deployment constants are stale until the next approved publish."
+  }
+}

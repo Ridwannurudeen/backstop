@@ -2,67 +2,108 @@ import { useState } from "react";
 import {
   useCurrentAccount,
   useSignAndExecuteTransaction,
+  useSuiClient,
 } from "@mysten/dapp-kit";
 import { useQuery } from "@tanstack/react-query";
-import { fetchPositions, buildClaimTx } from "../lib/predict";
-import { getManager } from "../lib/manager";
-import { DEFAULT_SYMBOL } from "../lib/markets";
-import { usd, fromMicro, fromStrike, shortDate } from "../lib/format";
+import {
+  buildDepegClaimLatchedTx,
+  buildDepegExpirePolicyByIdTx,
+} from "@gudman/backstop-sdk";
+import { objectUrl } from "../lib/format";
+import { MAINNET_DEPEG_PROOF_PACK } from "../lib/proofData";
 import { Notice, type NoticeState } from "./Notice";
+
+type OwnedPolicy = {
+  objectId: string;
+  type: string;
+  fields: Record<string, unknown>;
+};
+
+async function fetchOwnedPolicies(
+  client: ReturnType<typeof useSuiClient>,
+  owner: string,
+  packageId: string,
+) {
+  const response = await client.getOwnedObjects({
+    owner,
+    limit: 50,
+    options: { showType: true, showContent: true },
+  });
+
+  return response.data
+    .map((item): OwnedPolicy | null => {
+      const data = item.data;
+      const type = data?.type;
+      const content = data?.content;
+      if (
+        !data ||
+        !type ||
+        !type.includes(packageId) ||
+        !type.includes("::pyth_cover_pool::Policy") ||
+        !content ||
+        content.dataType !== "moveObject"
+      ) {
+        return null;
+      }
+
+      return {
+        objectId: data.objectId,
+        type,
+        fields: content.fields as Record<string, unknown>,
+      };
+    })
+    .filter((policy): policy is OwnedPolicy => policy !== null);
+}
+
+function fieldValue(fields: Record<string, unknown>, names: string[]) {
+  for (const name of names) {
+    const value = fields[name];
+    if (value !== undefined && value !== null) return String(value);
+  }
+  return "-";
+}
 
 export default function Portfolio() {
   const account = useCurrentAccount()!;
-  const manager = getManager(account.address);
-  const { mutateAsync: sign } = useSignAndExecuteTransaction();
+  const client = useSuiClient();
+  const { mutateAsync: sign, isPending } = useSignAndExecuteTransaction();
+  const depeg = MAINNET_DEPEG_PROOF_PACK.depegPool!;
   const [notice, setNotice] = useState<NoticeState | null>(null);
+
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["positions", manager],
-    queryFn: () => fetchPositions(manager!),
-    enabled: !!manager,
+    queryKey: ["mainnet-owned-depeg-policies", account.address, depeg.packageId],
+    queryFn: () => fetchOwnedPolicies(client, account.address, depeg.packageId),
+    refetchInterval: 15_000,
   });
 
-  if (!manager)
-    return (
-      <div className="card">
-        <p className="muted">
-          No insurance account yet — buy your first policy to create one.
-        </p>
-      </div>
-    );
-  if (isLoading)
-    return (
-      <div className="card">
-        <p className="muted">Loading policies…</p>
-      </div>
-    );
-  if (error)
-    return (
-      <div className="card">
-        <p className="note err">{(error as Error).message}</p>
-      </div>
-    );
-
-  const policies = data ?? [];
-  const now = Date.now();
-
-  async function claim(
-    strikeUsd: number,
-    oracleId: string,
-    expiryMs: number,
-    sizeUsd: number,
-  ) {
+  async function claim(policyId: string) {
     setNotice(null);
     try {
-      const tx = buildClaimTx({
-        managerId: manager!,
-        oracleId,
-        expiryMs: BigInt(expiryMs),
-        strikeUsd: BigInt(Math.round(strikeUsd)),
-        sizeUsd: BigInt(Math.round(sizeUsd)),
+      const tx = buildDepegClaimLatchedTx({
+        pkg: depeg.packageId,
+        poolId: depeg.poolId,
+        policyId,
+        owner: account.address,
       });
       const { digest } = await sign({ transaction: tx });
-      setNotice({ kind: "ok", text: "Payout redeemed", digest });
-      refetch();
+      setNotice({ kind: "ok", text: "Claim submitted", digest });
+      await refetch();
+    } catch (e) {
+      setNotice({ kind: "err", text: (e as Error).message });
+    }
+  }
+
+  async function expire(policyId: string) {
+    setNotice(null);
+    try {
+      const tx = buildDepegExpirePolicyByIdTx({
+        pkg: depeg.packageId,
+        poolId: depeg.poolId,
+        policyId,
+      });
+      const { digest } = await sign({ transaction: tx });
+      setNotice({ kind: "ok", text: "Expiry sweep submitted", digest });
+      await refetch();
     } catch (e) {
       setNotice({ kind: "err", text: (e as Error).message });
     }
@@ -70,63 +111,55 @@ export default function Portfolio() {
 
   return (
     <div className="card">
-      <h3>My policies</h3>
-      {policies.length === 0 && <p className="muted">No open policies.</p>}
-      {policies.map((p, i) => {
-        const strikeUsd = fromStrike(p.strike);
-        const sizeUsd = fromMicro(p.open_quantity);
-        const symbol = p.underlying_asset ?? DEFAULT_SYMBOL;
-        const payoutUsd = fromMicro(p.total_payout ?? "0");
-        const premiumUsd = fromMicro(p.total_cost ?? "0");
-        // Trust the server's settlement status; fall back to expiry for live markets.
-        const won = p.status === "won" || payoutUsd > 0;
-        const lost = p.status === "lost";
-        const settled = won || lost || Number(p.expiry) < now;
-        return (
-          <div className="policy" key={i}>
-            <div>
-              <div>
-                {symbol} {p.is_up ? "above" : "below"} {usd(strikeUsd)}
-              </div>
-              <div className="muted">
-                {usd(sizeUsd)} insured · expires {shortDate(p.expiry)}
-              </div>
+      <h3>My mainnet policies</h3>
+      <p className="muted">
+        This console reads Backstop policy objects owned by the connected wallet
+        and exposes the two permissioned lifecycle actions: claim a latched
+        policy or sweep an expired unlatched policy.
+      </p>
+
+      {isLoading && <p className="muted">Loading policies...</p>}
+      {error && <p className="note err">{(error as Error).message}</p>}
+      {!isLoading && (data ?? []).length === 0 && (
+        <p className="muted">No Backstop depeg policies found in this wallet.</p>
+      )}
+
+      {(data ?? []).map((policy) => (
+        <div className="policy" key={policy.objectId}>
+          <div>
+            <div>{policy.objectId}</div>
+            <div className="muted">
+              cover {fieldValue(policy.fields, ["cover", "cover_mist"])} /
+              expiry {fieldValue(policy.fields, ["expiry_ms", "expiry"])}
             </div>
-            <div style={{ textAlign: "right" }}>
-              {won ? (
-                <span className="pill active">paid out</span>
-              ) : lost ? (
-                <span className="pill settled">expired</span>
-              ) : settled ? (
-                <span className="pill settled">settled</span>
-              ) : (
-                <span className="pill active">active</span>
-              )}
-              {won && (
-                <div>
-                  <div className="muted" style={{ margin: "4px 0" }}>
-                    payout {usd(payoutUsd)}
-                  </div>
-                  <button
-                    className="btn"
-                    style={{ width: "auto", padding: "6px 12px" }}
-                    onClick={() =>
-                      claim(strikeUsd, p.oracle_id, Number(p.expiry), sizeUsd)
-                    }
-                  >
-                    Redeem payout
-                  </button>
-                </div>
-              )}
-              {lost && (
-                <div className="muted" style={{ marginTop: 4, maxWidth: 200 }}>
-                  no payout — {usd(premiumUsd)} premium kept by the underwriter
-                </div>
-              )}
-            </div>
+            <a
+              className="note"
+              href={objectUrl(policy.objectId, "mainnet")}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open policy object
+            </a>
           </div>
-        );
-      })}
+          <div className="policy-actions">
+            <button
+              className="btn"
+              disabled={isPending}
+              onClick={() => claim(policy.objectId)}
+            >
+              Claim if latched
+            </button>
+            <button
+              className="btn btn-secondary"
+              disabled={isPending}
+              onClick={() => expire(policy.objectId)}
+            >
+              Expire if unlatched
+            </button>
+          </div>
+        </div>
+      ))}
+
       {notice && <Notice {...notice} />}
     </div>
   );

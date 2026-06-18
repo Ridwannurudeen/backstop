@@ -64,13 +64,14 @@ export default function Underwriter() {
 
   return (
     <div className="card">
-      <h3>Autonomous AI underwriter</h3>
+      <h3>Agent underwriting ledger</h3>
       <p className="muted">
-        The agent reads DeepBook Predict's on-chain volatility surface, turns it
-        into a market-implied <b>probability of failure</b>, prices capacity +
-        premium, and logs every decision to Walrus — independently verifiable.{" "}
+        Research lane: the agent reads DeepBook Predict's volatility surface,
+        turns it into a market-implied <b>probability of failure</b>, prices
+        capacity and premium, then logs each decision to Walrus for independent
+        verification.{" "}
         {data && (
-          <span>· last run {new Date(data.generatedAt).toLocaleString()}</span>
+          <span>/ last run {new Date(data.generatedAt).toLocaleString()}</span>
         )}
       </p>
 
@@ -98,11 +99,11 @@ export default function Underwriter() {
         </div>
       )}
 
-      {isLoading && <p className="muted">Loading decisions…</p>}
+      {isLoading && <p className="muted">Loading decisions...</p>}
       {!isLoading && decisions.length === 0 && (
         <p className="muted">
           No decisions yet. Run the agent:{" "}
-          <code>cd agent &amp;&amp; npm run once</code> — it publishes here.
+          <code>cd agent &amp;&amp; npm run once</code> -- it publishes here.
         </p>
       )}
 
@@ -114,10 +115,10 @@ export default function Underwriter() {
               <div className="uw-market">
                 {d.input.symbol} &lt; {usd(d.input.strikeUsd)}{" "}
                 <span className="muted">
-                  · {daysTo(d.input.expiryMs)}d · ref{" "}
+                  / {daysTo(d.input.expiryMs)}d / ref{" "}
                   {d.input.referencePriceUsd
                     ? usd(d.input.referencePriceUsd)
-                    : "—"}
+                    : "--"}
                 </span>
               </div>
               <div className="uw-prob">
@@ -134,7 +135,7 @@ export default function Underwriter() {
                 {d.decision.accept ? "underwrite" : "decline"}
               </span>
               <span className={`uw-src ${d.decision.source}`}>
-                {d.decision.source === "claude" ? "AI" : "rules"}
+                {d.decision.source === "claude" ? "agent" : "rules"}
               </span>
               <div className="uw-terms">
                 <div>
@@ -153,7 +154,7 @@ export default function Underwriter() {
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Verify on Walrus ↗
+                  Verify on Walrus
                 </a>
               ) : (
                 <span className="muted" style={{ fontSize: 12 }}>
@@ -168,7 +169,7 @@ export default function Underwriter() {
                   rel="noreferrer"
                   title="On-chain supply into the Predict vault"
                 >
-                  ⚡ supplied {usd(d.execution.amountUsd)} on-chain ↗
+                  Supplied {usd(d.execution.amountUsd)} on-chain
                 </a>
               )}
             </div>

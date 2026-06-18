@@ -1,107 +1,161 @@
-# Backstop — The Risk & Trust Layer for Sui
+# Backstop Roadmap
 
-**Not an insurance app. The two primitives Sui and Walrus are missing: a way to *price* risk and a way to *prove* truth.**
+Backstop is the DeepBook-priced cover desk and risk clearinghouse for Sui DeFi.
 
-> Status: pre-launch. Working testnet primitives on Sui / DeepBook Predict + Walrus. Every ecosystem gap below is sourced and dated; every Backstop metric is a **target**, not traction. Forward-looking.
+Current status: one mainnet lane is live for suiUSDe depeg cover, and the older
+DeepBook Predict / Walrus / RiskFeed work remains an isolated research lane. Do
+not describe the project as testnet-only.
 
----
+## What is live now
 
-## 0. The reframe
+- Mainnet Sui package:
+  `0x761832702281966fac9dee6183b530d2f73ecd779524c61cd3dd4705fa6ec968`
+- Mainnet depeg pool:
+  `0x5edc508a4258e1253563219049dadc8b068cf309115e29732dad71698c168592`
+- Pyth PriceInfo object:
+  `0x9b2028bfc829127d2e5ead1691dc3002de9e9b8d8076b4915e5ecc7d9b99d63f`
+- Active policy example:
+  `0x3863ad1bf44904af1fcc3ead38589977378e6800e14ceacebf1205187ce695ec`
+- Public proof:
+  `https://backstop.gudman.xyz/proof`
+- Public APIs:
+  `https://backstop.gudman.xyz/api/proof.json`,
+  `https://backstop.gudman.xyz/api/risk-index.json`,
+  `https://backstop.gudman.xyz/api/submission.json`
 
-Every functioning economy runs on two things crypto still lacks natively: the ability to **price risk** (insurance, credit, derivatives) and the ability to **prove truth** (provenance, audit, reputation). Sui has world-class *execution* (DeepBook, sub-400ms settlement) and a *storage* layer (Walrus) — but the **risk and trust layers on top of them barely exist.** Backstop builds exactly that layer. Insurance is just the first product on it.
+## Strategic thesis
 
-**One line:** *Backstop turns DeepBook Predict's on-chain volatility surface into a live, market-priced probability of failure for any asset or protocol — every reading provably logged on Walrus — so the whole ecosystem can price, transfer, and trust risk as a public good.*
+Sui has fast execution and DeepBook liquidity, but risk is still handled through
+warnings, socialized losses, or emergency governance. Backstop turns that risk
+into a product surface:
 
----
+- Quote cover.
+- Buy policy objects.
+- Monitor oracle and policy state.
+- Latch sustained breaches.
+- Claim valid policies.
+- Sweep expired policies.
+- Bind cover to protocol positions.
+- Publish proof receipts users and protocols can inspect.
 
-## 1. The hole is real, urgent, and ecosystem-wide (all verified)
+DeepBook matters because it is the market layer for Sui risk. The current
+production lane uses Pyth-settled depeg cover; DeepBook Predict and liquidity
+depth are the expansion rails for crash curves, capacity limits, and hedge
+budgets.
 
-**Sui's only backstop today is a validator bailout.** When the **$223M Cetus exploit** hit (May 2025), the "insurance" was a **90.9% validator vote to freeze and roll back $162M** — *governance-by-emergency, not a primitive.* It worked once; it doesn't scale, and it quietly breaks the chain's credible-neutrality guarantee. Root cause was a silent overflow in a **shared `integer-mate` library that multiple protocols depended on** — correlated, ecosystem-wide single point of failure. ([Cyfrin](https://www.cyfrin.io/blog/inside-the-223m-cetus-exploit-root-cause-and-impact-analysis), [Decrypt](https://decrypt.co/321544/sui-200-million-dex-oracle-manipulation-attack))
+## Phase 0: Proof and cover desk
 
-The rest of the risk stack is missing too:
-- **No Sui-native risk-transfer primitive at all.** Nexus Mutual/InsurAce have no Sui deployment; lending markets (Suilend, NAVI) handle insolvency by **socializing losses onto depositors** ad hoc. DeepBook Margin's own docs don't define who eats bad debt. ([Suilend risks](https://docs.suilend.fi/security/risks), [DeepBook Margin](https://docs.sui.io/standards/deepbook-margin))
-- **Concentration = systemic fragility.** ~90% of Sui perp volume sits in one venue (Bluefin); **86% of USDY in Cetus, 76% of AUSD in Suilend** ([Artemis](https://www.artemisanalytics.com/resources/the-state-of-stablecoins-on-sui)). One incident is simultaneously a liquidity event, a depeg event, and a contagion event.
-- **<2% of DeFi value is insured ecosystem-wide**, and the leader (Nexus) covers 0.14% of DeFi and only sells *hack cover* — not the price/depeg risk that actually wipes people out ([CryptoSlate](https://cryptoslate.com/nexus-mutual-surpasses-1-of-total-defi-tvl-as-insurance-market-heats-up/)).
+Status: live.
 
-And the *trust* layer (Walrus) has the mirror-image gap:
-- **Walrus proves bytes are unchanged — not that they're true or from whom they claim.** "Verifiable" today = tamper-evidence, **not provenance.** Walrus's own Haulout hackathon ran a whole "Provably Authentic" track because the primitive is missing ([Walrus](https://blog.walrus.xyz/haulout-hackathon-winners-2025/)).
-- **The "decentralized memory" has a centralized brain.** MemWal's recall runs on an off-chain **Postgres index via a relayer that sees plaintext** — and the agent-memory API has **no provenance, trust-tiers, revocation, or deletion** (verified against the MemWal repo). Seal can't revoke a key once retrieved and emits **no on-chain audit of who decrypted**.
-- **Both ecosystems are betting everything on an agent economy that has no accountability primitive.** Sui itself calls on-chain identity/reputation "underdeveloped" and agentic commerce "still early" ([Sui](https://blog.sui.io/ai-agents-agentic-commerce-trust-layer/)). There is no way to bond an agent, insure against a rogue one, or prove its track record.
+Ships:
 
-**Synthesis: Sui can execute and store, but it cannot price risk or prove truth. That is the single biggest thing standing between Sui and institutional-grade, agent-driven finance.**
+- Mainnet suiUSDe depeg pool.
+- No-wallet quote simulator.
+- Wallet buy flow.
+- Treasury cover planner.
+- LP supply flow.
+- Owned policy view with claim and expiry builders.
+- Proof center with package, pool, policy, lifecycle, and research-lane rows.
+- SDK/PTB examples in the protocol kit.
 
----
+Boundary:
 
-## 2. What Backstop already is (the unlock — verified working today)
+- Mainnet pool is unaudited.
+- Use small amounts until external review and liquidity policy are complete.
+- The app passes current mainnet IDs from `app/src/lib/proofData.ts`; npm
+  `@gudman/backstop-sdk@0.1.0` exported deployment constants are stale until a
+  new SDK release is approved and published.
 
-Backstop is the only project on either chain reading **DeepBook Predict as a risk oracle.** Its agent calls `get_trade_amounts` on a DOWN binary and reads **price-per-unit = the market-implied probability of failure** (verified in `agent/src/pricing.ts`, live on testnet). It then anchors every reading — inputs, the on-chain SVI vol-surface snapshot, the decision — to **Walrus, content-addressed and independently retrievable** (round-trip verified 2026-06-07).
+## Phase 1: Keeper operations
 
-That combination is a **risk-truth primitive**, not an app:
-- **Predict supplies the price of risk** (the only on-chain implied-vol surface, Block Scholes-grade, <400ms settlement, internal market maker).
-- **Walrus supplies verifiable truth** — and uniquely, a **publicly auditable record of every past prediction and its realized outcome.** That makes the oracle *trustless by construction*: anyone can verify its calibration. No off-chain risk vendor can offer that.
+Status: public dry-run monitor live; execution is wallet-gated.
 
-It ships **read-only, today, with no capital, no claims, no governance** — so the demo is real, not a mock.
+Ships now:
 
----
+- Pool solvency watch.
+- Pyth price and trigger watch.
+- Policy action derivation.
+- Explicit dry-run versus execute boundary in `/proof`.
 
-## 3. Three pillars — each solving a foundational, verified gap
+Next:
 
-### Pillar I — The Risk Engine for all of Sui DeFi *(solves: no priced risk-transfer; validator-bailout-as-backstop)*
-A neutral, market-priced solvency layer any protocol plugs into: a live **probability-of-failure feed** (read-only, shippable now) → **liquidation backstops, bad-debt cover, and protocol cover** funded by a mutualized pool. Replaces "90.9% validator vote" with a *priced market* that pre-funds tail risk. This is the primitive that makes Sui DeFi institution-safe.
+- Fund a keeper signer.
+- Publish signed breach observation receipts.
+- Publish signed dwell confirmation and claim receipts.
+- Publish signed expiry sweep receipts.
+- Add reward accounting for keeper work.
 
-### Pillar II — The Verifiable Truth & Provenance Layer *(solves: Walrus has tamper-evidence, not provenance/accountability)*
-Backstop's Walrus-anchored, outcome-verified ledger is the **reference implementation of provenance + accountability** the ecosystem is missing. Generalized, it becomes a **provenance/attestation + verifiable-risk-data standard** and a **trust-minimized index** over Walrus — fixing the "centralized brain" problem and giving any builder signed origin, audit trail, and revocation that MemWal/Seal don't.
+## Phase 2: Protocol adapters
 
-### Pillar III — The Accountability Layer for the AI Agent Economy *(solves: no agent identity/reputation/bonding)*
-Backstop *is itself* a bonded, auditable agent that writes a verifiable decision trail to Walrus — the reference for what a trustworthy agent looks like. It extends to **bond and insure autonomous agents** and issue each a **Walrus-anchored "agent passport" + verifiable track record** — the missing primitive that lets the agent economy both chains are betting on actually transact with recourse.
+Status: adapter contract live in the app; production parser needs partner object
+samples.
 
----
+First targets:
 
-## 4. Roadmap — read-only public good → ecosystem backstop → trust standard
+- NAVI account or vault exposure.
+- Suilend LendingMarket / Reserve / Obligation exposure.
 
-Each phase ships working product. KPIs are **targets.**
+Adapter evidence must normalize:
 
-| Phase | Ships | Solves | Milestone (target) |
-|---|---|---|---|
-| **0 — Proof (now)** | Crash/depeg pricing + AI underwriter + verifiable Walrus ledger + risk terminal | Demonstrates the risk-truth primitive | Live testnet MVP ✅ |
-| **1 — Risk Oracle (read-only)** | On-chain `RiskFeed` object: market-implied probability of failure per asset/protocol, with Walrus-verified calibration history | No canonical risk/probability oracle on Sui | First protocols consuming the feed; public accuracy ledger |
-| **2 — Backstop pool** | Mutualized cover for one partner protocol (the capital lane) + stablecoin depeg insurance on mainnet | No priced risk-transfer; validator-bailout | First $1M+ coverage; design-partner DAOs |
-| **3 — Backstop network** | Liquidation backstops + bad-debt + protocol cover any Sui protocol plugs into; underwriting-as-yield for LPs | Systemic, cross-protocol solvency | $50M+ underwriting capital; multi-protocol |
-| **4 — Provenance & trust standard** | Provenance/attestation + verifiable index over Walrus; embedded risk/trust API | Walrus provenance + accountability gap | Adopted as a data-trust standard |
-| **5 — Agent accountability + cross-chain** | Agent bonding, insurance, and Walrus-anchored reputation passports; cross-chain risk via Ika | Agent-economy accountability; cross-chain risk | The trust layer for autonomous agents |
+- `protocol`
+- `account`
+- `positionId`
+- `assetType`
+- `coverMist`
+- `riskBudgetMist`
+- `evidence`
+- `policyId`
 
----
+Boundary:
 
-## 5. Why this is defensible (the moat compounds)
+- NAVI and Suilend are not live production integrations yet.
+- Backstop needs confirmed object samples, user consent path, and governance
+  caps before claiming account-level cover validation.
 
-1. **A verifiable calibration ledger no one can fake retroactively.** Every prediction + realized outcome is Walrus-anchored from day one. Trust in a risk oracle is *earned over time and provable* — a latecomer can't backfill a track record. This is the deepest moat in the entire thesis.
-2. **Dual-ecosystem necessity.** The product *structurally requires both* Predict (price of risk) and Walrus (verifiable truth) — it's the canonical showcase of why Sui + Walrus together enable something neither does alone. That alignment makes Mysten/Sui Foundation a natural champion.
-3. **Standards & network effects.** Becoming the risk parameterization other protocols import, the provenance standard builders attest to, and the reputation passport agents accumulate are *standards moats*, not feature moats — winner-take-most.
-4. **Data flywheel.** More volume → better pricing → cheaper capital → more volume.
+## Phase 3: Multi-market clearinghouse
 
----
+Target lanes:
 
-## 6. Business model & $BACK
+- SUI drawdown cover.
+- Stablecoin basket failure cover.
+- Lending collateral shock cover.
+- LP tail-risk cover for DeepBook, Cetus, and Turbos style positions.
 
-Revenue: **risk-feed subscriptions** (Pillar I, capital-free), **take rate on premiums**, **underwriting-vault performance fees**, **embedded risk/trust API** (B2B — the scalable line), **provenance/attestation fees** (Pillar II). $BACK accrues value via fee share, **staking as junior backstop capital** (skin-in-the-game governance), and underwriter incentives — tied to coverage written and feed usage, not emissions.
+The SRX index ranks which lanes are ready by oracle integrity, DeepBook
+liquidity and hedge depth, volatility or peg drift, protocol concentration, and
+proof readiness.
 
----
+## Phase 4: DeepBook hedge router
 
-## 7. Why Sui, Walrus, and Mysten *want this to exist*
+Goal: convert DeepBook and Predict signals into underwriting limits and hedge
+budgets.
 
-It removes the chain's most embarrassing dependency (validator bailouts), it's the showcase that proves the Predict + Walrus synergy, it's the precondition for the **institutional + RWA wave** ($16T tokenized by 2030 won't come on-chain uninsured), and it's the missing accountability layer for the **agent economy** they're betting the next cycle on. Backstop isn't asking the ecosystem for permission — it's building the primitive the ecosystem already admits it's missing.
+The router should:
 
----
+- Gate max cover by liquidity depth.
+- Track crash curve movement.
+- Budget pool exposure across depeg, drawdown, and LP-tail markets.
+- Publish hedge-budget receipts to the proof API.
 
-## 8. Honest real-vs-aspirational
+## Phase 5: Risk clearinghouse network
 
-- **Real today:** Predict-as-risk-oracle reads (`pricing.ts`), Walrus-verified logging (round-trip confirmed), crash/depeg pricing, AI underwriter, risk terminal. The read-only risk feed (Pillar I, Phase 1) ships from these with no capital.
-- **Aspirational (labeled):** the capital pool / claims engine (`executeDecision()` is a marked stub needing gated DUSDC + funded signer), multi-asset + protocol cover, the provenance standard, agent bonding. These are extrapolations of working primitives, not yet wired.
-- **Dependencies:** DeepBook Predict is testnet (mainnet "later 2026"); Sui's "verifiable compute" (Nautilus) is AWS-Nitro TEE-attested, **not** cryptographically trustless — we'd document that, not market around it.
+Goal: make Backstop a Sui-native risk layer protocols, wallets, LPs, and
+treasuries can depend on.
 
----
+Long-term products:
 
-*Disclaimer: Pre-launch; testnet. Backstop metrics are targets, not results. Market/ecosystem figures are cited with dates — re-verify before live investor use. Not an offer of securities or a token.*
+- Risk-class LP vaults.
+- Protocol passports.
+- Wallet covered/uncovered warnings.
+- Keeper rewards and reputation.
+- Transferable or composable cover policies.
+- Institutional proof reports.
+- Agent underwriting receipts tied to real pool capacity.
 
-## Sources
-Cetus exploit & validator rollback — cyfrin.io; decrypt.co · Sui risk/insurance absence — docs.suilend.fi; docs.sui.io/standards/deepbook-margin · Concentration — artemisanalytics.com · DeFi insured <2% — cryptoslate.com; coindesk.com · DeepBook Predict (SVI/Block Scholes/<400ms/IMM) — blog.sui.io/introducing-deepbook-predict; docs.sui.io/onchain-finance/deepbook-predict · Walrus provenance gap & Haulout — blog.walrus.xyz; MystenLabs/MemWal & MystenLabs/seal repos · Agent trust layer "still early" / identity "underdeveloped" — blog.sui.io/ai-agents-agentic-commerce-trust-layer; sui.io/project-ideas · Nautilus AWS-Nitro TEE — docs.sui.io/concepts/cryptography/nautilus · RWA $16T by 2030 — BCG/Standard Chartered via mintlayer.org · Stablecoins ~$321B — kucoin.com; defillama.com
+## Hard boundaries
+
+- No hackathon submission without explicit user approval.
+- No claim of live NAVI/Suilend validation until real object parsers are built.
+- No claim of paid mainnet claim unless an exact digest and policy state prove it.
+- No claim that the SDK constants are current until the next npm release is
+  published.

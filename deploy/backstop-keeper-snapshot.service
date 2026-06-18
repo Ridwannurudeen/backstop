@@ -1,0 +1,13 @@
+[Unit]
+Description=Refresh Backstop keeper snapshot JSON
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/backstop
+ExecStart=/opt/backstop/deploy/refresh-keeper-snapshot.sh
+Environment=BACKSTOP_KEEPER_TARGET=/opt/backstop/web/api/keeper-operations.json
+Environment=BACKSTOP_KEEPER_PUBLISH=1
+
+[Install]
+WantedBy=multi-user.target

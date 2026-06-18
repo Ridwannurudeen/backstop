@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Repeatable content deploy for Backstop (static SPA) to the shared Contabo VPS.
 # Builds app/dist locally and ships it to /opt/backstop/web, then reloads nginx.
-# One-time setup (DNS, nginx conf, TLS cert) is in DEPLOY.md — run that first.
+# One-time setup (DNS, nginx conf, TLS cert) is in DEPLOY.md; run that first.
 set -euo pipefail
 
 VPS="${BACKSTOP_VPS:-root@75.119.153.252}"
@@ -10,7 +10,11 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 
 echo "==> building app"
 cd "$HERE/../app"
-npm ci
+if [[ "${BACKSTOP_CLEAN_INSTALL:-0}" == "1" ]]; then
+  npm ci
+else
+  npm install
+fi
 npm run build
 
 echo "==> packing dist"

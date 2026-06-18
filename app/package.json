@@ -7,20 +7,27 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "keeper:depeg:publish": "node scripts/depeg-keeper.mjs",
+    "keeper:depeg": "node scripts/depeg-keeper.mjs",
+    "adapter:probe": "node scripts/protocol-adapter-probe.mjs",
+    "adapter:suilend": "node scripts/suilend-exposure.mjs",
+    "report:generate": "node scripts/generate-report.mjs"
   },
   "dependencies": {
+    "@gudman/backstop-sdk": "^0.1.0",
     "@mysten/dapp-kit": "^0.20.0",
     "@mysten/sui": "^1.45.2",
     "@tanstack/react-query": "^5.101.0",
+    "buffer": "^6.0.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
-    "@vitejs/plugin-react": "^4.3.0",
+    "@vitejs/plugin-react": "^6.0.2",
     "typescript": "^5.5.0",
-    "vite": "^5.4.0"
+    "vite": "^8.0.16"
   }
 }

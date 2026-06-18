@@ -4,16 +4,45 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="theme-color" content="#0a0e14" />
-    <title>Backstop — crash insurance on Sui</title>
+    <meta name="theme-color" content="#0a0e14" id="theme-color" />
+    <script>
+      (function () {
+        try {
+          const saved = localStorage.getItem("backstop-theme");
+          const prefersLight =
+            window.matchMedia &&
+            window.matchMedia("(prefers-color-scheme: light)").matches;
+          const theme =
+            saved === "light" || saved === "dark"
+              ? saved
+              : prefersLight
+                ? "light"
+                : "dark";
+          document.documentElement.setAttribute("data-theme", theme);
+          const meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) {
+            meta.setAttribute(
+              "content",
+              theme === "light" ? "#f6f8fb" : "#0a0e14",
+            );
+          }
+        } catch (_e) {
+          document.documentElement.setAttribute("data-theme", "dark");
+        }
+      })();
+    </script>
+    <title>Backstop - the cover desk for Sui DeFi</title>
     <meta
       name="description"
-      content="Crash insurance for crypto, priced by DeepBook Predict's on-chain volatility surface and settled trustlessly in 400ms. The risk & trust layer for Sui."
+      content="Backstop is the DeepBook-priced cover desk for Sui DeFi: depeg protection, proof receipts, protocol adapters, and risk passports."
     />
-    <meta property="og:title" content="Backstop — the risk & trust layer for Sui" />
+    <meta
+      property="og:title"
+      content="Backstop - the cover desk for Sui DeFi"
+    />
     <meta
       property="og:description"
-      content="Insure against a crash in one click — priced by an on-chain options oracle, underwritten by an autonomous agent, settled in 400ms on DeepBook Predict."
+      content="Buy depeg cover, verify proof lanes, inspect policy state, and integrate protocol-grade risk protection on Sui."
     />
     <meta property="og:type" content="website" />
   </head>

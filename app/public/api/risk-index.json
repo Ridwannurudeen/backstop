@@ -1,0 +1,122 @@
+{
+  "project": "Backstop",
+  "index": "SRX",
+  "generatedFor": "Sui Overflow 2026",
+  "primaryTrack": "DeepBook",
+  "methodology": {
+    "oracleIntegrity": 25,
+    "deepBookLiquidityAndHedgeDepth": 20,
+    "volatilityAndPegDrift": 20,
+    "protocolConcentration": 20,
+    "proofReadiness": 15
+  },
+  "markets": [
+    {
+      "id": "suiusde-depeg",
+      "title": "suiUSDe depeg cover",
+      "status": "mainnet-live",
+      "score": 84,
+      "signal": "Pyth price object, dwell window, on-chain pool state",
+      "deepBookRole": "Predict surface calibrates crash probability and hedge budget"
+    },
+    {
+      "id": "sui-crash",
+      "title": "SUI drawdown cover",
+      "status": "integration-ready",
+      "score": 78,
+      "signal": "DeepBook Predict strike ladder plus Pyth reference price",
+      "deepBookRole": "Predict is the market-implied crash curve for cover quotes"
+    },
+    {
+      "id": "stablecoin-basket",
+      "title": "Stablecoin basket failure",
+      "status": "integration-ready",
+      "score": 72,
+      "signal": "Peg drift, oracle freshness, redemption depth, venue liquidity",
+      "deepBookRole": "DeepBook liquidity depth gates max capacity and hedge routing"
+    },
+    {
+      "id": "lending-collateral",
+      "title": "Lending collateral shock",
+      "status": "research-lane",
+      "score": 67,
+      "signal": "Borrow utilization, collateral drawdown, oracle staleness",
+      "deepBookRole": "Predict probability informs reserve factor and cover cost"
+    },
+    {
+      "id": "lp-tail",
+      "title": "LP tail-risk cover",
+      "status": "research-lane",
+      "score": 63,
+      "signal": "Volatility, inventory skew, volume shock, depth collapse",
+      "deepBookRole": "Hedge router can buy Predict protection against tail moves"
+    }
+  ],
+  "protocolPassports": [
+    {
+      "protocol": "NAVI",
+      "readiness": "integration-blueprint",
+      "coveredExposure": "Borrower/vault exposure to suiUSDe and correlated stablecoin collateral",
+      "trigger": "Sustained oracle breach below policy threshold plus protocol-side exposure match",
+      "partnerAsk": "Confirm object schema and permission path for exposure reads"
+    },
+    {
+      "protocol": "Suilend",
+      "readiness": "sample-validated",
+      "coveredExposure": "Borrower collateral and isolated vault exposure to depeg or sharp drawdown",
+      "trigger": "Oracle depeg breach plus borrower bucket included in covered policy registry",
+      "partnerAsk": "Approve parser versioning, user consent, and governance-safe auto-cover UX"
+    },
+    {
+      "protocol": "Bucket",
+      "readiness": "design-ready",
+      "coveredExposure": "Stablecoin holders and treasury buckets exposed to peg drift",
+      "trigger": "Peg breach, redemption depth stress, or oracle confidence threshold",
+      "partnerAsk": "Define accepted peg oracle and redemption-liquidity disclosure fields"
+    },
+    {
+      "protocol": "Wallets",
+      "readiness": "design-ready",
+      "coveredExposure": "Wallet holdings, LP receipts, and lending positions with available cover",
+      "trigger": "Wallet surfaces quote and proof entrypoints; no automatic claim trigger",
+      "partnerAsk": "Add covered/uncovered labels and deep links into Backstop quote state"
+    }
+  ],
+  "keeperOperations": [
+    {
+      "id": "pool-watch",
+      "status": "public-now",
+      "action": "Publish pool health, capacity, and proof rows without a signer"
+    },
+    {
+      "id": "breach-observer",
+      "status": "wallet-gated",
+      "action": "Build a record-breach PTB for a keeper wallet to sign"
+    },
+    {
+      "id": "claim-latch",
+      "status": "wallet-gated",
+      "action": "Build claim-latched PTB after sustained breach"
+    },
+    {
+      "id": "adapter-sync",
+      "status": "partner-gated",
+      "action": "Normalize covered protocol exposure and bind policy IDs"
+    }
+  ],
+  "protocolAdapters": [
+    {
+      "protocol": "NAVI",
+      "sourceBoundary": "Official docs expose SDK and account-data concepts; old navi-sdk package is legacy",
+      "next": "Confirm one borrower/vault object sample and lock parser"
+    },
+    {
+      "protocol": "Suilend",
+      "sourceBoundary": "Docs define LendingMarket, Reserves, Obligations, cTokens, and SDK refresh/parser surfaces",
+      "sampleTx": "2PBCaEbBHiFLU7fDwU4zihUq4CQtKArbXXC9JygTL169",
+      "obligationId": "0xffff7cfccd5049bc6f5adb20a770a822f920a3f78690213b08c231884763bf6a",
+      "ownerCapId": "0x16ee69982511332c08dc697c878c3d943e52d6be8c303ec27807a406207d6122",
+      "next": "Convert sample parser into consented production auto-cover flow"
+    }
+  ]
+}

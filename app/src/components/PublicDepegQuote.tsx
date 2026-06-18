@@ -1,19 +1,13 @@
 import { useMemo, useState } from "react";
-import {
-  useCurrentAccount,
-  useSignAndExecuteTransaction,
-  useSuiClient,
-} from "@mysten/dapp-kit";
+import { useSuiClient } from "@mysten/dapp-kit";
 import { useQuery } from "@tanstack/react-query";
 import {
-  buildDepegBuyCoverTx,
   quoteDepegPremium,
   readDepegPool,
   readDepegPrice,
 } from "@gudman/backstop-sdk";
 import { usd } from "../lib/format";
 import { MAINNET_DEPEG_PROOF_PACK } from "../lib/proofData";
-import { Notice, type NoticeState } from "./Notice";
 
 const MIST_PER_SUI = 1_000_000_000;
 const TERM_OPTIONS = [7, 14, 30];
@@ -23,25 +17,20 @@ const suiToMist = (amount: number) =>
 
 const mistToSui = (amount: bigint) => Number(amount) / MIST_PER_SUI;
 
-export default function BuyProtection() {
-  const account = useCurrentAccount()!;
+export default function PublicDepegQuote() {
   const client = useSuiClient();
-  const { mutateAsync: sign, isPending } = useSignAndExecuteTransaction();
   const depeg = MAINNET_DEPEG_PROOF_PACK.depegPool!;
-
   const [coverSui, setCoverSui] = useState(0.05);
   const [termDays, setTermDays] = useState(14);
-  const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState<NoticeState | null>(null);
 
   const { data: pool, isLoading: poolLoading } = useQuery({
-    queryKey: ["mainnet-depeg-pool", depeg.poolId],
+    queryKey: ["public-mainnet-depeg-pool", depeg.poolId],
     queryFn: () => readDepegPool(client, depeg.poolId),
     refetchInterval: 15_000,
   });
 
   const { data: price } = useQuery({
-    queryKey: ["mainnet-depeg-price", depeg.priceObjectId],
+    queryKey: ["public-mainnet-depeg-price", depeg.priceObjectId],
     queryFn: () =>
       readDepegPrice(client, {
         priceObject: depeg.priceObjectId,
@@ -66,37 +55,19 @@ export default function BuyProtection() {
         )
       : 0;
 
-  async function buyCover() {
-    if (!quote || !pool) return;
-    setBusy(true);
-    setNotice(null);
-    try {
-      const expiryMs = BigInt(Date.now() + termDays * 86_400_000 - 60_000);
-      const tx = buildDepegBuyCoverTx({
-        pkg: depeg.packageId,
-        poolId: depeg.poolId,
-        premiumMist: quote,
-        coverMist: suiToMist(coverSui),
-        expiryMs,
-        owner: account.address,
-      });
-      const { digest } = await sign({ transaction: tx });
-      setNotice({ kind: "ok", text: "Depeg cover policy created", digest });
-    } catch (e) {
-      setNotice({ kind: "err", text: (e as Error).message });
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
-    <div className="card">
-      <h3>Mainnet suiUSDe depeg cover</h3>
-      <p className="muted">
-        Buy SUI-collateralized cover against a sustained suiUSDe depeg. The
-        pool prices duration and utilization on-chain, then settles against the
-        configured Pyth price object.
-      </p>
+    <div className="card public-quote">
+      <div className="proof-head">
+        <div>
+          <h3>No-wallet mainnet quote</h3>
+          <p className="muted">
+            Read-only quote simulator for the deployed suiUSDe depeg pool. It
+            uses the same pool state and premium function as the wallet buy
+            flow, without asking a judge to connect a wallet.
+          </p>
+        </div>
+        <div className="proof-pill">suiUSDe floor: $0.985</div>
+      </div>
 
       <div className="proof-strip proof-strip-wide">
         <div className="proof-item">
@@ -104,7 +75,7 @@ export default function BuyProtection() {
           <div className="v">
             {price ? usd(price.priceUsd) : poolLoading ? "Loading" : "Unavailable"}
           </div>
-          <div className="muted">Floor: $0.985 / triggered: {price?.triggered ? "yes" : "no"}</div>
+          <div className="muted">Triggered: {price?.triggered ? "yes" : "no"}</div>
         </div>
         <div className="proof-item">
           <div className="k">Pool capital</div>
@@ -158,21 +129,6 @@ export default function BuyProtection() {
         <span className="k">Max payout</span>
         <span className="v">{coverSui.toFixed(4)} SUI</span>
       </div>
-
-      <button
-        className="btn"
-        disabled={busy || isPending || !quote || !pool || coverSui <= 0}
-        onClick={buyCover}
-      >
-        {busy || isPending ? "Buying..." : "Buy mainnet depeg cover"}
-      </button>
-
-      <p className="note">
-        This is a real mainnet transaction path. Use a small amount unless you
-        are intentionally funding a larger policy.
-      </p>
-
-      {notice && <Notice {...notice} />}
     </div>
   );
 }

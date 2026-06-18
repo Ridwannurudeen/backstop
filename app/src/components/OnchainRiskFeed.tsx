@@ -1,4 +1,5 @@
-import { useSuiClient } from "@mysten/dapp-kit";
+import { useMemo } from "react";
+import { SuiClient as SuiRpcClient, getFullnodeUrl } from "@mysten/sui/client";
 import { useQuery } from "@tanstack/react-query";
 import { READING_EVENT, WALRUS_AGGREGATOR } from "../lib/deployment";
 
@@ -11,7 +12,10 @@ type ReadingEvent = {
 };
 
 export default function OnchainRiskFeed() {
-  const client = useSuiClient();
+  const client = useMemo(
+    () => new SuiRpcClient({ url: getFullnodeUrl("testnet") }),
+    [],
+  );
   const { data } = useQuery({
     queryKey: ["riskfeed-events"],
     queryFn: async () => {
@@ -25,7 +29,6 @@ export default function OnchainRiskFeed() {
     refetchInterval: 20_000,
   });
 
-  // Latest reading per market (events are newest-first).
   const seen = new Set<string>();
   const latest = (data ?? []).filter((r) =>
     seen.has(r.market) ? false : (seen.add(r.market), true),
@@ -36,13 +39,13 @@ export default function OnchainRiskFeed() {
       <h3>
         On-chain RiskFeed{" "}
         <span className="muted" style={{ fontWeight: 400 }}>
-          · probability-of-failure oracle
+          / probability-of-failure oracle
         </span>
       </h3>
       <p className="muted">
         Backstop publishes each market-implied probability of failure on-chain
-        as a <b>RiskFeed</b> object any Sui contract can read — with a Walrus
-        proof of the inputs. Read live from the deployed package below.
+        as a <b>RiskFeed</b> object any Sui contract can read, with a Walrus
+        proof of the inputs. This legacy research lane is isolated to testnet.
       </p>
       {latest.length === 0 ? (
         <p className="muted">No on-chain readings found yet.</p>
@@ -62,7 +65,7 @@ export default function OnchainRiskFeed() {
                   marginLeft: 8,
                 }}
               >
-                proof ↗
+                proof
               </a>
             </span>
           </div>
