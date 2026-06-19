@@ -78,14 +78,14 @@ export default function Landing() {
     (item) => item.label === "Production pool",
   );
   const stagedClaim = proof.data?.checks.find(
-    (item) => item.label === "Staged claim",
+    (item) => item.label === "Archived staged claim",
   );
   const proofHealthValue = total ? `${okCount}/${total}` : "8/8";
   const proofHealthOk = total === 0 || okCount === total;
-  const activeCoverValue = productionCover?.value ?? "0.05 SUI";
+  const activeCoverValue = productionCover?.value ?? "0.005 SUI";
   const stagedClaimValue = stagedClaim?.value ?? "Paid";
   const productionPoolDetail =
-    productionPool?.detail ?? `v3 pool ${truncate(PYTH_DEPEG_POOL)}`;
+    productionPool?.detail ?? `v4 pool ${truncate(PYTH_DEPEG_POOL)}`;
 
   return (
     <div className="landing">
@@ -142,7 +142,7 @@ export default function Landing() {
             <small>live Sui mainnet checks</small>
           </div>
           <div>
-            <span className="proof-k">staged claim</span>
+            <span className="proof-k">archived staged claim</span>
             <strong>{stagedClaimValue}</strong>
             <small>captured payout proof</small>
           </div>

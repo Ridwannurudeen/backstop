@@ -1,11 +1,12 @@
 # Backstop Integration Kit
 
-Backstop's live production surface is the Sui mainnet `pyth_cover_pool` v3
-deployment for suiUSDe depeg cover. It is experimental and low-cap. The v4
-source in this branch adds stricter sale and settlement hardening, but those
-changes are not live until a new package and pool are deployed.
+Backstop's live production surface is the Sui mainnet `pyth_cover_pool` v4
+deployment for suiUSDe depeg cover. It is experimental and low-cap. The pool
+requires a fresh Pyth sale check inside the buy transaction and refunds excess
+premium instead of accepting donations into pool value.
 
-Install the TypeScript SDK:
+Use the TypeScript SDK source from `sdk/` until a v4 npm release is explicitly
+approved:
 
 ```bash
 npm install @gudman/backstop-sdk @mysten/sui
@@ -17,15 +18,16 @@ Canonical IDs live in `deployment.json` and `app/src/lib/deployment.ts`.
 
 | Role                        | ID                                                                   |
 | --------------------------- | -------------------------------------------------------------------- |
-| `pyth_cover_pool` package   | `0x51dd7287ac9e97147982023f5f2fa61bf5df2939d671216b19d142938f34ab05` |
-| Production pool             | `0x4ab0a68e6c299353811a54b660c7e1d8cda7645a5f58c77b8593ca4bc617dc53` |
-| `pyth_lending_demo` package | `0x33cd7e03003948545527609769b77541a9c0f3f8005894d8736fdf293cbf531a` |
-| Production lending market   | `0x27d3f2753ab05170d0484a70114191f4fcdb35275db9b2ad9895db18cc92e712` |
+| `pyth_cover_pool` package   | `0x4f8d00eb76a59996a0c88f3d103e950e6e4c02132acb8483cc8e1450005f04e9` |
+| Production pool             | `0xd739a318705fb8b8401da34a3c2c3cde6397d033d72f793153ea673216eb58ed` |
+| `pyth_lending_demo` package | `0x25f89307f0e37079a8cd7be1aa10f216f1bf3d5b00c2184ea2b8bc9ffc51a670` |
+| Production lending market   | `0x459b6df1dee2c3840a52b766d4c617fbabb1c5f9d08f557645080829fee9d74c` |
 | Admin custody owner         | `0x5f21a9aaf680f6b0e0190e6a99bb9d4e314e0761ff3c3bc809f298711e73d8e5` |
-| Upgrade policy lock tx      | `7Yxfqa2fStqnfvYJ8qD97m5ZBznYcpUsTQncCZ8tavKy`                       |
-| AdminCap custody tx         | `2PGfhTmFzDTJZxuGGKxfkhAgRNmcLjbkt3MXJdYfBhYx`                       |
-| Production active-cover tx  | `HLteoSCKnBzRUhLjfboRFh267FF8wF7MrsUAiXHmYerU`                       |
-| Staged claim tx             | `Dm9gywopkRe9p36J21HTiLJCeRaRhdjwYaDx13WA2ekC`                       |
+| Cover UpgradeCap lock tx    | `7LJVLHs4Vb93pzS5WuwEgmwuZN9KEGBXbzx5b43kWLm9`                       |
+| Lending UpgradeCap lock tx  | `GUm7a3fRpyQAQa92eBEEm3yVurGtfHz7vEifg7kaB4RL`                       |
+| AdminCap custody tx         | `KJzWGum3aqUpH4BKxrX9DdZ5yCLp8yDvNUC28aMCZ39`                        |
+| Production active-cover tx  | `Fk1hB7nsaYm5ZDww1sXwohHNYjcc3kmkd3qqUeFVdqwg`                       |
+| Archived staged claim tx    | `Dm9gywopkRe9p36J21HTiLJCeRaRhdjwYaDx13WA2ekC`                       |
 
 ## Quote Cover
 
@@ -40,7 +42,7 @@ import {
 const client = new SuiClient({ url: getFullnodeUrl("mainnet") });
 const pool = await readDepegPool(client, PYTH_DEPEG_POOL);
 
-const coverMist = 50_000_000n;
+const coverMist = 5_000_000n;
 const premiumMist = quoteDepegPremium(pool, coverMist, 30);
 
 console.log({
@@ -59,12 +61,13 @@ versus chain-clock edge cases.
 import {
   PYTH_DEPEG_COVER_PKG,
   PYTH_DEPEG_POOL,
-  buildDepegBuyCoverTx,
+  buildDepegBuyCoverWithPythTx,
 } from "@gudman/backstop-sdk";
 
 const expiryMs = BigInt(Date.now() + 30 * 86_400_000 - 60_000);
 
-const tx = buildDepegBuyCoverTx({
+const tx = await buildDepegBuyCoverWithPythTx({
+  client,
   pkg: PYTH_DEPEG_COVER_PKG,
   poolId: PYTH_DEPEG_POOL,
   premiumMist,
@@ -76,26 +79,9 @@ const tx = buildDepegBuyCoverTx({
 await signAndExecute({ transaction: tx, chain: "sui:mainnet" });
 ```
 
-The corrected v4 source requires a fresh Pyth sale check inside the buy PTB. Use
-the explicit v4 builder only after deploying a v4 package/pool:
-
-```ts
-import { buildDepegBuyCoverWithPythTx } from "@gudman/backstop-sdk";
-
-const tx = await buildDepegBuyCoverWithPythTx({
-  client,
-  pkg: V4_DEPEG_COVER_PKG,
-  poolId: V4_DEPEG_POOL,
-  premiumMist,
-  coverMist,
-  expiryMs,
-  owner: positionOwner,
-});
-```
-
 ## Record Breach
 
-`record_breach` refreshes Pyth inside the PTB. On v4 source it is a compatibility
+`record_breach` refreshes Pyth inside the PTB. On v4 it is a compatibility
 path around pool-epoch eligibility, not a separate per-policy event machine. A
 claim is not single-read: keepers call once to arm, then again after
 `min_dwell_secs` to confirm.
@@ -119,7 +105,7 @@ await signAndExecute({ transaction: tx, chain: "sui:mainnet" });
 
 ## Record Pool-Level Epoch
 
-The current production mainnet pool is v3 and supports `record_pool_breach` and
+The current production mainnet pool is v4 and supports `record_pool_breach` and
 `record_pool_recovery`: one sustained pool epoch can make every policy that was
 active at arm time and unexpired at confirmation claimable. Prefer this path for
 all keeper operations.
@@ -188,13 +174,13 @@ npm run verify:depeg-ptbs
 
 ## Direct PTB Shape
 
-For protocols that do not want the SDK wrapper, the live v3 production calls are
+For protocols that do not want the SDK wrapper, the live v4 production calls are
 `buy_cover`, `record_pool_breach`, `record_pool_recovery`, and
 `claim_latched`. `record_breach` remains available for compatibility but should
 not be your primary keeper path.
 
 ```ts
-tx.moveCall({
+const [policy, refund] = tx.moveCall({
   target: `${PYTH_DEPEG_COVER_PKG}::pyth_cover_pool::buy_cover`,
   typeArguments: ["0x2::sui::SUI"],
   arguments: [
@@ -202,27 +188,11 @@ tx.moveCall({
     premiumCoin,
     tx.pure.u64(coverMist),
     tx.pure.u64(expiryMs),
-    tx.object("0x6"),
-  ],
-});
-```
-
-The corrected v4 `buy_cover` call adds the same-PTB `PriceInfoObject` before
-`Clock`:
-
-```ts
-tx.moveCall({
-  target: `${V4_DEPEG_COVER_PKG}::pyth_cover_pool::buy_cover`,
-  typeArguments: ["0x2::sui::SUI"],
-  arguments: [
-    tx.object(V4_DEPEG_POOL),
-    premiumCoin,
-    tx.pure.u64(coverMist),
-    tx.pure.u64(expiryMs),
     tx.object(priceInfoObjectId),
     tx.object("0x6"),
   ],
 });
+tx.transferObjects([policy, refund], positionOwner);
 ```
 
 ```ts
@@ -272,5 +242,5 @@ tx.moveCall({
 
 `record_pool_breach`, `record_pool_recovery`, and `record_breach` should
 normally be built through the SDK because the SDK fetches Hermes update data and
-inserts the Pyth update call before the Move call. For v4 purchases, use
+inserts the Pyth update call before the Move call. Purchases should use
 `buildDepegBuyCoverWithPythTx` for the same reason.

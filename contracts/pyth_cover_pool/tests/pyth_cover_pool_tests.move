@@ -459,16 +459,17 @@ module pyth_cover_pool::pyth_cover_pool_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = pyth_cover_pool::EWrongPremium)]
-    fun excess_premium_is_rejected() {
+    fun excess_premium_is_refunded() {
         let mut ctx = tx_context::dummy();
         let clock = clock::create_for_testing(&mut ctx);
         let mut pool = new_pool(PREMIUM_BPS, &mut ctx);
         let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(1000, &mut ctx), &mut ctx);
         let premium = pyth_cover_pool::premium_for(&pool, 500);
-        let policy = pyth_cover_pool::buy_cover_at_price_for_testing(
+        let (policy, refund) = pyth_cover_pool::buy_cover_at_price_with_refund_for_testing(
             &mut pool, fund(premium + 1, &mut ctx), 500, EXPIRY, PEG, 0, &clock, &mut ctx,
         );
+        assert!(coin::value(&refund) == 1, 0);
+        coin::burn_for_testing(refund);
 
         unit_test::destroy(policy);
         unit_test::destroy(lp);

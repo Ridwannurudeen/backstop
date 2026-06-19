@@ -9,7 +9,7 @@ import {
 } from "@mysten/dapp-kit";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  buildDepegBuyCoverTx,
+  buildDepegBuyCoverWithPythTx,
   buildDepegClaimLatchedTx,
   buildDepegDepositLpTx,
   buildDepegExpirePolicyTx,
@@ -94,6 +94,8 @@ const thresholdUsd = (
 ) => Number(thresholdScaled) * Math.pow(10, expoNeg ? -expoMag : expoMag);
 
 const minBigint = (a: bigint, b: bigint) => (a < b ? a : b);
+const validFeedId = (feedId?: string) =>
+  feedId && /^[0-9a-f]{64}$/i.test(feedId) ? feedId : undefined;
 
 const expiryForTerm = (termDays: number) =>
   BigInt(Date.now() + termDays * DAY_MS - EXPIRY_SAFETY_MS);
@@ -468,13 +470,15 @@ export default function DepegActions() {
     if (!premiumMist || !account) return;
     run(
       () =>
-        buildDepegBuyCoverTx({
+        buildDepegBuyCoverWithPythTx({
+          client,
           pkg: config.pkg,
           poolId: config.poolId,
           premiumMist,
           coverMist,
           expiryMs: expiryForTerm(termDays),
           owner: account.address,
+          feedId: validFeedId(pool?.feedIdHex),
         }),
       `Bought ${coverSui} SUI of depeg cover`,
     );
@@ -502,7 +506,7 @@ export default function DepegActions() {
           pkg: config.pkg,
           poolId: config.poolId,
           policyId,
-          feedId: pool?.feedIdHex,
+          feedId: validFeedId(pool?.feedIdHex),
         }),
       "Breach observation recorded",
     );
@@ -514,7 +518,7 @@ export default function DepegActions() {
           client,
           pkg: config.pkg,
           poolId: config.poolId,
-          feedId: pool?.feedIdHex,
+          feedId: validFeedId(pool?.feedIdHex),
         }),
       pool?.epochArmed
         ? "Pool-level breach confirmed"
@@ -528,7 +532,7 @@ export default function DepegActions() {
           client,
           pkg: config.pkg,
           poolId: config.poolId,
-          feedId: pool?.feedIdHex,
+          feedId: validFeedId(pool?.feedIdHex),
         }),
       "Pool-level epoch recovered",
     );

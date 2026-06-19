@@ -27,26 +27,23 @@ production risk oracle.
 - wallet-connected `/depeg` app flow for LP deposit/withdraw, cover buy,
   breach record, claim, and owned positions
 - mainnet proof-health card checks package existence, production pool state,
-  DEP_ONLY upgrade locks, AdminCap custody transfer, staged mechanism-test claim,
-  and production active cover
+  DEP_ONLY upgrade locks, AdminCap custody transfer, archived staged
+  mechanism-test claim evidence, and current production active cover
 
-The default mainnet pool is the v3 deployment from 2026-06-18, so duration
-pricing, max term, bounded governance, permissionless expiry sweeping, and
-pool-level depeg epochs are live on the public `/depeg` route. Keep caps low:
-v3 is experimental and should not be marketed as production-safe insurance.
+The default mainnet pool is the v4 low-cap deployment from 2026-06-19, so fresh
+Pyth sale checks, required-premium charging with excess refunds, zero-share LP
+protection, pool-epoch-only direct latch compatibility, bounded dwell
+confirmation, healthy-observation reset, settlement-term immutability while
+cover is active, duration pricing, max term, bounded governance, and
+permissionless expiry sweeping are live on the public `/depeg` route. Keep caps
+low: v4 is experimental and should not be marketed as production-safe insurance.
 
-This branch contains v4 source hardening for the next deployment: fresh Pyth
-sale checks, exact premium payment, zero-share LP protection, pool-epoch-only
-direct latch compatibility, bounded dwell confirmation, healthy-observation
-reset, and settlement-term immutability while cover is active. Those protections
-are not live until a new package and pool are deployed and `DEPLOYMENTS.md` plus
-`deployment.json` are updated.
-
-Important honesty note: the paid mainnet claim in `deployment.json` is a staged
-mechanism test using a proof pool with intentionally permissive trigger
-parameters. It proves the buy -> dwell -> claim path can pay on-chain; it is not
-a real production depeg event. The production `.985` pool has active cover and
-retained premium while suiUSDe remains above the floor.
+Important honesty note: the paid mainnet claim in `deployment.json` is archived
+v3 staged mechanism-test evidence using a proof pool with intentionally
+permissive trigger parameters. It proves the buy -> dwell -> claim path can pay
+on-chain; it is not a real production depeg event and is not a v4 payout proof.
+The current v4 `.985` pool has active cover and retained premium while suiUSDe
+remains above the floor.
 
 ### Testnet: risk-oracle research layer
 
@@ -72,13 +69,13 @@ does not expose it as a normal route.
 - USD/stable collateral or oracle-haircut accounting for SUI/USD basis risk
 - trust-minimized dispute resolution for RiskFeed/SRX/accountability
 - an external protocol integration or non-project user buying/consuming cover
-- independent Move review of the corrected v4 source
+- independent Move review of the corrected v4 deployment
 
 ## App surfaces
 
 - **Cover** (`/depeg`): flagship mainnet depeg-cover cockpit.
-- **Proof** (`/proof`): live package, pool, custody, upgrade-lock, staged-claim,
-  active-cover, and SDK integration packet.
+- **Proof** (`/proof`): live package, pool, custody, upgrade-lock, archived
+  staged-claim, active-cover, and SDK integration packet.
 - **Risk Feed** (`/markets/*`): public SRX and Predict-derived risk views.
 - **Agent Proofs** (`/agent/*`): public agent decision/accountability proofs.
 - **DeepBook Lab** (`/lab/*`): legacy testnet Predict flows; useful proof of
@@ -91,8 +88,9 @@ Backstop is easiest to integrate as a position-native cover rail:
 1. Read a user's NAVI/Suilend-style position and compute USDe-family net exposure.
 2. Convert that exposure into a SUI payout amount using Pyth SUI/USD.
 3. Read the production pool and quote duration-priced premium.
-4. Build the current v3 `buy_cover` PTB with `buildDepegBuyCoverTx`, or use
-   `buildDepegBuyCoverWithPythTx` after the corrected v4 package is deployed.
+4. Build the current v4 buy PTB with `buildDepegBuyCoverWithPythTx`, which
+   refreshes Pyth and passes the resulting `PriceInfoObject` in the same
+   transaction.
 5. Run a keeper that calls `record_pool_breach` during a sustained depeg and
    `claim_latched` after the dwell confirms. Per-policy `record_breach` remains
    only as a compatibility path around pool-epoch eligibility.
@@ -102,8 +100,8 @@ Start with:
 - `INTEGRATION.md` for SDK and direct PTB examples.
 - `DEPLOYMENTS.md` for what is actually live versus source-only.
 - `SECURITY.md` and `THREAT_MODEL.md` for current risk boundaries.
-- `/proof` for live package IDs, pool IDs, custody, upgrade lock, staged claim,
-  production active-cover evidence, and verifier status.
+- `/proof` for live package IDs, pool IDs, custody, upgrade lock, archived
+  staged-claim evidence, production active-cover evidence, and verifier status.
 - `AUDIT_CHECKLIST.md` for the production Move review target.
 - `OUTREACH.md` for partner-call framing; do not send it externally without
   explicit approval.
@@ -161,7 +159,9 @@ npm run monitor:depeg
 
 ## SDK
 
-The SDK is published on npm:
+The SDK source builds locally in `sdk/`. Publishing a registry release with the
+v4 constants is a separate approval-gated release step; the npm package may lag
+this repository until that release is approved.
 
 ```bash
 npm install @gudman/backstop-sdk @mysten/sui

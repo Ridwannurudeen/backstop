@@ -17,6 +17,7 @@ type Deployment = {
     };
     stagedProof?: {
       adminCap?: string;
+      archived?: boolean;
     };
   };
 };
@@ -76,14 +77,18 @@ async function main(): Promise<void> {
   const recipient = normalizeSuiAddress(recipientRaw);
   const deployment = readDeployment();
   const productionAdminCap = deployment.pythDepeg?.productionPool?.adminCap;
-  const stagedAdminCap = deployment.pythDepeg?.stagedProof?.adminCap;
+  const stagedProof = deployment.pythDepeg?.stagedProof;
+  const stagedAdminCap = stagedProof?.archived
+    ? undefined
+    : stagedProof?.adminCap;
   assert(productionAdminCap, "deployment.json missing production adminCap");
-  assert(stagedAdminCap, "deployment.json missing staged adminCap");
 
   const kp = loadSuiKeypair();
   const sender = kp.getPublicKey().toSuiAddress();
   const client = new SuiClient({ url: suiRpcUrl("mainnet") });
-  const adminCaps = [productionAdminCap, stagedAdminCap];
+  const adminCaps = stagedAdminCap
+    ? [productionAdminCap, stagedAdminCap]
+    : [productionAdminCap];
 
   await assertOwnedBy(
     client,
@@ -91,7 +96,9 @@ async function main(): Promise<void> {
     sender,
     "production AdminCap",
   );
-  await assertOwnedBy(client, stagedAdminCap, sender, "staged AdminCap");
+  if (stagedAdminCap) {
+    await assertOwnedBy(client, stagedAdminCap, sender, "staged AdminCap");
+  }
 
   const tx = buildTransferTx(adminCaps, recipient);
   tx.setSender(sender);
@@ -109,7 +116,7 @@ async function main(): Promise<void> {
     console.log(`sender: ${sender}`);
     console.log(`recipient: ${recipient}`);
     console.log(`objects: ${adminCaps.join(", ")}`);
-    console.log("rerun with --execute to transfer both AdminCaps");
+    console.log("rerun with --execute to transfer AdminCap object(s)");
     return;
   }
 

@@ -20,9 +20,10 @@ governance.
 - Sui has already seen emergency intervention become the backstop of last resort.
 - Stablecoin depeg risk is objective enough to settle on-chain.
 - Protocol-native cover is stickier than retail discretionary cover.
-- Backstop v2 is live on mainnet with duration pricing, max terms, bounded
-  governance, permissionless expiry cleanup, DEP_ONLY upgrade locks, custody
-  transfer evidence, and a staged claim proof.
+- Backstop v4 is live on mainnet with fresh Pyth sale checks, duration pricing,
+  max terms, bounded governance, permissionless expiry cleanup, DEP_ONLY upgrade
+  locks, custody transfer evidence, active cover, and archived staged
+  mechanism-test evidence.
 
 ## Honest Limits
 
@@ -62,7 +63,7 @@ Would you be open to a small integration pass for one real position-holder path?
 ## Call Agenda
 
 1. Show `/proof`: package, pool, custody, upgrade lock, production active cover,
-   staged claim.
+   and archived staged claim evidence.
 2. Show `/depeg`: quote, position sizing, buy flow, policy state.
 3. Walk through `INTEGRATION.md`: quote, buy, record, claim.
 4. Ask for one real position-holder or one protocol-owned test path.

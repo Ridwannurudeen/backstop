@@ -8,7 +8,7 @@ import {
   SuiPythClient,
 } from "@pythnetwork/pyth-sui-js";
 import {
-  buildDepegBuyCoverTx,
+  buildDepegBuyCoverWithPythTx,
   buildDepegDepositLpTx,
   buildDepegWithdrawLpTx,
   quoteDepegPremium,
@@ -32,6 +32,7 @@ const RECORD_NOT_ACTIVE = 14;
 const CLAIM_NOT_BREACHED = 11;
 const WITHDRAW_INSOLVENT = 2;
 const EXPIRY_SAFETY_MS = 60_000;
+type MoveCallResult = ReturnType<Transaction["moveCall"]>;
 
 type Deployment = {
   pythDepeg?: {
@@ -39,12 +40,6 @@ type Deployment = {
     productionPool?: {
       pool?: string;
       depositLpDigest?: string;
-    };
-    stagedProof?: {
-      pool?: string;
-      premiumMist?: number;
-      policyDurationSecs?: number;
-      maxPolicyDurationSecs?: number;
     };
   };
 };
@@ -127,16 +122,30 @@ async function createdObjectFromTx(
   return created.objectId;
 }
 
-function buyPolicyProbe(opts: {
-  pkg: string;
-  pool: string;
-  premiumMist: bigint;
-  coverMist: bigint;
-  expiryMs: bigint;
-}) {
+async function buyPolicyProbe(
+  client: SuiClient,
+  opts: {
+    pkg: string;
+    pool: string;
+    premiumMist: bigint;
+    coverMist: bigint;
+    expiryMs: bigint;
+  },
+): Promise<{
+  tx: Transaction;
+  policy: MoveCallResult[0];
+  priceInfoObjectId: string;
+}> {
   const tx = new Transaction();
+  const updates = await new SuiPriceServiceConnection(
+    HERMES,
+  ).getPriceFeedsUpdateData([SUIUSDE_FEED_ID]);
+  const pyth = new SuiPythClient(client, PYTH_STATE, WORMHOLE_STATE);
+  const [priceInfoObjectId] = await pyth.updatePriceFeeds(tx, updates, [
+    SUIUSDE_FEED_ID,
+  ]);
   const [premium] = tx.splitCoins(tx.gas, [tx.pure.u64(opts.premiumMist)]);
-  const policy = tx.moveCall({
+  const [policy, refund] = tx.moveCall({
     target: `${opts.pkg}::pyth_cover_pool::buy_cover`,
     typeArguments: [SUI_TYPE],
     arguments: [
@@ -144,10 +153,12 @@ function buyPolicyProbe(opts: {
       premium,
       tx.pure.u64(opts.coverMist),
       tx.pure.u64(opts.expiryMs),
+      tx.object(priceInfoObjectId),
       tx.object(CLOCK),
     ],
   });
-  return { tx, policy };
+  tx.transferObjects([refund], ZERO_SENDER);
+  return { tx, policy, priceInfoObjectId };
 }
 
 async function buildBuyThenRecordProbe(
@@ -160,14 +171,7 @@ async function buildBuyThenRecordProbe(
     expiryMs: bigint;
   },
 ): Promise<Transaction> {
-  const { tx, policy } = buyPolicyProbe(opts);
-  const updates = await new SuiPriceServiceConnection(
-    HERMES,
-  ).getPriceFeedsUpdateData([SUIUSDE_FEED_ID]);
-  const pyth = new SuiPythClient(client, PYTH_STATE, WORMHOLE_STATE);
-  const [priceInfoObjectId] = await pyth.updatePriceFeeds(tx, updates, [
-    SUIUSDE_FEED_ID,
-  ]);
+  const { tx, policy, priceInfoObjectId } = await buyPolicyProbe(client, opts);
   tx.moveCall({
     target: `${opts.pkg}::pyth_cover_pool::record_breach`,
     typeArguments: [SUI_TYPE],
@@ -178,22 +182,27 @@ async function buildBuyThenRecordProbe(
       tx.object(CLOCK),
     ],
   });
+  tx.transferObjects([policy], ZERO_SENDER);
   return tx;
 }
 
-function buildBuyThenClaimProbe(opts: {
-  pkg: string;
-  pool: string;
-  premiumMist: bigint;
-  coverMist: bigint;
-  expiryMs: bigint;
-}): Transaction {
-  const { tx, policy } = buyPolicyProbe(opts);
-  tx.moveCall({
+async function buildBuyThenClaimProbe(
+  client: SuiClient,
+  opts: {
+    pkg: string;
+    pool: string;
+    premiumMist: bigint;
+    coverMist: bigint;
+    expiryMs: bigint;
+  },
+): Promise<Transaction> {
+  const { tx, policy } = await buyPolicyProbe(client, opts);
+  const payout = tx.moveCall({
     target: `${opts.pkg}::pyth_cover_pool::claim_latched`,
     typeArguments: [SUI_TYPE],
     arguments: [tx.object(opts.pool), policy],
   });
+  tx.transferObjects([payout], ZERO_SENDER);
   return tx;
 }
 
@@ -209,27 +218,9 @@ async function main(): Promise<void> {
     pyth.productionPool.depositLpDigest,
     "deployment.json missing production LP deposit digest",
   );
-  assert(pyth.stagedProof?.pool, "deployment.json missing staged pool id");
-  assert(
-    pyth.stagedProof.premiumMist,
-    "deployment.json missing staged premium",
-  );
   const coverPackage = pyth.coverPackage;
   const productionPool = pyth.productionPool.pool;
   const productionDepositDigest = pyth.productionPool.depositLpDigest;
-  const stagedPool = pyth.stagedProof.pool;
-  const stagedPremiumMist = BigInt(pyth.stagedProof.premiumMist);
-  const stagedPolicyDurationSecs = BigInt(
-    pyth.stagedProof.policyDurationSecs ?? 86_400,
-  );
-  const stagedMaxPolicyDurationSecs = BigInt(
-    pyth.stagedProof.maxPolicyDurationSecs ?? Number(stagedPolicyDurationSecs),
-  );
-  const stagedProbeDurationSecs =
-    stagedMaxPolicyDurationSecs < 600n ? stagedMaxPolicyDurationSecs : 600n;
-  assert(stagedProbeDurationSecs > 0, "staged max policy duration is zero");
-  const stagedExpiryMs = () =>
-    BigInt(Date.now()) + stagedProbeDurationSecs * 1000n;
 
   const client = new SuiClient({ url: suiRpcUrl("mainnet") });
   const pool = await retryTransient("read production depeg pool", () =>
@@ -252,14 +243,17 @@ async function main(): Promise<void> {
   await inspect(
     client,
     "production buy_cover builder",
-    buildDepegBuyCoverTx({
-      pkg: coverPackage,
-      poolId: productionPool,
-      premiumMist,
-      coverMist,
-      expiryMs: BigInt(Date.now() + 30 * 86_400_000 - EXPIRY_SAFETY_MS),
-      owner: ZERO_SENDER,
-    }),
+    await retryTransient("build production buy_cover probe", () =>
+      buildDepegBuyCoverWithPythTx({
+        client,
+        pkg: coverPackage,
+        poolId: productionPool,
+        premiumMist,
+        coverMist,
+        expiryMs: BigInt(Date.now() + 30 * 86_400_000 - EXPIRY_SAFETY_MS),
+        owner: ZERO_SENDER,
+      }),
+    ),
     { kind: "success" },
   );
 
@@ -282,28 +276,30 @@ async function main(): Promise<void> {
 
   await inspect(
     client,
-    "staged buy -> record_breach PTB",
-    await retryTransient("build staged record_breach probe", () =>
+    "production buy -> record_breach PTB",
+    await retryTransient("build production record_breach probe", () =>
       buildBuyThenRecordProbe(client, {
         pkg: coverPackage,
-        pool: stagedPool,
-        premiumMist: stagedPremiumMist,
+        pool: productionPool,
+        premiumMist,
         coverMist,
-        expiryMs: stagedExpiryMs(),
+        expiryMs: BigInt(Date.now() + 30 * 86_400_000 - EXPIRY_SAFETY_MS),
       }),
     ),
     { kind: "abort", code: RECORD_NOT_ACTIVE },
   );
   await inspect(
     client,
-    "staged buy -> claim_latched PTB",
-    buildBuyThenClaimProbe({
-      pkg: coverPackage,
-      pool: stagedPool,
-      premiumMist: stagedPremiumMist,
-      coverMist,
-      expiryMs: stagedExpiryMs(),
-    }),
+    "production buy -> claim_latched PTB",
+    await retryTransient("build production claim_latched probe", () =>
+      buildBuyThenClaimProbe(client, {
+        pkg: coverPackage,
+        pool: productionPool,
+        premiumMist,
+        coverMist,
+        expiryMs: BigInt(Date.now() + 30 * 86_400_000 - EXPIRY_SAFETY_MS),
+      }),
+    ),
     { kind: "abort", code: CLAIM_NOT_BREACHED },
   );
 }

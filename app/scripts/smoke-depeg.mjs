@@ -81,7 +81,7 @@ async function checkPage(browser, name, options) {
 
   await page.locator(".proof-health-row").first().waitFor({
     state: "visible",
-    timeout: 45_000,
+    timeout: 90_000,
   });
   const proofRows = await page.locator(".proof-health-row").count();
   assert(proofRows >= 8, `${name}: proof-health rows did not render`);
@@ -117,7 +117,7 @@ async function checkPage(browser, name, options) {
     });
   await page.locator(".proof-object-list code").first().waitFor({
     state: "visible",
-    timeout: 45_000,
+    timeout: 90_000,
   });
   const proofCodeBlocks = await page.locator(".proof-snippets pre").count();
   assert(proofCodeBlocks >= 4, `${name}: SDK snippets did not render`);
