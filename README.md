@@ -137,6 +137,7 @@ Browser smoke:
 
 ```bash
 npm --prefix app run smoke:depeg
+npm --prefix app run smoke:depeg:wallet-gated
 DEPEG_SMOKE_URL=https://backstop.gudman.xyz/depeg npm --prefix app run smoke:depeg
 ```
 

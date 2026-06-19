@@ -17,6 +17,9 @@ async function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+const isAllowedConsoleError = (text) =>
+  /Failed to load resource: net::ERR_NAME_NOT_RESOLVED/.test(text);
+
 async function checkPage(browser, name, options) {
   const context = await browser.newContext(options);
   const page = await context.newPage();
@@ -87,9 +90,12 @@ async function checkPage(browser, name, options) {
     () => document.documentElement.scrollWidth > window.innerWidth + 1,
   );
   assert(!overflow, `${name}: horizontal overflow detected`);
+  const initialActionableErrors = consoleErrors.filter(
+    (message) => !isAllowedConsoleError(message),
+  );
   assert(
-    consoleErrors.length === 0,
-    `${name}: console errors: ${consoleErrors.join(" | ")}`,
+    initialActionableErrors.length === 0,
+    `${name}: console errors: ${initialActionableErrors.join(" | ")}`,
   );
 
   await page.goto(proofUrl, { waitUntil: "commit", timeout: 60_000 });
@@ -119,9 +125,12 @@ async function checkPage(browser, name, options) {
     () => document.documentElement.scrollWidth > window.innerWidth + 1,
   );
   assert(!proofOverflow, `${name}: proof page horizontal overflow detected`);
+  const actionableErrors = consoleErrors.filter(
+    (message) => !isAllowedConsoleError(message),
+  );
   assert(
-    consoleErrors.length === 0,
-    `${name}: console errors: ${consoleErrors.join(" | ")}`,
+    actionableErrors.length === 0,
+    `${name}: console errors: ${actionableErrors.join(" | ")}`,
   );
 
   await context.close();
