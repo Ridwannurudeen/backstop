@@ -1,45 +1,43 @@
 # Backstop Roadmap
 
-Use `README.md` as the canonical state document. This file is the forward plan.
+Use `README.md`, `DEPLOYMENTS.md`, `SECURITY.md`, and `THREAT_MODEL.md` as the
+canonical state documents. This file is only the forward sequence.
 
-## Phase 1 - Flagship depeg product
+## Phase 1 - Correct The Depeg Pool
 
-- Keep `/depeg` as the main app surface.
-- Keep legacy DeepBook Predict flows quarantined under `DeepBook Lab`.
-- Present the staged 1.05 proof pool as a mechanism test only.
+- Keep the deployed v3 pool low-cap and explicitly experimental.
+- Publish a reviewed v4 package only after the source-hardening changes pass:
+  sale-open Pyth checks, exact premium, zero-share rejection, pool-epoch
+  settlement, bounded dwell confirmation, and immutable live settlement terms.
+- Run connected-wallet smoke against the corrected package before raising caps.
 
-## Phase 2 - Contract economics
+## Phase 2 - Prove One Integration
 
-- Live on mainnet v3: duration-scaled premium and max policy term.
-- Live on mainnet v3: permissionless expired-policy cleanup.
-- Live on mainnet v3: bounded governance parameter ranges.
-- Add explicit SUI/USD basis-risk disclosure and consider stable collateral or
-  oracle-haircut accounting.
+- Protect one real NAVI, Suilend, Scallop, Bucket, or treasury position.
+- Bind cover size to verified exposure and route payouts into the position or
+  protocol reserve where possible.
+- Use `/depeg` and `/proof` as the demo path; keep DeepBook/Walrus routes as
+  supporting evidence, not the main product.
 
-## Phase 3 - Incident-scale settlement
+## Phase 3 - Stable Collateral
 
-- Live on mainnet v3: pool-level depeg epochs for batchable claim eligibility,
-  with keeper monitor and UI/SDK wiring.
-- Gate before raising caps: external Move review and connected-wallet smoke on
-  the production pool.
+- Deploy a USDC or conservative stable-collateral pool before taking meaningful
+  USD-denominated exposure.
+- If SUI collateral remains supported, add oracle valuation, haircuts,
+  concentration limits, and explicit stress accounting.
 
-## Phase 4 - Protocol demand
+## Phase 4 - Operations And Review
 
-- Protect one real NAVI/Suilend-style position.
-- Get one external protocol or external wallet to buy/consume cover.
-- Package a proof page that shows the production pool, proof-health checks,
-  active cover, and relevant txs.
+- Complete independent Move review and publish findings/fixes.
+- Run at least two independent keeper operators.
+- Monitor oracle age, confidence, pool solvency, epoch state, governance
+  proposals, and keeper inactivity.
+- Prepare Pyth Core migration work before relying on post-July 31, 2026 package
+  assumptions.
 
-## Phase 5 - Risk oracle
+## Phase 5 - RiskOS
 
-- Replace admin-resolved challenges with a trust-minimized optimistic dispute
-  game.
-- Publish a continuously updated probability-of-failure feed that protocols can
-  consume for LTVs, liquidation parameters, reserves, or cover requirements.
-
-## Phase 6 - Scale
-
-- Multi-asset depeg markets.
-- Protocol-native cover bundles.
-- Yield-bearing underwriting capital.
-- Agent underwriter marketplace once calibration has meaningful sample size.
+- Build a Sui risk graph only after the depeg product has a real design partner.
+- Add risk receipts for position-bound policies.
+- Let deterministic models set bounded rates and capacity; use LLMs only for
+  explanation, reporting, and operator assistance.

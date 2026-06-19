@@ -1,6 +1,7 @@
 # Backstop
 
-**Mainnet depeg cover for Sui DeFi, with DeepBook/Walrus risk-oracle lineage.**
+**Solvency cover for Sui DeFi: Pyth-settled depeg protection with
+DeepBook/Walrus risk-research lineage.**
 
 Live app: https://backstop.gudman.xyz
 
@@ -31,7 +32,15 @@ production risk oracle.
 
 The default mainnet pool is the v3 deployment from 2026-06-18, so duration
 pricing, max term, bounded governance, permissionless expiry sweeping, and
-pool-level depeg epochs are live on the public `/depeg` route.
+pool-level depeg epochs are live on the public `/depeg` route. Keep caps low:
+v3 is experimental and should not be marketed as production-safe insurance.
+
+This branch contains v4 source hardening for the next deployment: fresh Pyth
+sale checks, exact premium payment, zero-share LP protection, pool-epoch-only
+direct latch compatibility, bounded dwell confirmation, healthy-observation
+reset, and settlement-term immutability while cover is active. Those protections
+are not live until a new package and pool are deployed and `DEPLOYMENTS.md` plus
+`deployment.json` are updated.
 
 Important honesty note: the paid mainnet claim in `deployment.json` is a staged
 mechanism test using a proof pool with intentionally permissive trigger
@@ -63,6 +72,7 @@ does not expose it as a normal route.
 - USD/stable collateral or oracle-haircut accounting for SUI/USD basis risk
 - trust-minimized dispute resolution for RiskFeed/SRX/accountability
 - an external protocol integration or non-project user buying/consuming cover
+- independent Move review of the corrected v4 source
 
 ## App surfaces
 
@@ -81,15 +91,17 @@ Backstop is easiest to integrate as a position-native cover rail:
 1. Read a user's NAVI/Suilend-style position and compute USDe-family net exposure.
 2. Convert that exposure into a SUI payout amount using Pyth SUI/USD.
 3. Read the production pool and quote duration-priced premium.
-4. Build a `buy_cover` PTB that sends the policy to the user or protocol position
-   manager.
+4. Build the current v3 `buy_cover` PTB with `buildDepegBuyCoverTx`, or use
+   `buildDepegBuyCoverWithPythTx` after the corrected v4 package is deployed.
 5. Run a keeper that calls `record_pool_breach` during a sustained depeg and
    `claim_latched` after the dwell confirms. Per-policy `record_breach` remains
-   available; pool-level epochs are the preferred mass-depeg path.
+   only as a compatibility path around pool-epoch eligibility.
 
 Start with:
 
 - `INTEGRATION.md` for SDK and direct PTB examples.
+- `DEPLOYMENTS.md` for what is actually live versus source-only.
+- `SECURITY.md` and `THREAT_MODEL.md` for current risk boundaries.
 - `/proof` for live package IDs, pool IDs, custody, upgrade lock, staged claim,
   production active-cover evidence, and verifier status.
 - `AUDIT_CHECKLIST.md` for the production Move review target.

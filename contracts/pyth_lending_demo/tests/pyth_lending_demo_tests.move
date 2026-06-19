@@ -13,6 +13,7 @@ module pyth_lending_demo::pyth_lending_demo_tests {
     const FEED: vector<u8> = b"SUIUSDE/USD";
     const EXPO_MAG: u64 = 8;
     const THRESHOLD: u64 = 97_000_000; // $0.97
+    const PEG: u64 = 100_000_000;      // $1.00
     const DEPEG: u64 = 95_000_000;     // $0.95
     const PREMIUM_BPS: u64 = 200;      // 2% base rate (0% utilization)
     const SURGE_BPS: u64 = 800;        // +8% at 100% utilization
@@ -53,8 +54,8 @@ module pyth_lending_demo::pyth_lending_demo_tests {
         // Lending market buys 500 of depeg cover; premium = 500 * 2% = 10.
         let mut market = pyth_lending_demo::new_for_testing(string::utf8(ASSET), &mut ctx);
         let premium = pyth_cover_pool::premium_for(&pool, 500);
-        pyth_lending_demo::insure(
-            &mut market, &mut pool, fund(premium, &mut ctx), 500, EXPIRY, &clock, &mut ctx,
+        pyth_lending_demo::insure_at_price_for_testing(
+            &mut market, &mut pool, fund(premium, &mut ctx), 500, EXPIRY, PEG, &clock, &mut ctx,
         );
         assert!(pyth_lending_demo::is_insured(&market), 0);
         assert!(pyth_lending_demo::reserve_value(&market) == 0, 1);
@@ -91,13 +92,13 @@ module pyth_lending_demo::pyth_lending_demo_tests {
 
         let mut market = pyth_lending_demo::new_for_testing(string::utf8(ASSET), &mut ctx);
         let premium = pyth_cover_pool::premium_for(&pool, 500);
-        pyth_lending_demo::insure(
-            &mut market, &mut pool, fund(premium, &mut ctx), 500, EXPIRY, &clock, &mut ctx,
+        pyth_lending_demo::insure_at_price_for_testing(
+            &mut market, &mut pool, fund(premium, &mut ctx), 500, EXPIRY, PEG, &clock, &mut ctx,
         );
         // Second insure on an already-insured market must abort.
         let premium2 = pyth_cover_pool::premium_for(&pool, 500);
-        pyth_lending_demo::insure(
-            &mut market, &mut pool, fund(premium2, &mut ctx), 500, EXPIRY, &clock, &mut ctx,
+        pyth_lending_demo::insure_at_price_for_testing(
+            &mut market, &mut pool, fund(premium2, &mut ctx), 500, EXPIRY, PEG, &clock, &mut ctx,
         );
 
         unit_test::destroy(market);
@@ -132,8 +133,8 @@ module pyth_lending_demo::pyth_lending_demo_tests {
 
         let mut market = pyth_lending_demo::new_for_testing(string::utf8(ASSET), &mut ctx);
         let premium = pyth_cover_pool::premium_for(&pool, 500);
-        pyth_lending_demo::insure(
-            &mut market, &mut pool, fund(premium, &mut ctx), 500, EXPIRY, &clock, &mut ctx,
+        pyth_lending_demo::insure_at_price_for_testing(
+            &mut market, &mut pool, fund(premium, &mut ctx), 500, EXPIRY, PEG, &clock, &mut ctx,
         );
         // Insured but never breached → the latched claim must abort, no free payout.
         pyth_lending_demo::cover_shortfall(&mut market, &mut pool, &mut ctx);

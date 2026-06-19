@@ -280,6 +280,35 @@ export function buildDepegBuyCoverTx(p: {
   return tx;
 }
 
+export async function buildDepegBuyCoverWithPythTx(p: {
+  client: SuiClient;
+  pkg: string;
+  poolId: string;
+  premiumMist: bigint;
+  coverMist: bigint;
+  expiryMs: bigint;
+  owner: string;
+  feedId?: string;
+}): Promise<Transaction> {
+  const feedId = p.feedId ?? SUIUSDE_FEED_ID;
+  const { tx, priceInfoObjectId } = await buildPythUpdateTx(p.client, feedId);
+  const [prem] = tx.splitCoins(tx.gas, [tx.pure.u64(p.premiumMist)]);
+  const policy = tx.moveCall({
+    target: `${p.pkg}::pyth_cover_pool::buy_cover`,
+    typeArguments: [SUI_TYPE],
+    arguments: [
+      tx.object(p.poolId),
+      prem,
+      tx.pure.u64(p.coverMist),
+      tx.pure.u64(p.expiryMs),
+      tx.object(priceInfoObjectId),
+      tx.object(CLOCK),
+    ],
+  });
+  tx.transferObjects([policy], p.owner);
+  return tx;
+}
+
 async function buildPythUpdateTx(client: SuiClient, feedId: string) {
   const tx = new Transaction();
   const updates = await new SuiPriceServiceConnection(
