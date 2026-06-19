@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
+import { SuiClient } from "@mysten/sui/client";
 import { Transaction } from "@mysten/sui/transactions";
 import {
   SuiPriceServiceConnection,
@@ -22,6 +22,8 @@ import {
   SUIUSDE_FEED_ID,
   WORMHOLE_STATE,
 } from "../../app/src/lib/deployment";
+import { retryTransient } from "./retry.js";
+import { suiRpcUrl } from "./rpc.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..", "..");
@@ -29,6 +31,7 @@ const ZERO_SENDER = "0x" + "0".repeat(64);
 const RECORD_NOT_ACTIVE = 14;
 const CLAIM_NOT_BREACHED = 11;
 const WITHDRAW_INSOLVENT = 2;
+const EXPIRY_SAFETY_MS = 60_000;
 
 type Deployment = {
   pythDepeg?: {
@@ -40,6 +43,8 @@ type Deployment = {
     stagedProof?: {
       pool?: string;
       premiumMist?: number;
+      policyDurationSecs?: number;
+      maxPolicyDurationSecs?: number;
     };
   };
 };
@@ -69,10 +74,12 @@ async function inspect(
   transactionBlock: Transaction,
   expectation: InspectExpectation,
 ): Promise<void> {
-  const result = await client.devInspectTransactionBlock({
-    sender: ZERO_SENDER,
-    transactionBlock,
-  });
+  const result = await retryTransient(`devInspect ${label}`, () =>
+    client.devInspectTransactionBlock({
+      sender: ZERO_SENDER,
+      transactionBlock,
+    }),
+  );
   const status = result.effects?.status?.status;
   const error = result.effects?.status?.error ?? result.error ?? "";
 
@@ -100,10 +107,12 @@ async function createdObjectFromTx(
   digest: string,
   typeFragment: string,
 ): Promise<string> {
-  const tx = await client.getTransactionBlock({
-    digest,
-    options: { showObjectChanges: true },
-  });
+  const tx = await retryTransient(`read tx ${digest}`, () =>
+    client.getTransactionBlock({
+      digest,
+      options: { showObjectChanges: true },
+    }),
+  );
   const created = (tx.objectChanges ?? []).find(
     (change) =>
       change.type === "created" &&
@@ -123,6 +132,7 @@ function buyPolicyProbe(opts: {
   pool: string;
   premiumMist: bigint;
   coverMist: bigint;
+  expiryMs: bigint;
 }) {
   const tx = new Transaction();
   const [premium] = tx.splitCoins(tx.gas, [tx.pure.u64(opts.premiumMist)]);
@@ -133,7 +143,7 @@ function buyPolicyProbe(opts: {
       tx.object(opts.pool),
       premium,
       tx.pure.u64(opts.coverMist),
-      tx.pure.u64(BigInt(Date.now() + 86_400_000)),
+      tx.pure.u64(opts.expiryMs),
       tx.object(CLOCK),
     ],
   });
@@ -147,6 +157,7 @@ async function buildBuyThenRecordProbe(
     pool: string;
     premiumMist: bigint;
     coverMist: bigint;
+    expiryMs: bigint;
   },
 ): Promise<Transaction> {
   const { tx, policy } = buyPolicyProbe(opts);
@@ -175,6 +186,7 @@ function buildBuyThenClaimProbe(opts: {
   pool: string;
   premiumMist: bigint;
   coverMist: bigint;
+  expiryMs: bigint;
 }): Transaction {
   const { tx, policy } = buyPolicyProbe(opts);
   tx.moveCall({
@@ -202,9 +214,27 @@ async function main(): Promise<void> {
     pyth.stagedProof.premiumMist,
     "deployment.json missing staged premium",
   );
+  const coverPackage = pyth.coverPackage;
+  const productionPool = pyth.productionPool.pool;
+  const productionDepositDigest = pyth.productionPool.depositLpDigest;
+  const stagedPool = pyth.stagedProof.pool;
+  const stagedPremiumMist = BigInt(pyth.stagedProof.premiumMist);
+  const stagedPolicyDurationSecs = BigInt(
+    pyth.stagedProof.policyDurationSecs ?? 86_400,
+  );
+  const stagedMaxPolicyDurationSecs = BigInt(
+    pyth.stagedProof.maxPolicyDurationSecs ?? Number(stagedPolicyDurationSecs),
+  );
+  const stagedProbeDurationSecs =
+    stagedMaxPolicyDurationSecs < 600n ? stagedMaxPolicyDurationSecs : 600n;
+  assert(stagedProbeDurationSecs > 0, "staged max policy duration is zero");
+  const stagedExpiryMs = () =>
+    BigInt(Date.now()) + stagedProbeDurationSecs * 1000n;
 
-  const client = new SuiClient({ url: getFullnodeUrl("mainnet") });
-  const pool = await readDepegPool(client, pyth.productionPool.pool);
+  const client = new SuiClient({ url: suiRpcUrl("mainnet") });
+  const pool = await retryTransient("read production depeg pool", () =>
+    readDepegPool(client, productionPool),
+  );
   const coverMist = 1_000_000n;
   const premiumMist = quoteDepegPremium(pool, coverMist);
 
@@ -212,8 +242,8 @@ async function main(): Promise<void> {
     client,
     "production deposit_lp builder",
     buildDepegDepositLpTx({
-      pkg: pyth.coverPackage,
-      poolId: pyth.productionPool.pool,
+      pkg: coverPackage,
+      poolId: productionPool,
       amountMist: coverMist,
       owner: ZERO_SENDER,
     }),
@@ -223,11 +253,11 @@ async function main(): Promise<void> {
     client,
     "production buy_cover builder",
     buildDepegBuyCoverTx({
-      pkg: pyth.coverPackage,
-      poolId: pyth.productionPool.pool,
+      pkg: coverPackage,
+      poolId: productionPool,
       premiumMist,
       coverMist,
-      expiryMs: BigInt(Date.now() + 30 * 86_400_000),
+      expiryMs: BigInt(Date.now() + 30 * 86_400_000 - EXPIRY_SAFETY_MS),
       owner: ZERO_SENDER,
     }),
     { kind: "success" },
@@ -235,41 +265,44 @@ async function main(): Promise<void> {
 
   const shareId = await createdObjectFromTx(
     client,
-    pyth.productionPool.depositLpDigest,
+    productionDepositDigest,
     "::pyth_cover_pool::LpShare",
   );
   await inspect(
     client,
     "production withdraw_lp builder",
     buildDepegWithdrawLpTx({
-      pkg: pyth.coverPackage,
-      poolId: pyth.productionPool.pool,
+      pkg: coverPackage,
+      poolId: productionPool,
       shareId,
       owner: ZERO_SENDER,
     }),
     { kind: "success-or-abort", code: WITHDRAW_INSOLVENT },
   );
 
-  const stagedPremiumMist = BigInt(pyth.stagedProof.premiumMist);
   await inspect(
     client,
     "staged buy -> record_breach PTB",
-    await buildBuyThenRecordProbe(client, {
-      pkg: pyth.coverPackage,
-      pool: pyth.stagedProof.pool,
-      premiumMist: stagedPremiumMist,
-      coverMist,
-    }),
+    await retryTransient("build staged record_breach probe", () =>
+      buildBuyThenRecordProbe(client, {
+        pkg: coverPackage,
+        pool: stagedPool,
+        premiumMist: stagedPremiumMist,
+        coverMist,
+        expiryMs: stagedExpiryMs(),
+      }),
+    ),
     { kind: "abort", code: RECORD_NOT_ACTIVE },
   );
   await inspect(
     client,
     "staged buy -> claim_latched PTB",
     buildBuyThenClaimProbe({
-      pkg: pyth.coverPackage,
-      pool: pyth.stagedProof.pool,
+      pkg: coverPackage,
+      pool: stagedPool,
       premiumMist: stagedPremiumMist,
       coverMist,
+      expiryMs: stagedExpiryMs(),
     }),
     { kind: "abort", code: CLAIM_NOT_BREACHED },
   );

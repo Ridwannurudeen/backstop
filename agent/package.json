@@ -20,6 +20,8 @@
     "verify-depeg-custody": "tsx src/verifyDepegCustody.ts",
     "transfer-depeg-admin-caps": "tsx src/transferDepegAdminCaps.ts",
     "check-deployer": "tsx src/checkSuiDeployer.ts",
+    "lock-upgrade-caps": "tsx src/lockUpgradeCaps.ts",
+    "monitor-depeg": "tsx src/monitorDepeg.ts",
     "deploy-package": "tsx src/deployPackage.ts"
   },
   "dependencies": {

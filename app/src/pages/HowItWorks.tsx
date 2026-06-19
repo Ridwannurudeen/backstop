@@ -11,8 +11,9 @@ export default function HowItWorks() {
         <header className="doc-head">
           <h1>How Backstop works</h1>
           <p>
-            Backstop turns Sui's on-chain markets into a way to price, transfer,
-            and prove risk — the layer the ecosystem is missing.
+            Backstop's shipped product is mainnet depeg cover. DeepBook Predict,
+            Walrus, SRX, and the agent modules are the risk-oracle and
+            accountability research layer behind that wedge.
           </p>
         </header>
 
@@ -20,57 +21,53 @@ export default function HowItWorks() {
           <h2>The problem</h2>
           <p>
             When the $223M Cetus exploit hit Sui in 2025, the "insurance" was a
-            90.9% validator vote to freeze and roll back the chain —
-            governance-by-emergency, not a primitive. Less than 2% of DeFi is
-            insured, and Sui has no native way to price or transfer the risk
-            that actually wipes people out: a crash or a depeg. Backstop is that
-            missing layer.
+            90.9% validator vote to freeze and roll back the chain -
+            governance-by-emergency, not a primitive. Backstop starts with depeg
+            risk because it has objective oracle settlement and obvious protocol
+            demand.
           </p>
         </section>
 
         <section>
-          <h2>1 · Price the risk</h2>
+          <h2>1. Size the exposure</h2>
           <p>
-            Backstop reads DeepBook Predict's on-chain volatility surface and
-            turns each market's binary-option price into a market-implied{" "}
-            <b>probability of failure</b>. That becomes the <b>RiskFeed</b> — a
-            bonded, challengeable, on-chain oracle any Sui contract can read,
-            with every reading's inputs anchored to Walrus. The <b>SRX index</b>{" "}
-            (CRASH / VOL / TAIL) is the headline read of that surface across a
-            strike grid.
+            The Cover page can scan or import NAVI/Suilend-like position
+            objects, estimate USDe-family exposure, convert that exposure into a
+            SUI-denominated cover size, and apply the pool's current headroom
+            and per-policy caps.
           </p>
         </section>
 
         <section>
-          <h2>2 · Transfer the risk</h2>
+          <h2>2. Transfer depeg risk</h2>
           <p>
-            Holders buy <b>parametric cover</b> from a fully-collateralized pool
-            — crash cover on a treasury, or stablecoin-depeg cover (e.g. suiUSDe
-            below $0.985). LPs supply capital and earn premiums, priced off the
-            live feed. The pool is always fully collateralized: it can pay every
-            outstanding policy at all times.
+            Holders buy parametric cover from a fully-collateralized pool for
+            stablecoin-depeg risk, such as suiUSDe below $0.985. LPs supply SUI
+            capital and earn premiums. The pool can pay every outstanding policy
+            in its payout asset, while users should still understand the USD/SUI
+            basis risk.
           </p>
         </section>
 
         <section>
-          <h2>3 · Settle trustlessly</h2>
+          <h2>3. Settle objectively</h2>
           <p>
-            On the mainnet path, a claim reads <b>Pyth</b> on-chain with a
-            freshness bound and pays straight from the pool the moment the
-            insured asset breaks its floor. No claims process, no trust in
-            Backstop — the payout depends only on a neutral oracle. Pricing is
-            subjective and off-chain; settlement is objective and on-chain.
+            A claim reads Pyth on-chain with a freshness bound and pays from the
+            pool only after the adverse price band stays below the floor through
+            the dwell window. No claims committee decides a payout. Pricing is
+            subjective and pool-defined; settlement conditions are objective and
+            on-chain.
           </p>
         </section>
 
         <section>
-          <h2>Verifiable, not asserted</h2>
+          <h2>Risk-oracle research layer</h2>
           <p>
-            A bonded autonomous <b>underwriter</b> prices and underwrites
-            on-chain, logging every decision and its realized outcome to Walrus.
-            Trust is earned on a public calibration ledger anyone can replay,
-            not self-reported. Competing agents bond capital and are slashed
-            when their on-chain accuracy falls below threshold.
+            Backstop also ships DeepBook Predict testnet primitives: SRX, a
+            RiskFeed, Walrus-anchored agent decisions, and calibration/arena
+            objects. Those prove the direction, but their disputes are still
+            admin-resolved today. They are not yet a fully trustless production
+            risk oracle.
           </p>
         </section>
 
@@ -78,18 +75,21 @@ export default function HowItWorks() {
           <h2>What's live vs. roadmap</h2>
           <ul className="doc-list">
             <li>
-              <b>Live on testnet:</b> the RiskFeed + SRX index, the parametric
-              cover pool, the autonomous underwriter, the calibration ledger and
-              agent arena — deployed and proven over DeepBook Predict.
+              <b>Live on mainnet:</b> Pyth-settled stablecoin-depeg cover: the
+              v3 package, production pool, wallet actions, duration-priced
+              economics, permissionless expiry sweep, pool-level depeg epochs,
+              proof-health checks, and a staged mechanism-test claim are all
+              recorded on Sui mainnet.
             </li>
             <li>
-              <b>Live on mainnet:</b> Pyth-settled stablecoin-depeg cover — the
-              package, pool, lending consumer, and a staged dwell-latch claim
-              are all proven on Sui mainnet.
+              <b>Live on testnet:</b> the RiskFeed + SRX index, autonomous
+              underwriter, calibration ledger and agent arena, deployed as
+              risk-oracle/accountability proofs over DeepBook Predict.
             </li>
             <li>
-              <b>Roadmap:</b> multi-asset markets, an underwriter marketplace,
-              and a generalized provenance standard.
+              <b>Roadmap:</b> protocol integrations, multi-asset markets,
+              stable-collateral or oracle-haircut accounting, and a
+              trust-minimized dispute game.
             </li>
           </ul>
         </section>
@@ -99,7 +99,10 @@ export default function HowItWorks() {
             Launch app
           </Link>
           <Link to="/markets/risk-index" className="btn ghost">
-            Explore the risk index
+            Explore the risk feed
+          </Link>
+          <Link to="/proof" className="btn ghost">
+            Open proof packet
           </Link>
         </div>
       </article>

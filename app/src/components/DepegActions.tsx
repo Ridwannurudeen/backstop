@@ -12,7 +12,10 @@ import {
   buildDepegBuyCoverTx,
   buildDepegClaimLatchedTx,
   buildDepegDepositLpTx,
+  buildDepegExpirePolicyTx,
   buildDepegRecordBreachTx,
+  buildDepegRecordPoolBreachTx,
+  buildDepegRecordPoolRecoveryTx,
   buildDepegWithdrawLpTx,
   fetchMyDepegPolicies,
   fetchMyDepegShares,
@@ -39,11 +42,21 @@ import "./terminal.css";
 
 const COVER_TERMS = [7, 30, 90];
 const DAY_MS = 86_400_000;
+const EXPIRY_SAFETY_MS = 60_000;
+const MAINNET_CHAIN = "sui:mainnet" as const;
 
 const compactDate = (ms: number) =>
   new Date(ms).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
+  });
+
+const compactDateTime = (ms: number) =>
+  new Date(ms).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
   });
 
 const shareUnits = (shares: bigint) =>
@@ -82,6 +95,9 @@ const thresholdUsd = (
 
 const minBigint = (a: bigint, b: bigint) => (a < b ? a : b);
 
+const expiryForTerm = (termDays: number) =>
+  BigInt(Date.now() + termDays * DAY_MS - EXPIRY_SAFETY_MS);
+
 export default function DepegActions() {
   const account = useCurrentAccount();
   const client = useSuiClient();
@@ -116,12 +132,19 @@ export default function DepegActions() {
     saveDepegConfig(config);
   }, [config]);
 
+  useEffect(() => {
+    if (configured && !onMainnet) {
+      selectNetwork(MAINNET);
+    }
+  }, [configured, onMainnet, selectNetwork]);
+
   const { data: pool, error: poolError } = useQuery({
     queryKey: ["depeg-pool", network, config.pkg, config.poolId],
     queryFn: () => readDepegPool(client, config.poolId),
     enabled: canRead,
     refetchInterval: 15_000,
   });
+  const poolSupportsEpoch = pool !== undefined && pool.epochId !== null;
 
   const { data: mine } = useQuery({
     queryKey: [
@@ -130,6 +153,7 @@ export default function DepegActions() {
       account?.address,
       config.pkg,
       config.poolId,
+      poolSupportsEpoch,
     ],
     queryFn: async () => {
       if (!account) return { policies: [], shares: [] };
@@ -139,6 +163,7 @@ export default function DepegActions() {
           account.address,
           config.pkg,
           config.poolId,
+          poolSupportsEpoch,
         ),
         fetchMyDepegShares(client, account.address, config.pkg, config.poolId),
       ]);
@@ -225,7 +250,15 @@ export default function DepegActions() {
   });
 
   const coverMist = toMist(coverSui);
-  const premiumMist = pool ? quoteDepegPremium(pool, coverMist) : undefined;
+  const termSecs = termDays * 86_400;
+  const termExceedsMax =
+    !!pool &&
+    pool.maxPolicyDurationSecs !== null &&
+    termSecs > pool.maxPolicyDurationSecs;
+  const premiumMist =
+    pool && !termExceedsMax
+      ? quoteDepegPremium(pool, coverMist, termDays)
+      : undefined;
   const totalShareUnits =
     mine?.shares.reduce((sum, share) => sum + share.shares, 0n) ?? 0n;
   const utilization =
@@ -304,6 +337,28 @@ export default function DepegActions() {
     !!pool && suilendSuggestedCoverMist > suilendSizedCoverMist;
   const naviCoverDisabled = naviSizedCoverMist <= 0n || !suiUsdPrice;
   const suilendCoverDisabled = suilendSizedCoverMist <= 0n || !suiUsdPrice;
+  const nowMs = Date.now();
+  const poolEpochOpen = !!pool && (pool.epochArmed || pool.epochBreached);
+  const poolEpochConfirmMs =
+    (pool?.epochFirstBreachMs ?? 0) + (pool?.minDwellSecs ?? 0) * 1000;
+  const poolEpochDwellRemainingMs =
+    pool?.epochArmed && !pool.epochBreached ? poolEpochConfirmMs - nowMs : 0;
+  const poolEpochDwellReady =
+    !!pool?.epochArmed && !pool.epochBreached && poolEpochDwellRemainingMs <= 0;
+  const poolStatus = !pool
+    ? "-"
+    : pool.epochBreached
+      ? "Pool breached"
+      : pool.epochArmed
+        ? "Epoch armed"
+        : pool.paused
+          ? "Paused"
+          : "Live";
+  const poolStatusClass = pool?.epochBreached
+    ? "val-bad"
+    : pool?.epochArmed || pool?.paused
+      ? "val-warn"
+      : "";
   const buyDisabled =
     !account ||
     !canRead ||
@@ -311,9 +366,16 @@ export default function DepegActions() {
     coverSui <= 0 ||
     premiumMist === undefined ||
     !!pool?.paused ||
+    poolEpochOpen ||
+    termExceedsMax ||
     coverExceedsLimit;
   const depositDisabled =
-    !account || !canRead || isPending || depositSui <= 0 || !!pool?.paused;
+    !account ||
+    !canRead ||
+    isPending ||
+    depositSui <= 0 ||
+    !!pool?.paused ||
+    poolEpochOpen;
 
   const refresh = () =>
     qc.invalidateQueries({
@@ -325,9 +387,14 @@ export default function DepegActions() {
     ok: string,
   ) {
     setNotice(null);
+    if (!account) {
+      setNotice({ kind: "err", text: "Connect a wallet before signing." });
+      return;
+    }
     try {
       const transaction = await build();
-      const { digest } = await sign({ transaction });
+      transaction.setSenderIfNotSet(account.address);
+      const { digest } = await sign({ transaction, chain: MAINNET_CHAIN });
       await client.waitForTransaction({ digest });
       setNotice({ kind: "ok", text: ok, digest, network: "mainnet" });
       refresh();
@@ -406,7 +473,7 @@ export default function DepegActions() {
           poolId: config.poolId,
           premiumMist,
           coverMist,
-          expiryMs: BigInt(Date.now() + termDays * DAY_MS),
+          expiryMs: expiryForTerm(termDays),
           owner: account.address,
         }),
       `Bought ${coverSui} SUI of depeg cover`,
@@ -440,6 +507,32 @@ export default function DepegActions() {
       "Breach observation recorded",
     );
 
+  const recordPool = () =>
+    run(
+      () =>
+        buildDepegRecordPoolBreachTx({
+          client,
+          pkg: config.pkg,
+          poolId: config.poolId,
+          feedId: pool?.feedIdHex,
+        }),
+      pool?.epochArmed
+        ? "Pool-level breach confirmed"
+        : "Pool-level breach armed",
+    );
+
+  const recoverPool = () =>
+    run(
+      () =>
+        buildDepegRecordPoolRecoveryTx({
+          client,
+          pkg: config.pkg,
+          poolId: config.poolId,
+          feedId: pool?.feedIdHex,
+        }),
+      "Pool-level epoch recovered",
+    );
+
   const claim = (policyId: string) => {
     if (!account) return;
     run(
@@ -454,37 +547,57 @@ export default function DepegActions() {
     );
   };
 
+  const expire = (policyId: string) =>
+    run(
+      () =>
+        buildDepegExpirePolicyTx({
+          pkg: config.pkg,
+          poolId: config.poolId,
+          policyId,
+        }),
+      "Expired policy released",
+    );
+
   return (
     <div className="card">
       <h3>
-        Mainnet depeg actions <span className="sub">- SUI collateral</span>
+        Mainnet cover desk <span className="sub">- SUI payout collateral</span>
       </h3>
       <p className="lead">
-        Buyer, LP, keeper, and claim transactions for the Pyth-settled depeg
-        pool. The verified mainnet package and production pool are prefilled;
-        replace them only when rotating to a new pool.
+        Buy cover, review policy state, or underwrite the Pyth-settled pool.
+        Policy exposure may be USD-denominated in your source position, but
+        premiums and payouts settle in SUI.
       </p>
 
-      <div className="row">
-        <div className="field">
-          <label>Package ID</label>
-          <input
-            className="mono"
-            placeholder="0x..."
-            value={pkg}
-            onChange={(e) => setPkg(e.target.value)}
-          />
+      <nav className="depeg-mode-tabs" aria-label="Depeg cover modes">
+        <a href="#buy-cover">Buy Cover</a>
+        <a href="#my-policies">My Policies</a>
+        <a href="#underwrite-pool">Underwrite</a>
+      </nav>
+
+      <details className="note" style={{ marginTop: 12 }}>
+        <summary>Advanced contract details</summary>
+        <div className="row" style={{ marginTop: 12 }}>
+          <div className="field">
+            <label>Package ID</label>
+            <input
+              className="mono"
+              placeholder="0x..."
+              value={pkg}
+              onChange={(e) => setPkg(e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label>Pool object ID</label>
+            <input
+              className="mono"
+              placeholder="0x..."
+              value={poolId}
+              onChange={(e) => setPoolId(e.target.value)}
+            />
+          </div>
         </div>
-        <div className="field">
-          <label>Pool object ID</label>
-          <input
-            className="mono"
-            placeholder="0x..."
-            value={poolId}
-            onChange={(e) => setPoolId(e.target.value)}
-          />
-        </div>
-      </div>
+      </details>
 
       {!configured && (
         <p className="note">
@@ -531,9 +644,7 @@ export default function DepegActions() {
         </div>
         <div className="term-stat">
           <div className="k">Pool status</div>
-          <div className={`v ${pool?.paused ? "val-bad" : ""}`}>
-            {pool ? (pool.paused ? "Paused" : "Live") : "-"}
-          </div>
+          <div className={`v ${poolStatusClass}`}>{poolStatus}</div>
         </div>
         <div className="term-stat">
           <div className="k">Depeg floor</div>
@@ -585,6 +696,14 @@ export default function DepegActions() {
             </span>
           </div>
           <div className="quote">
+            <span className="k">Max policy term</span>
+            <span className="v">
+              {pool.maxPolicyDurationSecs === null
+                ? "legacy flat term"
+                : duration(pool.maxPolicyDurationSecs)}
+            </span>
+          </div>
+          <div className="quote">
             <span className="k">Oracle confidence / age</span>
             <span className="v">
               {pool.maxConfBps} bps / {duration(pool.maxAgeSecs)}
@@ -598,6 +717,14 @@ export default function DepegActions() {
             <span className="k">Keeper bounty</span>
             <span className="v">{sui(pool.keeperBountyMist)}</span>
           </div>
+          <div className="quote">
+            <span className="k">Pool epoch</span>
+            <span className="v">
+              {pool.epochId === null
+                ? "per-policy only"
+                : `#${pool.epochId} ${poolStatus.toLowerCase()}`}
+            </span>
+          </div>
         </div>
       )}
 
@@ -606,6 +733,91 @@ export default function DepegActions() {
           New deposits and cover purchases are paused. Record-breach, claim,
           expiry, and withdrawal paths stay available by contract design.
         </p>
+      )}
+      {poolEpochOpen && (
+        <p className="note err">
+          A pool-level epoch is open. New deposits and cover buys are halted
+          until a confidence-bounded recovery closes the epoch; claims stay
+          available.
+        </p>
+      )}
+
+      {pool && pool.epochId !== null && (
+        <div className="depeg-keeper-panel">
+          <div className="depeg-position-head">
+            <div>
+              <h4>
+                Pool-level keeper <span className="sub">- mass depeg</span>
+              </h4>
+              <p className="muted">
+                One sustained pool epoch can make every eligible active policy
+                claimable without touching each receipt during the depeg.
+              </p>
+            </div>
+            <div className="depeg-position-head-actions">
+              <button
+                className="btn ghost"
+                disabled={
+                  !account || !canRead || isPending || pool.epochBreached
+                }
+                onClick={recordPool}
+              >
+                {pool.epochArmed
+                  ? poolEpochDwellReady
+                    ? "Confirm pool epoch"
+                    : `Dwell ${remaining(poolEpochDwellRemainingMs)}`
+                  : "Arm pool epoch"}
+              </button>
+              <button
+                className="btn ghost"
+                disabled={!account || !canRead || isPending || !poolEpochOpen}
+                onClick={recoverPool}
+              >
+                Record recovery
+              </button>
+            </div>
+          </div>
+          <div className="term-grid">
+            <div className="term-stat">
+              <div className="k">Epoch ID</div>
+              <div className="v">#{pool.epochId}</div>
+            </div>
+            <div className="term-stat">
+              <div className="k">First breach</div>
+              <div className="v">
+                {pool.epochFirstBreachMs && pool.epochFirstBreachMs > 0
+                  ? compactDateTime(pool.epochFirstBreachMs)
+                  : "-"}
+              </div>
+            </div>
+            <div className="term-stat">
+              <div className="k">Confirm time</div>
+              <div className="v">
+                {pool.epochConfirmedMs && pool.epochConfirmedMs > 0
+                  ? compactDateTime(pool.epochConfirmedMs)
+                  : pool.epochArmed
+                    ? compactDateTime(poolEpochConfirmMs)
+                    : "-"}
+              </div>
+            </div>
+            <div className="term-stat">
+              <div className="k">Epoch price</div>
+              <div className="v">
+                {pool.epochBreachPrice && pool.epochBreachPrice > 0n
+                  ? `$${thresholdUsd(
+                      pool.epochBreachPrice,
+                      pool.expoNeg,
+                      pool.expoMag,
+                    ).toFixed(3)}`
+                  : "-"}
+              </div>
+            </div>
+          </div>
+          <p className="note">
+            These actions intentionally abort unless the live Pyth confidence
+            band is below the floor for breach, or above the floor for recovery.
+          </p>
+        </div>
       )}
 
       <div className="depeg-position-panel">
@@ -934,8 +1146,9 @@ export default function DepegActions() {
         )}
       </div>
 
-      <div className="row">
+      <div className="depeg-action-grid">
         <div className="field">
+          <h4 id="underwrite-pool">Underwrite</h4>
           <label>Provide liquidity (SUI)</label>
           <input
             type="number"
@@ -949,6 +1162,7 @@ export default function DepegActions() {
           </button>
         </div>
         <div className="field">
+          <h4 id="buy-cover">Buy Cover</h4>
           <label>Buy cover (SUI payout)</label>
           <input
             type="number"
@@ -962,7 +1176,15 @@ export default function DepegActions() {
             onChange={(e) => setTermDays(+e.target.value)}
           >
             {COVER_TERMS.map((term) => (
-              <option key={term} value={term}>
+              <option
+                disabled={
+                  pool !== undefined &&
+                  pool.maxPolicyDurationSecs !== null &&
+                  term * 86_400 > pool.maxPolicyDurationSecs
+                }
+                key={term}
+                value={term}
+              >
                 {term}d
               </option>
             ))}
@@ -984,6 +1206,11 @@ export default function DepegActions() {
               Requested cover exceeds current headroom or per-policy caps.
             </p>
           )}
+          {termExceedsMax && (
+            <p className="note err">
+              Selected term exceeds this pool's maximum policy duration.
+            </p>
+          )}
           <button className="btn" disabled={buyDisabled} onClick={buy}>
             {isPending ? "Working..." : "Buy depeg cover"}
           </button>
@@ -992,7 +1219,9 @@ export default function DepegActions() {
 
       {notice && <Notice {...notice} />}
 
-      <h4 style={{ margin: "18px 0 6px" }}>My depeg positions</h4>
+      <h4 id="my-policies" style={{ margin: "18px 0 6px" }}>
+        My policies and LP shares
+      </h4>
       <p className="muted" style={{ marginTop: 0 }}>
         LP shares: {shareUnits(totalShareUnits)}
       </p>
@@ -1019,9 +1248,11 @@ export default function DepegActions() {
         const now = Date.now();
         const expired = now > policy.expiryMs;
         const active = now >= policy.activationMs && !expired;
+        const claimable = policy.breached || policy.poolEpochClaimable;
         const dwellMs = (pool?.minDwellSecs ?? 0) * 1000;
         const dwellReadyMs = policy.firstBreachMs + dwellMs;
         const dwellRemainingMs = policy.armed ? dwellReadyMs - now : 0;
+        const dwellReady = policy.armed && dwellRemainingMs <= 0;
         const dwellProgress =
           policy.armed && dwellMs > 0
             ? Math.max(
@@ -1032,45 +1263,139 @@ export default function DepegActions() {
         const canRecord =
           active &&
           !expired &&
-          !policy.breached &&
+          !claimable &&
           (!policy.armed || dwellRemainingMs <= 0);
-        const status = policy.breached
-          ? "Latched"
+        const canExpire = expired && !claimable;
+        const floor =
+          pool &&
+          `$${thresholdUsd(
+            pool.thresholdScaled,
+            pool.expoNeg,
+            pool.expoMag,
+          ).toFixed(3)}`;
+        const breachPrice =
+          pool && policy.breachPrice > 0n
+            ? `$${thresholdUsd(
+                policy.breachPrice,
+                pool.expoNeg,
+                pool.expoMag,
+              ).toFixed(3)}`
+            : "-";
+        const status = claimable
+          ? policy.poolEpochClaimable && !policy.breached
+            ? "Pool epoch claimable"
+            : "Claimable"
           : expired
-            ? "Expired"
+            ? "Expired / sweepable"
             : policy.armed
               ? "Dwell armed"
               : active
-                ? "Active"
+                ? "Eligible to arm"
                 : "Activating";
+        const statusClass = claimable
+          ? "active"
+          : expired
+            ? "warn"
+            : policy.armed
+              ? "warn"
+              : active
+                ? "info"
+                : "settled";
+        const activationText = active
+          ? `Active since ${compactDateTime(policy.activationMs)}`
+          : expired
+            ? `Activated ${compactDateTime(policy.activationMs)}`
+            : `Starts ${compactDateTime(policy.activationMs)} (${remaining(
+                policy.activationMs - now,
+              )})`;
+        const expiryText = expired
+          ? `Expired ${compactDateTime(policy.expiryMs)}`
+          : `Expires ${compactDateTime(policy.expiryMs)} (${remaining(
+              policy.expiryMs - now,
+            )})`;
+        const epochText =
+          policy.epochId === null
+            ? "Legacy policy"
+            : policy.poolEpochClaimable
+              ? `Epoch #${policy.epochId} claimable`
+              : `Epoch #${policy.epochId}`;
+        const dwellText = claimable
+          ? policy.poolEpochClaimable && !policy.breached
+            ? "Pool epoch confirmed"
+            : `Latched at ${breachPrice}`
+          : policy.armed
+            ? dwellReady
+              ? `Ready since ${compactDateTime(dwellReadyMs)}`
+              : `Confirm after ${compactDateTime(dwellReadyMs)} (${remaining(
+                  dwellRemainingMs,
+                )})`
+            : active
+              ? `Not armed - needs Pyth below ${floor ?? "floor"}`
+              : "Unavailable until activation";
+        const nextAction = claimable
+          ? policy.poolEpochClaimable && !policy.breached
+            ? "Claim through the confirmed pool epoch. No per-policy keeper action is needed."
+            : "Claim the latched payout. No fresh oracle read is needed."
+          : expired
+            ? "Sweep expired policy to burn the receipt and release pool liability."
+            : policy.armed
+              ? dwellReady
+                ? `Confirm dwell while Pyth remains below ${floor ?? "the floor"}.`
+                : `Wait ${remaining(
+                    dwellRemainingMs,
+                  )}, then confirm dwell if Pyth remains below ${
+                    floor ?? "the floor"
+                  }.`
+              : active
+                ? `Arm dwell with a below-floor Pyth read at or under ${
+                    floor ?? "the pool floor"
+                  }.`
+                : `Wait ${remaining(
+                    policy.activationMs - now,
+                  )}; breach reads abort before activation.`;
+        const recordLabel = claimable
+          ? "Claimable"
+          : policy.armed
+            ? dwellReady
+              ? "Confirm dwell"
+              : `Dwell ${remaining(dwellRemainingMs)}`
+            : active
+              ? "Arm breach"
+              : `Activates ${remaining(policy.activationMs - now)}`;
         return (
           <div className="policy" key={policy.id}>
-            <div>
-              <div>
-                {sui(policy.coverMist)} cover{" "}
-                <span className={`pill ${policy.breached ? "active" : ""}`}>
-                  {status}
-                </span>
+            <div className="depeg-policy-main">
+              <div className="depeg-policy-title">
+                <strong>{sui(policy.coverMist)} cover</strong>
+                <span className={`pill ${statusClass}`}>{status}</span>
               </div>
               <div className="muted">
                 premium {sui(policy.premiumPaidMist)} - active{" "}
                 {compactDate(policy.activationMs)} - expires{" "}
                 {compactDate(policy.expiryMs)}
               </div>
-              <div className="muted">
-                {policy.breached
-                  ? `latched at breach price ${policy.breachPrice.toString()}`
-                  : policy.armed
-                    ? `dwell ${
-                        dwellRemainingMs <= 0
-                          ? "ready to confirm"
-                          : `${remaining(dwellRemainingMs)} remaining`
-                      }`
-                    : active
-                      ? "eligible to arm if Pyth stays below the floor"
-                      : `activation ${remaining(policy.activationMs - now)}`}
+              <div className="depeg-policy-timing">
+                <span>
+                  <b>Activation</b>
+                  {activationText}
+                </span>
+                <span>
+                  <b>Expiry</b>
+                  {expiryText}
+                </span>
+                <span>
+                  <b>Dwell</b>
+                  {dwellText}
+                </span>
+                <span>
+                  <b>Epoch</b>
+                  {epochText}
+                </span>
               </div>
-              {policy.armed && !policy.breached && (
+              <div className="depeg-policy-next">
+                <b>Next:</b> {nextAction}
+              </div>
+              {policy.armed && !claimable && (
                 <div className="depeg-progress" aria-label="Dwell progress">
                   <span style={{ width: `${dwellProgress}%` }} />
                 </div>
@@ -1083,18 +1408,21 @@ export default function DepegActions() {
                 disabled={!account || !canRead || isPending || !canRecord}
                 onClick={() => record(policy.id)}
               >
-                {policy.armed
-                  ? dwellRemainingMs <= 0
-                    ? "Confirm dwell"
-                    : `Dwell ${remaining(dwellRemainingMs)}`
-                  : "Record breach"}
+                {recordLabel}
               </button>
               <button
                 className="btn"
-                disabled={!account || !canRead || isPending || !policy.breached}
+                disabled={!account || !canRead || isPending || !claimable}
                 onClick={() => claim(policy.id)}
               >
-                Claim
+                Claim payout
+              </button>
+              <button
+                className="btn ghost"
+                disabled={!account || !canRead || isPending || !canExpire}
+                onClick={() => expire(policy.id)}
+              >
+                Sweep expired
               </button>
             </div>
           </div>

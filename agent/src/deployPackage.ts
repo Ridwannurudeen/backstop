@@ -2,9 +2,10 @@
 // object created by the package's init (shared objects + caps), with their types.
 // Expects BYTECODE_JSON = path to `sui move build --dump-bytecode-as-base64` output.
 import { readFileSync } from "node:fs";
-import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
+import { SuiClient } from "@mysten/sui/client";
 import { Transaction } from "@mysten/sui/transactions";
 import { NETWORK } from "./ids.js";
+import { suiRpcUrl } from "./rpc.js";
 import { loadSuiKeypair } from "./suiSigner.js";
 
 async function main(): Promise<void> {
@@ -23,7 +24,7 @@ async function main(): Promise<void> {
     | "devnet"
     | "localnet";
   console.log(`network: ${net}`);
-  const client = new SuiClient({ url: getFullnodeUrl(net) });
+  const client = new SuiClient({ url: suiRpcUrl(net) });
   const kp = loadSuiKeypair();
   const addr = kp.getPublicKey().toSuiAddress();
 

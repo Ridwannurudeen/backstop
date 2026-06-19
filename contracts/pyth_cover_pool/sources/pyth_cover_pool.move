@@ -30,6 +30,7 @@ module pyth_cover_pool::pyth_cover_pool {
     use sui::coin::{Self, Coin};
     use sui::clock::{Self, Clock};
     use sui::event;
+    use sui::table::{Self, Table};
     use pyth::pyth;
     use pyth::price;
     use pyth::price_info::{Self, PriceInfoObject};
@@ -38,6 +39,8 @@ module pyth_cover_pool::pyth_cover_pool {
 
     /// Basis-points denominator.
     const BPS: u128 = 10_000;
+    /// `premium_bps` and `surge_premium_bps` quote one 30-day cover period.
+    const PREMIUM_PERIOD_SECS: u64 = 2_592_000;
 
     /// Cover or deposit amount must be non-zero.
     const EZeroAmount: u64 = 0;
@@ -85,6 +88,14 @@ module pyth_cover_pool::pyth_cover_pool {
     const ENoPendingUpdate: u64 = 21;
     /// The governance timelock on the pending update has not elapsed yet.
     const ETimelockNotElapsed: u64 = 22;
+    /// Requested policy term exceeds the pool's maximum term.
+    const EPolicyDurationTooLong: u64 = 23;
+    /// Proposed parameter value is outside its safety bounds.
+    const EBadParamValue: u64 = 24;
+    /// Pool-side policy state was already swept or never existed.
+    const EPolicyNotActive: u64 = 25;
+    const EPoolEpochOpen: u64 = 26;
+    const EStillDepegged: u64 = 27;
 
     // Parameter kinds for timelocked updates.
     const K_THRESHOLD: u8 = 0;
@@ -98,6 +109,7 @@ module pyth_cover_pool::pyth_cover_pool {
     const K_MAX_TOTAL_COVER: u8 = 8;
     const K_TREASURY_FEE_BPS: u8 = 9;
     const K_KEEPER_BOUNTY: u8 = 10;
+    const K_MAX_POLICY_DURATION_SECS: u8 = 11;
 
     /// Shared mutualized depeg-cover pool insuring one Pyth feed in coin `T`.
     public struct DepegCoverPool<phantom T> has key {
@@ -128,6 +140,9 @@ module pyth_cover_pool::pyth_cover_pool {
         /// A freshly bought policy cannot record a breach until this many seconds after
         /// purchase — kills buying cover at the instant of a depeg (adverse selection).
         activation_delay_secs: u64,
+        /// Maximum cover term in seconds. Prevents long-dated policies from locking
+        /// underwriting capacity indefinitely.
+        max_policy_duration_secs: u64,
         /// Max cover a single policy may buy (0 = no per-policy limit). Caps the blow-up
         /// from one whale concentrating the pool's correlated risk in one position.
         max_cover_per_policy: u64,
@@ -154,6 +169,16 @@ module pyth_cover_pool::pyth_cover_pool {
         total_shares: u64,
         /// Sum of cover on active policies — the pool's outstanding liability.
         total_cover: u64,
+        epoch_id: u64,
+        epoch_armed: bool,
+        epoch_first_breach_ms: u64,
+        epoch_breached: bool,
+        epoch_confirmed_ms: u64,
+        epoch_breach_price: u64,
+        epochs: Table<u64, EpochState>,
+        /// Pool-side active policy state. This lets any keeper release expired,
+        /// unbreached liabilities even if the holder never spends their Policy object.
+        policies: Table<ID, PolicyState>,
     }
 
     /// Governs one pool: pause toggle + timelocked parameter updates. Minted to the
@@ -168,6 +193,20 @@ module pyth_cover_pool::pyth_cover_pool {
         kind: u8,
         value: u64,
         eta_ms: u64,
+    }
+
+    public struct EpochState has copy, drop, store {
+        first_breach_ms: u64,
+        confirmed_ms: u64,
+        price: u64,
+    }
+
+    public struct PolicyState has drop, store {
+        cover: u64,
+        expiry_ms: u64,
+        activation_ms: u64,
+        epoch_id: u64,
+        breached: bool,
     }
 
     /// An LP's claim on the pool, redeemable for a proportional slice of `funds`.
@@ -187,6 +226,8 @@ module pyth_cover_pool::pyth_cover_pool {
         expiry_ms: u64,
         /// No breach may be recorded before this time (ms) — the activation delay.
         activation_ms: u64,
+        /// Pool-level epoch the policy was bought into.
+        epoch_id: u64,
         /// True once the first sub-threshold observation has started the dwell window.
         armed: bool,
         /// Timestamp (ms) of that first observation (only meaningful while `armed`).
@@ -210,6 +251,7 @@ module pyth_cover_pool::pyth_cover_pool {
         cover: u64,
         premium: u64,
         expiry_ms: u64,
+        duration_secs: u64,
     }
 
     public struct PausedSet has copy, drop {
@@ -241,6 +283,12 @@ module pyth_cover_pool::pyth_cover_pool {
         price: u64,
     }
 
+    public struct PolicyExpired has copy, drop {
+        pool: ID,
+        policy: ID,
+        cover: u64,
+    }
+
     /// First sub-threshold observation — the dwell window starts now.
     public struct BreachArmed has copy, drop {
         pool: ID,
@@ -252,6 +300,28 @@ module pyth_cover_pool::pyth_cover_pool {
     public struct BreachConfirmed has copy, drop {
         pool: ID,
         price: u64,
+    }
+
+    public struct PoolBreachArmed has copy, drop {
+        pool: ID,
+        epoch_id: u64,
+        price: u64,
+        at_ms: u64,
+    }
+
+    public struct PoolBreachConfirmed has copy, drop {
+        pool: ID,
+        epoch_id: u64,
+        price: u64,
+        at_ms: u64,
+    }
+
+    public struct PoolEpochRecovered has copy, drop {
+        pool: ID,
+        epoch_id: u64,
+        next_epoch_id: u64,
+        price: u64,
+        at_ms: u64,
     }
 
     // --- Pool lifecycle ---
@@ -267,6 +337,7 @@ module pyth_cover_pool::pyth_cover_pool {
         max_conf_bps: u64,
         min_dwell_secs: u64,
         activation_delay_secs: u64,
+        max_policy_duration_secs: u64,
         max_cover_per_policy: u64,
         max_total_cover: u64,
         timelock_secs: u64,
@@ -274,6 +345,11 @@ module pyth_cover_pool::pyth_cover_pool {
         keeper_bounty: u64,
         ctx: &mut TxContext,
     ): DepegCoverPool<T> {
+        assert_valid_pool_params(
+            threshold, max_age_secs, premium_bps, surge_premium_bps, max_conf_bps,
+            min_dwell_secs, activation_delay_secs, max_policy_duration_secs,
+            timelock_secs, treasury_fee_bps,
+        );
         DepegCoverPool {
             id: object::new(ctx),
             feed_id,
@@ -286,6 +362,7 @@ module pyth_cover_pool::pyth_cover_pool {
             max_conf_bps,
             min_dwell_secs,
             activation_delay_secs,
+            max_policy_duration_secs,
             max_cover_per_policy,
             max_total_cover,
             treasury_fee_bps,
@@ -297,6 +374,14 @@ module pyth_cover_pool::pyth_cover_pool {
             treasury: balance::zero<T>(),
             total_shares: 0,
             total_cover: 0,
+            epoch_id: 0,
+            epoch_armed: false,
+            epoch_first_breach_ms: 0,
+            epoch_breached: false,
+            epoch_confirmed_ms: 0,
+            epoch_breach_price: 0,
+            epochs: table::new<u64, EpochState>(ctx),
+            policies: table::new<ID, PolicyState>(ctx),
         }
     }
 
@@ -314,6 +399,7 @@ module pyth_cover_pool::pyth_cover_pool {
         max_conf_bps: u64,
         min_dwell_secs: u64,
         activation_delay_secs: u64,
+        max_policy_duration_secs: u64,
         max_cover_per_policy: u64,
         max_total_cover: u64,
         timelock_secs: u64,
@@ -324,8 +410,8 @@ module pyth_cover_pool::pyth_cover_pool {
         let pool = new_pool<T>(
             feed_id, expo_neg, expo_mag, threshold, max_age_secs, premium_bps,
             surge_premium_bps, max_conf_bps, min_dwell_secs, activation_delay_secs,
-            max_cover_per_policy, max_total_cover, timelock_secs, treasury_fee_bps,
-            keeper_bounty, ctx,
+            max_policy_duration_secs, max_cover_per_policy, max_total_cover, timelock_secs,
+            treasury_fee_bps, keeper_bounty, ctx,
         );
         let pool_id = object::id(&pool);
         event::emit(PoolCreated {
@@ -348,6 +434,7 @@ module pyth_cover_pool::pyth_cover_pool {
         ctx: &mut TxContext,
     ): LpShare<T> {
         assert!(!pool.paused, EPaused);
+        assert!(!pool.epoch_armed && !pool.epoch_breached, EPoolEpochOpen);
         let amount = coin::value(&coin);
         assert!(amount > 0, EZeroAmount);
         let value_before = balance::value(&pool.funds);
@@ -359,6 +446,36 @@ module pyth_cover_pool::pyth_cover_pool {
         balance::join(&mut pool.funds, coin::into_balance(coin));
         pool.total_shares = pool.total_shares + shares;
         LpShare { id: object::new(ctx), pool_id: object::id(pool), shares }
+    }
+
+    fun assert_valid_pool_params(
+        threshold: u64,
+        max_age_secs: u64,
+        premium_bps: u64,
+        surge_premium_bps: u64,
+        max_conf_bps: u64,
+        min_dwell_secs: u64,
+        activation_delay_secs: u64,
+        max_policy_duration_secs: u64,
+        timelock_secs: u64,
+        treasury_fee_bps: u64,
+    ) {
+        assert!(threshold > 0, EBadParamValue);
+        assert!(max_age_secs > 0 && max_age_secs <= 3_600, EBadParamValue);
+        assert!(premium_bps > 0 && premium_bps <= (BPS as u64), EBadParamValue);
+        assert!(surge_premium_bps <= (BPS as u64), EBadParamValue);
+        assert!(max_conf_bps > 0 && max_conf_bps <= (BPS as u64), EBadParamValue);
+        assert!(min_dwell_secs > 0 && min_dwell_secs <= max_policy_duration_secs, EBadParamValue);
+        assert!(
+            activation_delay_secs < max_policy_duration_secs,
+            EBadParamValue,
+        );
+        assert!(
+            max_policy_duration_secs > 0 && max_policy_duration_secs <= 7_776_000,
+            EBadParamValue,
+        );
+        assert!(timelock_secs >= 3_600 && timelock_secs <= 2_592_000, EBadParamValue);
+        assert!(treasury_fee_bps <= 2_000, EBadParamValue);
     }
 
     /// Redeem LP shares for a proportional slice of the pool. Cannot drain the
@@ -396,10 +513,32 @@ module pyth_cover_pool::pyth_cover_pool {
         pool.premium_bps + (surge_add as u64)
     }
 
-    /// Pool-priced premium for `cover` units at the current utilization rate.
-    public fun premium_for<T>(pool: &DepegCoverPool<T>, cover: u64): u64 {
+    fun premium_for_duration_unchecked<T>(
+        pool: &DepegCoverPool<T>,
+        cover: u64,
+        duration_secs: u64,
+    ): u64 {
         let rate_bps = premium_rate_bps(pool, cover);
-        (((cover as u128) * (rate_bps as u128)) / BPS) as u64
+        let denom = BPS * (PREMIUM_PERIOD_SECS as u128);
+        let n = (cover as u128) * (rate_bps as u128) * (duration_secs as u128);
+        ((n + denom - 1) / denom) as u64
+    }
+
+    /// One-period pool-priced premium for `cover` units at the current utilization
+    /// rate. A period is 30 days; use `premium_for_duration` for exact term quotes.
+    public fun premium_for<T>(pool: &DepegCoverPool<T>, cover: u64): u64 {
+        premium_for_duration_unchecked(pool, cover, PREMIUM_PERIOD_SECS)
+    }
+
+    /// Pool-priced premium for a specific cover duration in seconds.
+    public fun premium_for_duration<T>(
+        pool: &DepegCoverPool<T>,
+        cover: u64,
+        duration_secs: u64,
+    ): u64 {
+        assert!(duration_secs > 0, EPolicyExpired);
+        assert!(duration_secs <= pool.max_policy_duration_secs, EPolicyDurationTooLong);
+        premium_for_duration_unchecked(pool, cover, duration_secs)
     }
 
     /// Buy depeg cover. `premium` must cover the pool-priced premium; the protocol
@@ -414,9 +553,14 @@ module pyth_cover_pool::pyth_cover_pool {
         ctx: &mut TxContext,
     ): Policy<T> {
         assert!(!pool.paused, EPaused);
+        assert!(!pool.epoch_armed && !pool.epoch_breached, EPoolEpochOpen);
         assert!(cover > 0, EZeroAmount);
-        assert!(expiry_ms > clock::timestamp_ms(clock), EPolicyExpired);
-        let activation_ms = clock::timestamp_ms(clock) + pool.activation_delay_secs * 1000;
+        let now = clock::timestamp_ms(clock);
+        assert!(expiry_ms > now, EPolicyExpired);
+        let duration_ms = expiry_ms - now;
+        let duration_secs = (duration_ms + 999) / 1000;
+        assert!(duration_secs <= pool.max_policy_duration_secs, EPolicyDurationTooLong);
+        let activation_ms = now + pool.activation_delay_secs * 1000;
         // A policy must outlive its activation delay, or it could never pay out.
         assert!(expiry_ms > activation_ms, EExpiryBeforeActivation);
         // Exposure caps (0 = uncapped) bound concentrated correlated risk.
@@ -425,7 +569,7 @@ module pyth_cover_pool::pyth_cover_pool {
             pool.max_total_cover == 0 || pool.total_cover + cover <= pool.max_total_cover,
             EPoolCoverCap,
         );
-        let required = premium_for(pool, cover);
+        let required = premium_for_duration(pool, cover, duration_secs);
         assert!(required > 0, EZeroPremium);
         let paid = coin::value(&premium);
         assert!(paid >= required, EInsufficientPremium);
@@ -437,19 +581,30 @@ module pyth_cover_pool::pyth_cover_pool {
         balance::join(&mut pool.funds, premium_balance);
         assert!(balance::value(&pool.funds) >= pool.total_cover + cover, EInsolvent);
         pool.total_cover = pool.total_cover + cover;
+        let policy_uid = object::new(ctx);
+        let policy_id = object::uid_to_inner(&policy_uid);
+        table::add(&mut pool.policies, policy_id, PolicyState {
+            cover,
+            expiry_ms,
+            activation_ms,
+            epoch_id: pool.epoch_id,
+            breached: false,
+        });
         event::emit(CoverBought {
             pool: object::id(pool),
             cover,
             premium: paid,
             expiry_ms,
+            duration_secs,
         });
         Policy {
-            id: object::new(ctx),
+            id: policy_uid,
             pool_id: object::id(pool),
             cover,
             premium_paid: paid,
             expiry_ms,
             activation_ms,
+            epoch_id: pool.epoch_id,
             armed: false,
             first_breach_ms: 0,
             breached: false,
@@ -505,29 +660,86 @@ module pyth_cover_pool::pyth_cover_pool {
         policy: Policy<T>,
         ctx: &mut TxContext,
     ): Coin<T> {
+        assert!(policy.pool_id == object::id(pool), EWrongPool);
+        let policy_id = object::id(&policy);
+        let epoch_claimable = epoch_claims_policy(pool, &policy);
+        assert!(table::contains(&pool.policies, policy_id), EPolicyNotActive);
+        let state = table::remove(&mut pool.policies, policy_id);
+        assert!(state.cover == policy.cover, EWrongPool);
+        assert!(state.expiry_ms == policy.expiry_ms, EWrongPool);
+        assert!(state.activation_ms == policy.activation_ms, EWrongPool);
+        assert!(state.epoch_id == policy.epoch_id, EWrongPool);
+        let directly_latched = state.breached || policy.breached;
+        assert!(directly_latched || epoch_claimable, ENotBreached);
+        let cover = policy.cover;
+        let price = if (directly_latched) {
+            policy.breach_price
+        } else {
+            table::borrow(&pool.epochs, policy.epoch_id).price
+        };
         let Policy {
-            id, pool_id, cover, premium_paid: _, expiry_ms: _, activation_ms: _,
-            armed: _, first_breach_ms: _, breached: _, breach_price,
+            id, pool_id: _, cover: _, premium_paid: _, expiry_ms: _, activation_ms: _,
+            epoch_id: _, armed: _, first_breach_ms: _, breached: _, breach_price: _,
         } = policy;
-        assert!(pool_id == object::id(pool), EWrongPool);
         object::delete(id);
         pool.total_cover = pool.total_cover - cover;
-        event::emit(Claimed { pool: object::id(pool), cover, price: breach_price });
+        event::emit(Claimed { pool: object::id(pool), cover, price });
         coin::take(&mut pool.funds, cover, ctx)
     }
 
+    fun epoch_claims_policy<T>(pool: &DepegCoverPool<T>, policy: &Policy<T>): bool {
+        if (!table::contains(&pool.epochs, policy.epoch_id)) return false;
+        let e = table::borrow(&pool.epochs, policy.epoch_id);
+        policy.activation_ms <= e.first_breach_ms && policy.expiry_ms >= e.confirmed_ms
+    }
+
+    fun epoch_claims_state<T>(pool: &DepegCoverPool<T>, state: &PolicyState): bool {
+        if (!table::contains(&pool.epochs, state.epoch_id)) return false;
+        let e = table::borrow(&pool.epochs, state.epoch_id);
+        state.activation_ms <= e.first_breach_ms && state.expiry_ms >= e.confirmed_ms
+    }
+
+    fun release_expired_policy<T>(
+        pool: &mut DepegCoverPool<T>,
+        policy_id: ID,
+        clock: &Clock,
+    ) {
+        assert!(table::contains(&pool.policies, policy_id), EPolicyNotActive);
+        let state = table::remove(&mut pool.policies, policy_id);
+        assert!(clock::timestamp_ms(clock) > state.expiry_ms, ENotExpired);
+        assert!(!state.breached && !epoch_claims_state(pool, &state), EBreachedCannotExpire);
+        pool.total_cover = pool.total_cover - state.cover;
+        event::emit(PolicyExpired { pool: object::id(pool), policy: policy_id, cover: state.cover });
+    }
+
     /// Free the liability of an expired, untriggered policy (LP capital releases).
-    /// Callable by the policy holder once expiry has passed.
+    /// Callable by anyone once expiry has passed; the holder's owned `Policy` object
+    /// becomes a stale receipt and can be burned with `expire_policy`.
+    public fun expire_policy_by_id<T>(
+        pool: &mut DepegCoverPool<T>,
+        policy_id: ID,
+        clock: &Clock,
+    ) {
+        release_expired_policy(pool, policy_id, clock);
+    }
+
+    /// Burn an expired, untriggered Policy object. If no keeper swept it yet, this
+    /// also releases the pool-side liability.
     public fun expire_policy<T>(pool: &mut DepegCoverPool<T>, policy: Policy<T>, clock: &Clock) {
+        assert!(policy.pool_id == object::id(pool), EWrongPool);
+        assert!(!policy.breached && !epoch_claims_policy(pool, &policy), EBreachedCannotExpire);
+        let policy_id = object::id(&policy);
+        let expiry_ms = policy.expiry_ms;
         let Policy {
-            id, pool_id, cover, premium_paid: _, expiry_ms, activation_ms: _,
-            armed: _, first_breach_ms: _, breached, breach_price: _,
+            id, pool_id: _, cover: _, premium_paid: _, expiry_ms: _, activation_ms: _,
+            epoch_id: _, armed: _, first_breach_ms: _, breached: _, breach_price: _,
         } = policy;
-        assert!(pool_id == object::id(pool), EWrongPool);
-        assert!(clock::timestamp_ms(clock) > expiry_ms, ENotExpired);
-        assert!(!breached, EBreachedCannotExpire);
+        if (table::contains(&pool.policies, policy_id)) {
+            release_expired_policy(pool, policy_id, clock);
+        } else {
+            assert!(clock::timestamp_ms(clock) > expiry_ms, ENotExpired);
+        };
         object::delete(id);
-        pool.total_cover = pool.total_cover - cover;
     }
 
     // --- Dwell-based breach latch ---
@@ -553,6 +765,107 @@ module pyth_cover_pool::pyth_cover_pool {
     ) {
         let (price_mag, conf) = read_price_magnitude(pool, price_info_object, clock);
         do_latch(pool, policy, price_mag, conf, clock, ctx);
+    }
+
+    /// Record a pool-level sub-threshold observation. One sustained pool epoch makes
+    /// every policy active before the epoch armed and unexpired at confirmation
+    /// claimable, so keepers do not need to touch every policy during a mass depeg.
+    public fun record_pool_breach<T>(
+        pool: &mut DepegCoverPool<T>,
+        price_info_object: &PriceInfoObject,
+        clock: &Clock,
+        ctx: &mut TxContext,
+    ) {
+        let (price_mag, conf) = read_price_magnitude(pool, price_info_object, clock);
+        do_pool_latch(pool, price_mag, conf, clock, ctx);
+    }
+
+    /// Close an armed or confirmed pool epoch after a confidence-bounded recovery:
+    /// the lower edge of the Pyth band must be above the floor. Confirmed epochs
+    /// advance `epoch_id`, so future policies cannot claim against the old epoch.
+    public fun record_pool_recovery<T>(
+        pool: &mut DepegCoverPool<T>,
+        price_info_object: &PriceInfoObject,
+        clock: &Clock,
+    ) {
+        let (price_mag, conf) = read_price_magnitude(pool, price_info_object, clock);
+        do_pool_recovery(pool, price_mag, conf, clock);
+    }
+
+    #[allow(lint(self_transfer))]
+    fun pay_keeper_bounty<T>(pool: &mut DepegCoverPool<T>, ctx: &mut TxContext) {
+        let bounty = pool.keeper_bounty;
+        if (bounty > 0 && balance::value(&pool.treasury) >= bounty) {
+            let keeper = ctx.sender();
+            let payout = coin::take(&mut pool.treasury, bounty, ctx);
+            transfer::public_transfer(payout, keeper);
+        };
+    }
+
+    fun do_pool_latch<T>(
+        pool: &mut DepegCoverPool<T>,
+        price_mag: u64,
+        conf: u64,
+        clock: &Clock,
+        ctx: &mut TxContext,
+    ) {
+        if (pool.epoch_breached) return;
+        let now = clock::timestamp_ms(clock);
+        assert!(price_mag + conf <= pool.threshold, ENotDepegged);
+        if (!pool.epoch_armed) {
+            pool.epoch_armed = true;
+            pool.epoch_first_breach_ms = now;
+            pool.epoch_breach_price = price_mag;
+            event::emit(PoolBreachArmed {
+                pool: object::id(pool),
+                epoch_id: pool.epoch_id,
+                price: price_mag,
+                at_ms: now,
+            });
+        } else if (now >= pool.epoch_first_breach_ms + pool.min_dwell_secs * 1000) {
+            pool.epoch_breached = true;
+            pool.epoch_confirmed_ms = now;
+            pool.epoch_breach_price = price_mag;
+            if (!table::contains(&pool.epochs, pool.epoch_id)) {
+                table::add(&mut pool.epochs, pool.epoch_id, EpochState {
+                    first_breach_ms: pool.epoch_first_breach_ms,
+                    confirmed_ms: now,
+                    price: price_mag,
+                });
+            };
+            pay_keeper_bounty(pool, ctx);
+            event::emit(PoolBreachConfirmed {
+                pool: object::id(pool),
+                epoch_id: pool.epoch_id,
+                price: price_mag,
+                at_ms: now,
+            });
+        };
+    }
+
+    fun do_pool_recovery<T>(
+        pool: &mut DepegCoverPool<T>,
+        price_mag: u64,
+        conf: u64,
+        clock: &Clock,
+    ) {
+        assert!(price_mag > conf && price_mag - conf > pool.threshold, EStillDepegged);
+        let closed_epoch = pool.epoch_id;
+        if (pool.epoch_breached) {
+            pool.epoch_id = pool.epoch_id + 1;
+        };
+        pool.epoch_armed = false;
+        pool.epoch_first_breach_ms = 0;
+        pool.epoch_breached = false;
+        pool.epoch_confirmed_ms = 0;
+        pool.epoch_breach_price = 0;
+        event::emit(PoolEpochRecovered {
+            pool: object::id(pool),
+            epoch_id: closed_epoch,
+            next_epoch_id: pool.epoch_id,
+            price: price_mag,
+            at_ms: clock::timestamp_ms(clock),
+        });
     }
 
     #[allow(lint(self_transfer))]
@@ -584,14 +897,12 @@ module pyth_cover_pool::pyth_cover_pool {
             event::emit(BreachArmed { pool: object::id(pool), price: price_mag, at_ms: now });
         } else if (now >= policy.first_breach_ms + pool.min_dwell_secs * 1000) {
             // Confirm: a second sub-threshold read a full dwell later latches it.
+            let policy_id = object::id(policy);
+            assert!(table::contains(&pool.policies, policy_id), EPolicyNotActive);
+            table::borrow_mut(&mut pool.policies, policy_id).breached = true;
             policy.breach_price = price_mag;
             policy.breached = true;
-            let bounty = pool.keeper_bounty;
-            if (bounty > 0 && balance::value(&pool.treasury) >= bounty) {
-                let keeper = ctx.sender();
-                let payout = coin::take(&mut pool.treasury, bounty, ctx);
-                transfer::public_transfer(payout, keeper);
-            };
+            pay_keeper_bounty(pool, ctx);
             event::emit(BreachConfirmed { pool: object::id(pool), price: price_mag });
         };
         // else: armed but still inside the dwell window — no-op, retry later.
@@ -605,7 +916,7 @@ module pyth_cover_pool::pyth_cover_pool {
         policy: Policy<T>,
         ctx: &mut TxContext,
     ): Coin<T> {
-        assert!(policy.breached, ENotBreached);
+        assert!(policy.breached || epoch_claims_policy(pool, &policy), ENotBreached);
         settle(pool, policy, ctx)
     }
 
@@ -646,7 +957,8 @@ module pyth_cover_pool::pyth_cover_pool {
         clock: &Clock,
     ) {
         assert_admin(pool, cap);
-        assert!(kind <= K_KEEPER_BOUNTY, EBadParamKind);
+        assert!(kind <= K_MAX_POLICY_DURATION_SECS, EBadParamKind);
+        assert_valid_param_value(pool, kind, value);
         let eta_ms = clock::timestamp_ms(clock) + pool.timelock_secs * 1000;
         pool.pending = option::some(PendingParamUpdate { kind, value, eta_ms });
         event::emit(ParamUpdateProposed { pool: object::id(pool), kind, value, eta_ms });
@@ -676,6 +988,7 @@ module pyth_cover_pool::pyth_cover_pool {
     }
 
     fun apply_param<T>(pool: &mut DepegCoverPool<T>, kind: u8, value: u64) {
+        assert_valid_param_value(pool, kind, value);
         if (kind == K_THRESHOLD) { pool.threshold = value }
         else if (kind == K_PREMIUM_BPS) { pool.premium_bps = value }
         else if (kind == K_SURGE_PREMIUM_BPS) { pool.surge_premium_bps = value }
@@ -686,7 +999,41 @@ module pyth_cover_pool::pyth_cover_pool {
         else if (kind == K_MAX_COVER_PER_POLICY) { pool.max_cover_per_policy = value }
         else if (kind == K_MAX_TOTAL_COVER) { pool.max_total_cover = value }
         else if (kind == K_TREASURY_FEE_BPS) { pool.treasury_fee_bps = value }
-        else { pool.keeper_bounty = value } // K_KEEPER_BOUNTY (kind validated on propose)
+        else if (kind == K_KEEPER_BOUNTY) { pool.keeper_bounty = value }
+        else { pool.max_policy_duration_secs = value } // K_MAX_POLICY_DURATION_SECS
+    }
+
+    fun assert_valid_param_value<T>(pool: &DepegCoverPool<T>, kind: u8, value: u64) {
+        if (kind == K_THRESHOLD) {
+            assert!(value > 0, EBadParamValue)
+        } else if (kind == K_PREMIUM_BPS) {
+            assert!(value > 0 && value <= (BPS as u64), EBadParamValue)
+        } else if (kind == K_SURGE_PREMIUM_BPS) {
+            assert!(value <= (BPS as u64), EBadParamValue)
+        } else if (kind == K_MAX_AGE_SECS) {
+            assert!(value > 0 && value <= 3_600, EBadParamValue)
+        } else if (kind == K_MAX_CONF_BPS) {
+            assert!(value > 0 && value <= (BPS as u64), EBadParamValue)
+        } else if (kind == K_MIN_DWELL_SECS) {
+            assert!(value > 0 && value <= pool.max_policy_duration_secs, EBadParamValue)
+        } else if (kind == K_ACTIVATION_DELAY_SECS) {
+            assert!(value < pool.max_policy_duration_secs, EBadParamValue)
+        } else if (kind == K_MAX_COVER_PER_POLICY) {
+            assert!(value == 0 || pool.max_total_cover == 0 || value <= pool.max_total_cover, EBadParamValue)
+        } else if (kind == K_MAX_TOTAL_COVER) {
+            assert!(value == 0 || value >= pool.total_cover, EBadParamValue)
+        } else if (kind == K_TREASURY_FEE_BPS) {
+            assert!(value <= 2_000, EBadParamValue)
+        } else if (kind == K_KEEPER_BOUNTY) {
+            assert!(value <= 1_000_000_000, EBadParamValue)
+        } else {
+            assert!(
+                value > pool.activation_delay_secs &&
+                    value >= pool.min_dwell_secs &&
+                    value <= 7_776_000,
+                EBadParamValue,
+            )
+        }
     }
 
     // --- Views ---
@@ -702,6 +1049,7 @@ module pyth_cover_pool::pyth_cover_pool {
     public fun max_age_secs<T>(pool: &DepegCoverPool<T>): u64 { pool.max_age_secs }
     public fun min_dwell_secs<T>(pool: &DepegCoverPool<T>): u64 { pool.min_dwell_secs }
     public fun activation_delay_secs<T>(pool: &DepegCoverPool<T>): u64 { pool.activation_delay_secs }
+    public fun max_policy_duration_secs<T>(pool: &DepegCoverPool<T>): u64 { pool.max_policy_duration_secs }
     public fun max_cover_per_policy<T>(pool: &DepegCoverPool<T>): u64 { pool.max_cover_per_policy }
     public fun max_total_cover<T>(pool: &DepegCoverPool<T>): u64 { pool.max_total_cover }
     public fun treasury_fee_bps<T>(pool: &DepegCoverPool<T>): u64 { pool.treasury_fee_bps }
@@ -710,14 +1058,26 @@ module pyth_cover_pool::pyth_cover_pool {
     public fun is_paused<T>(pool: &DepegCoverPool<T>): bool { pool.paused }
     public fun timelock_secs<T>(pool: &DepegCoverPool<T>): u64 { pool.timelock_secs }
     public fun has_pending_update<T>(pool: &DepegCoverPool<T>): bool { option::is_some(&pool.pending) }
+    public fun epoch_id<T>(pool: &DepegCoverPool<T>): u64 { pool.epoch_id }
+    public fun epoch_armed<T>(pool: &DepegCoverPool<T>): bool { pool.epoch_armed }
+    public fun epoch_first_breach_ms<T>(pool: &DepegCoverPool<T>): u64 { pool.epoch_first_breach_ms }
+    public fun epoch_breached<T>(pool: &DepegCoverPool<T>): bool { pool.epoch_breached }
+    public fun epoch_confirmed_ms<T>(pool: &DepegCoverPool<T>): u64 { pool.epoch_confirmed_ms }
+    public fun epoch_breach_price<T>(pool: &DepegCoverPool<T>): u64 { pool.epoch_breach_price }
 
     public fun shares<T>(s: &LpShare<T>): u64 { s.shares }
     public fun policy_cover<T>(p: &Policy<T>): u64 { p.cover }
     public fun policy_expiry_ms<T>(p: &Policy<T>): u64 { p.expiry_ms }
     public fun policy_breached<T>(p: &Policy<T>): bool { p.breached }
+    public fun policy_epoch_id<T>(p: &Policy<T>): u64 { p.epoch_id }
+    public fun policy_claimable_by_pool_epoch<T>(
+        pool: &DepegCoverPool<T>,
+        p: &Policy<T>,
+    ): bool { epoch_claims_policy(pool, p) }
     public fun policy_armed<T>(p: &Policy<T>): bool { p.armed }
     public fun policy_first_breach_ms<T>(p: &Policy<T>): u64 { p.first_breach_ms }
     public fun policy_activation_ms<T>(p: &Policy<T>): u64 { p.activation_ms }
+    public fun policy_id<T>(p: &Policy<T>): ID { object::id(p) }
 
     #[test_only]
     public fun new_pool_for_testing<T>(
@@ -731,6 +1091,7 @@ module pyth_cover_pool::pyth_cover_pool {
         max_conf_bps: u64,
         min_dwell_secs: u64,
         activation_delay_secs: u64,
+        max_policy_duration_secs: u64,
         max_cover_per_policy: u64,
         max_total_cover: u64,
         timelock_secs: u64,
@@ -741,8 +1102,8 @@ module pyth_cover_pool::pyth_cover_pool {
         new_pool<T>(
             feed_id, expo_neg, expo_mag, threshold, max_age_secs, premium_bps,
             surge_premium_bps, max_conf_bps, min_dwell_secs, activation_delay_secs,
-            max_cover_per_policy, max_total_cover, timelock_secs, treasury_fee_bps,
-            keeper_bounty, ctx,
+            max_policy_duration_secs, max_cover_per_policy, max_total_cover,
+            timelock_secs, treasury_fee_bps, keeper_bounty, ctx,
         )
     }
 
@@ -768,5 +1129,26 @@ module pyth_cover_pool::pyth_cover_pool {
         ctx: &mut TxContext,
     ) {
         do_latch(pool, policy, price_mag, conf, clock, ctx);
+    }
+
+    #[test_only]
+    public fun latch_pool_at_price_for_testing<T>(
+        pool: &mut DepegCoverPool<T>,
+        price_mag: u64,
+        conf: u64,
+        clock: &Clock,
+        ctx: &mut TxContext,
+    ) {
+        do_pool_latch(pool, price_mag, conf, clock, ctx);
+    }
+
+    #[test_only]
+    public fun recover_pool_at_price_for_testing<T>(
+        pool: &mut DepegCoverPool<T>,
+        price_mag: u64,
+        conf: u64,
+        clock: &Clock,
+    ) {
+        do_pool_recovery(pool, price_mag, conf, clock);
     }
 }

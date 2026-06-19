@@ -17,13 +17,14 @@
 // Run (execute):   LENDING_PKG=.. POOL=.. SUI_KEY_ALIAS=.. COVER=.. PREMIUM=.. \
 //                  [MARKET=.. RESERVE=.. THRESHOLD_USD=0.985] \
 //                  npx tsx src/provisionPythLending.ts --execute
-import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
+import { SuiClient } from "@mysten/sui/client";
 import { Transaction } from "@mysten/sui/transactions";
 import { bcs } from "@mysten/sui/bcs";
 import {
   SuiPythClient,
   SuiPriceServiceConnection,
 } from "@pythnetwork/pyth-sui-js";
+import { suiRpcUrl } from "./rpc.js";
 import { loadSuiKeypair } from "./suiSigner.js";
 
 const CLOCK = "0x6";
@@ -51,6 +52,7 @@ const i64Num = (v: { negative: boolean; magnitude: string }): number =>
 const SUI = "0x2::sui::SUI";
 const bytes = (s: string) => Array.from(new TextEncoder().encode(s));
 const hexBytes = (h: string) => Array.from(Buffer.from(h, "hex"));
+const DEFAULT_POLICY_DURATION_SECS = 30 * 86_400 - 60;
 
 /** Create + share a suiUSDe DepegCoverPool<SUI> (pyth_cover_pool). */
 export function buildCreatePoolTx(opts: {
@@ -64,6 +66,7 @@ export function buildCreatePoolTx(opts: {
   maxConfBps: bigint;
   minDwellSecs: bigint;
   activationDelaySecs: bigint;
+  maxPolicyDurationSecs: bigint;
   maxCoverPerPolicy: bigint;
   maxTotalCover: bigint;
   timelockSecs: bigint;
@@ -85,6 +88,7 @@ export function buildCreatePoolTx(opts: {
       tx.pure.u64(opts.maxConfBps),
       tx.pure.u64(opts.minDwellSecs),
       tx.pure.u64(opts.activationDelaySecs),
+      tx.pure.u64(opts.maxPolicyDurationSecs),
       tx.pure.u64(opts.maxCoverPerPolicy),
       tx.pure.u64(opts.maxTotalCover),
       tx.pure.u64(opts.timelockSecs),
@@ -296,7 +300,7 @@ async function simulate(client: SuiClient): Promise<void> {
     "                     + POOL (reuse) OR BACKSTOP_PKG (create+seed a pool)",
   );
   console.log(
-    "                     [MARKET, RESERVE, LP_SEED, THRESHOLD_USD, KEEPER_BOUNTY]  (needs a funded mainnet wallet)",
+    "                     [MARKET, RESERVE, LP_SEED, THRESHOLD_USD, MAX_POLICY_DURATION_SECS, KEEPER_BOUNTY]  (needs a funded mainnet wallet)",
   );
 }
 
@@ -356,6 +360,9 @@ async function execute(client: SuiClient): Promise<void> {
         activationDelaySecs: BigInt(
           process.env.ACTIVATION_DELAY_SECS ?? "1800",
         ), // 30-min anti-adverse-selection
+        maxPolicyDurationSecs: BigInt(
+          process.env.MAX_POLICY_DURATION_SECS ?? "2592000",
+        ), // 30-day max term
         maxCoverPerPolicy: BigInt(process.env.MAX_COVER_PER_POLICY ?? "0"), // 0 = uncapped
         maxTotalCover: BigInt(process.env.MAX_TOTAL_COVER ?? "0"), // 0 = uncapped
         timelockSecs: BigInt(process.env.TIMELOCK_SECS ?? "86400"), // 24h governance delay
@@ -397,7 +404,10 @@ async function execute(client: SuiClient): Promise<void> {
   }
 
   // 4. buy cover
-  const expiry = BigInt(Date.now() + 30 * 86_400_000);
+  const policyDurationSecs = BigInt(
+    process.env.POLICY_DURATION_SECS ?? String(DEFAULT_POLICY_DURATION_SECS),
+  );
+  const expiry = BigInt(Date.now()) + policyDurationSecs * 1000n;
   await run(
     buildInsureTx({
       lendPkg,
@@ -471,7 +481,7 @@ async function execute(client: SuiClient): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  const client = new SuiClient({ url: getFullnodeUrl("mainnet") });
+  const client = new SuiClient({ url: suiRpcUrl("mainnet") });
   if (process.argv.includes("--execute")) await execute(client);
   else await simulate(client);
 }

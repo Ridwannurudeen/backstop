@@ -7,30 +7,47 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="theme-color" content="#0a0f16" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
-    <title>Backstop — the risk & trust layer for Sui</title>
+    <script>
+      (() => {
+        const key = "backstop:theme";
+        const colors = { dark: "#0a0f16", light: "#f6f9fd" };
+        let theme = "dark";
+        try {
+          const saved = window.localStorage.getItem(key);
+          theme =
+            saved === "dark" || saved === "light"
+              ? saved
+              : window.matchMedia("(prefers-color-scheme: light)").matches
+                ? "light"
+                : "dark";
+        } catch {
+          theme = "dark";
+        }
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+        document
+          .querySelector('meta[name="theme-color"]')
+          ?.setAttribute("content", colors[theme]);
+      })();
+    </script>
+    <title>Backstop - Sui depeg cover desk</title>
     <meta
       name="description"
-      content="Backstop is the risk & trust layer for Sui: a market-implied probability-of-failure oracle, parametric crash and stablecoin-depeg cover, and an autonomous on-chain underwriter — settled trustlessly."
+      content="Backstop is a Sui mainnet depeg cover desk with Pyth-settled policies, live proof health, custody evidence, and protocol-ready integration rails."
     />
-    <meta property="og:title" content="Backstop — the risk & trust layer for Sui" />
+    <meta property="og:title" content="Backstop - Sui depeg cover desk" />
     <meta
       property="og:description"
-      content="Price, transfer, and prove risk on Sui: an on-chain risk oracle, parametric cover settled trustlessly, and a bonded autonomous underwriter."
+      content="Buy, underwrite, and integrate Pyth-settled depeg cover on Sui mainnet with live proof health and verifiable policy state."
     />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://backstop.gudman.xyz" />
     <meta property="og:image" content="https://backstop.gudman.xyz/og.png" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Backstop — the risk & trust layer for Sui" />
+    <meta name="twitter:title" content="Backstop - Sui depeg cover desk" />
     <meta
       name="twitter:description"
-      content="Price, transfer, and prove risk on Sui: an on-chain risk oracle, parametric cover settled trustlessly, and a bonded autonomous underwriter."
+      content="Buy, underwrite, and integrate Pyth-settled depeg cover on Sui mainnet with live proof health and verifiable policy state."
     />
     <meta name="twitter:image" content="https://backstop.gudman.xyz/og.png" />
   </head>

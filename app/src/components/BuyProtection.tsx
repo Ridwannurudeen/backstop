@@ -128,10 +128,13 @@ export default function BuyProtection() {
 
   return (
     <div className="card">
-      <h3>Insure against a {DEFAULT_SYMBOL} crash</h3>
+      <h3>
+        Sui testnet lab{" "}
+        <span className="sub">- {DEFAULT_SYMBOL} crash cover</span>
+      </h3>
       <p className="muted">
         Pays out if {DEFAULT_SYMBOL} falls below your strike by expiry.
-        Trustless oracle settlement, &lt;400ms.
+        Objective oracle settlement with sub-second Sui finality.
         {ref && ` · ${DEFAULT_SYMBOL} ≈ ${usd(ref.priceUsd)} (last settled)`}
       </p>
 

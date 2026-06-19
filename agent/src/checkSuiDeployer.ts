@@ -1,4 +1,5 @@
-import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
+import { SuiClient } from "@mysten/sui/client";
+import { suiRpcUrl } from "./rpc.js";
 import { loadSuiKeypair } from "./suiSigner.js";
 
 const MIN_DEPLOY_BALANCE_MIST = BigInt(
@@ -10,7 +11,7 @@ const sui = (mist: bigint) => (Number(mist) / 1_000_000_000).toFixed(4);
 async function main(): Promise<void> {
   const kp = loadSuiKeypair();
   const address = kp.getPublicKey().toSuiAddress();
-  const client = new SuiClient({ url: getFullnodeUrl("mainnet") });
+  const client = new SuiClient({ url: suiRpcUrl("mainnet") });
   const balance = await client.getBalance({ owner: address });
   const total = BigInt(balance.totalBalance);
   console.log(`address: ${address}`);

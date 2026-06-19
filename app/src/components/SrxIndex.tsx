@@ -17,19 +17,54 @@ export default function SrxIndex() {
   return (
     <div className="card">
       <h3>
-        SRX · the Sui Risk Index{" "}
-        <span className="sub">· on-chain, options-implied</span>
+        SRX - the Sui Risk Index{" "}
+        <span className="sub">- on-chain, options-implied</span>
       </h3>
       <p className="lead">
-        The market's full risk-neutral distribution — read trustlessly from
-        DeepBook Predict's binary options, published on-chain by a bonded
-        publisher with Walrus evidence, and slashable on challenge. Market{" "}
+        A risk-neutral distribution derived from DeepBook Predict binary
+        options, published on-chain by a bonded publisher with Walrus evidence.
+        This testnet version still uses admin-resolved challenge logic. Market{" "}
         {SRX_MARKET}.
       </p>
 
-      {isLoading && <p className="muted">Reading the index on-chain…</p>}
+      {isLoading && <p className="muted">Reading the index on-chain...</p>}
       {!isLoading && !data && (
-        <p className="muted">No SRX reading published yet.</p>
+        <div className="unavailable-state">
+          <div>
+            <span className="section-kicker">Sui testnet lab</span>
+            <h4>SRX is not a live production index yet.</h4>
+            <p>
+              This route is kept for reviewers who want the DeepBook/Walrus
+              research surface. It is not shown in primary navigation because no
+              meaningful SRX value is currently published.
+            </p>
+          </div>
+          <div className="unavailable-grid">
+            <div>
+              <span>What SRX measures</span>
+              <strong>Market-implied crash, volatility, and tail risk</strong>
+            </div>
+            <div>
+              <span>Required publisher</span>
+              <strong>Bonded testnet publisher with Walrus CDF evidence</strong>
+            </div>
+            <div>
+              <span>Current blocker</span>
+              <strong>No fresh production-quality reading</strong>
+            </div>
+            <div>
+              <span>Risk boundary</span>
+              <strong>
+                Admin-resolved challenge logic; not trust-minimized
+              </strong>
+            </div>
+          </div>
+          <p className="note">
+            Use the mainnet Pyth depeg cover and proof packet for the production
+            surface. Treat SRX as a labelled research lane until the publisher,
+            challenge, and calibration system are upgraded.
+          </p>
+        </div>
       )}
 
       {data && (
@@ -38,7 +73,7 @@ export default function SrxIndex() {
             <div className="term-stat">
               <div className="k">SRX-CRASH</div>
               <div className="v">{pct(data.crashBps)}</div>
-              <div className="k">P(≥20% drop)</div>
+              <div className="k">P(20%+ drop)</div>
             </div>
             <div className="term-stat">
               <div className="k">SRX-VOL</div>
@@ -63,19 +98,19 @@ export default function SrxIndex() {
           </div>
 
           <p className="muted">
-            Bonded publisher ·{" "}
-            {data.challenged ? "under challenge" : "unchallenged"} ·{" "}
+            Bonded publisher -{" "}
+            {data.challenged ? "under challenge" : "unchallenged"} -{" "}
             <a
               href={`${WALRUS_AGGREGATOR}/${data.cdfBlob}`}
               target="_blank"
               rel="noreferrer"
             >
-              Verify the input CDF on Walrus ↗
+              Verify the input CDF on Walrus
             </a>
           </p>
           <p className="note">
             Derived from DeepBook Predict's binary CDF across a strike grid (see
-            INDEX.md). Risk-neutral, not a physical forecast — the market's
+            INDEX.md). Risk-neutral, not a physical forecast: the market's
             priced probability of failure, reproducible from the evidence above.
           </p>
         </>

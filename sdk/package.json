@@ -1,11 +1,29 @@
 {
-  "name": "@backstop/sdk",
-  "version": "0.1.0",
-  "description": "Read Sui's on-chain risk layer in a few lines — the SRX fear index, the RiskFeed probability oracle, and parametric cover pools on DeepBook Predict (testnet).",
+  "name": "@gudman/backstop-sdk",
+  "version": "0.1.1",
+  "description": "TypeScript helpers for Backstop's Sui mainnet depeg cover and risk-oracle research layer.",
   "type": "module",
-  "main": "src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
-    "build": "tsc --noEmit"
+    "clean": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "npm run clean && tsc -p tsconfig.json",
+    "prepack": "npm run build"
   },
   "peerDependencies": {
     "@mysten/sui": "^1.45.0"

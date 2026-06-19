@@ -1,8 +1,8 @@
-/// Backstop lending demo — a protocol that consumes the CoverPool.
+/// Backstop lending demo - a protocol that consumed the legacy CoverPool.
 ///
-/// Proves any Sui protocol plugs into the pool: a lending market buys crash cover
-/// from a live CoverPool, holds the Policy, and claims the payout straight into its
-/// reserve when the market crashes — an on-chain bad-debt backstop.
+/// The RiskFeed-settled cover lane is disabled in `cover_pool`, so this module is
+/// retained only as the old integration shape. Use `pyth_lending_demo` for the
+/// active Pyth-settled backstop path.
 module lending_demo::lending_demo {
     use std::string::{Self, String};
     use sui::balance::{Self, Balance};
@@ -41,7 +41,7 @@ module lending_demo::lending_demo {
     }
 
     /// Create and share a lending market for `market` (UTF-8 bytes).
-    public entry fun create_and_share<T>(market: vector<u8>, ctx: &mut TxContext) {
+    public fun create_and_share<T>(market: vector<u8>, ctx: &mut TxContext) {
         transfer::share_object(new_market<T>(string::utf8(market), ctx));
     }
 
@@ -50,8 +50,8 @@ module lending_demo::lending_demo {
         balance::join(&mut m.reserve, coin::into_balance(c));
     }
 
-    /// Buy crash cover from `pool` and hold the policy. The market may hold one
-    /// policy at a time.
+    /// Buy crash cover from `pool` and hold the policy. This now aborts through
+    /// `cover_pool::buy_cover`, because the legacy RiskFeed-settled lane is disabled.
     public fun insure<T>(
         m: &mut LendingMarket<T>,
         pool: &mut CoverPool<T>,
