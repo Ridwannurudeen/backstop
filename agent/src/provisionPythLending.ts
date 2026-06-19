@@ -145,7 +145,7 @@ export function buildDepositReserveTx(
   return tx;
 }
 
-/** Buy depeg cover from `pool` into the market (premium split from gas). */
+/** Buy v3 depeg cover from `pool` into the market (premium split from gas). */
 export function buildInsureTx(opts: {
   lendPkg: string;
   market: string;
@@ -164,6 +164,41 @@ export function buildInsureTx(opts: {
       premium,
       tx.pure.u64(opts.cover),
       tx.pure.u64(opts.expiryMs),
+      tx.object(CLOCK),
+    ],
+  });
+  return tx;
+}
+
+/** Buy v4 depeg cover from `pool` into the market with a same-PTB Pyth sale check. */
+export async function buildInsureWithPythTx(opts: {
+  client: SuiClient;
+  lendPkg: string;
+  market: string;
+  pool: string;
+  premiumMist: bigint;
+  cover: bigint;
+  expiryMs: bigint;
+  feedId: string;
+}): Promise<Transaction> {
+  const tx = new Transaction();
+  const updates = await new SuiPriceServiceConnection(
+    HERMES,
+  ).getPriceFeedsUpdateData([opts.feedId]);
+  const pyth = new SuiPythClient(opts.client, PYTH_STATE, WORMHOLE_STATE);
+  const [priceInfoObjectId] = await pyth.updatePriceFeeds(tx, updates, [
+    opts.feedId,
+  ]);
+  const [premium] = tx.splitCoins(tx.gas, [tx.pure.u64(opts.premiumMist)]);
+  tx.moveCall({
+    target: `${opts.lendPkg}::pyth_lending_demo::insure`,
+    arguments: [
+      tx.object(opts.market),
+      tx.object(opts.pool),
+      premium,
+      tx.pure.u64(opts.cover),
+      tx.pure.u64(opts.expiryMs),
+      tx.object(priceInfoObjectId),
       tx.object(CLOCK),
     ],
   });

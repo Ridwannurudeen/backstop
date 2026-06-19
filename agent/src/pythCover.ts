@@ -52,7 +52,7 @@ const Price = bcs.struct("Price", {
 const i64Num = (v: { negative: boolean; magnitude: string }): number =>
   (v.negative ? -1 : 1) * Number(v.magnitude);
 
-/** Buy depeg cover. Premium is split from gas (SUI pool) or from `premiumCoinId`. */
+/** Buy v3 depeg cover. Premium is split from gas (SUI pool) or from `premiumCoinId`. */
 export function buildBuyCoverTx(opts: {
   pkg: string;
   pool: string;
@@ -74,6 +74,45 @@ export function buildBuyCoverTx(opts: {
       premium,
       tx.pure.u64(opts.cover),
       tx.pure.u64(opts.expiryMs),
+      tx.object(CLOCK),
+    ],
+  });
+  tx.transferObjects([policy], opts.recipient);
+  return tx;
+}
+
+/** Buy v4 depeg cover with a same-PTB Pyth sale check. */
+export async function buildBuyCoverWithPythTx(opts: {
+  client: SuiClient;
+  pkg: string;
+  pool: string;
+  coinType: string;
+  premiumMist: bigint;
+  cover: bigint;
+  expiryMs: bigint;
+  recipient: string;
+  feedId: string;
+  premiumCoinId?: string;
+}): Promise<Transaction> {
+  const tx = new Transaction();
+  const updates = await new SuiPriceServiceConnection(
+    HERMES,
+  ).getPriceFeedsUpdateData([opts.feedId]);
+  const pyth = new SuiPythClient(opts.client, PYTH_STATE, WORMHOLE_STATE);
+  const [priceInfoObjectId] = await pyth.updatePriceFeeds(tx, updates, [
+    opts.feedId,
+  ]);
+  const source = opts.premiumCoinId ? tx.object(opts.premiumCoinId) : tx.gas;
+  const [premium] = tx.splitCoins(source, [tx.pure.u64(opts.premiumMist)]);
+  const policy = tx.moveCall({
+    target: `${opts.pkg}::pyth_cover_pool::buy_cover`,
+    typeArguments: [opts.coinType],
+    arguments: [
+      tx.object(opts.pool),
+      premium,
+      tx.pure.u64(opts.cover),
+      tx.pure.u64(opts.expiryMs),
+      tx.object(priceInfoObjectId),
       tx.object(CLOCK),
     ],
   });

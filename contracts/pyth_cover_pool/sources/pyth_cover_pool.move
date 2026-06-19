@@ -17,14 +17,13 @@
 /// Formal-prover target: encode that invariant once the Sui prover is available
 /// for this toolchain. See `contracts/pyth_cover_pool/PROVER.md`.
 ///
-/// Settlement requires a SUSTAINED breach (dwell), never a single read — there is no
-/// native on-chain TWAP on Sui, so the dwell is built on the latch: `record_breach`
-/// must observe the feed at/below the threshold twice, at least `min_dwell_secs`
-/// apart (each read fresh, conf-banded, and feed-matched). The first observation
-/// *arms* the policy; a confirming observation after the dwell window *latches* it,
-/// after which `claim_latched` pays — even once the price recovers or the policy
-/// expires. This converts a transient wick or a single manipulated update into a
-/// required sustained depeg, which is the only thing a depeg payout should pay on.
+/// Settlement requires a bounded dwell, never a single read — there is no native
+/// on-chain TWAP on Sui, so the pool epoch observes the feed at/below the threshold
+/// twice, at least `min_dwell_secs` apart, using fresh, conf-banded, feed-matched
+/// Pyth reads. A healthy supplied observation resets an open epoch, and an old arm
+/// expires instead of confirming against an unrelated later dip. `record_breach`
+/// remains as a policy-holder compatibility path, but it routes through the pool
+/// epoch rules instead of maintaining an independent policy-level event machine.
 module pyth_cover_pool::pyth_cover_pool {
     use sui::balance::{Self, Balance};
     use sui::coin::{Self, Coin};
@@ -41,6 +40,12 @@ module pyth_cover_pool::pyth_cover_pool {
     const BPS: u128 = 10_000;
     /// `premium_bps` and `surge_premium_bps` quote one 30-day cover period.
     const PREMIUM_PERIOD_SECS: u64 = 2_592_000;
+    /// Sales close before the claim threshold: a fresh healthy read must have its
+    /// lower confidence edge above threshold plus this buffer.
+    const SALE_CUTOFF_BUFFER_BPS: u64 = 50;
+    /// A pool arm must confirm within this multiple of the dwell window after the
+    /// minimum dwell has elapsed; later adverse reads start a new arm.
+    const CONFIRMATION_GRACE_MULTIPLIER: u64 = 3;
 
     /// Cover or deposit amount must be non-zero.
     const EZeroAmount: u64 = 0;
@@ -96,6 +101,10 @@ module pyth_cover_pool::pyth_cover_pool {
     const EPolicyNotActive: u64 = 25;
     const EPoolEpochOpen: u64 = 26;
     const EStillDepegged: u64 = 27;
+    const ESaleClosed: u64 = 28;
+    const EZeroShares: u64 = 29;
+    const EWrongPremium: u64 = 30;
+    const EOutstandingCover: u64 = 31;
 
     // Parameter kinds for timelocked updates.
     const K_THRESHOLD: u8 = 0;
@@ -443,6 +452,7 @@ module pyth_cover_pool::pyth_cover_pool {
         } else {
             (((amount as u128) * (pool.total_shares as u128)) / (value_before as u128)) as u64
         };
+        assert!(shares > 0, EZeroShares);
         balance::join(&mut pool.funds, coin::into_balance(coin));
         pool.total_shares = pool.total_shares + shares;
         LpShare { id: object::new(ctx), pool_id: object::id(pool), shares }
@@ -549,6 +559,21 @@ module pyth_cover_pool::pyth_cover_pool {
         premium: Coin<T>,
         cover: u64,
         expiry_ms: u64,
+        price_info_object: &PriceInfoObject,
+        clock: &Clock,
+        ctx: &mut TxContext,
+    ): Policy<T> {
+        let (price_mag, conf) = read_price_magnitude(pool, price_info_object, clock);
+        buy_cover_checked(pool, premium, cover, expiry_ms, price_mag, conf, clock, ctx)
+    }
+
+    fun buy_cover_checked<T>(
+        pool: &mut DepegCoverPool<T>,
+        premium: Coin<T>,
+        cover: u64,
+        expiry_ms: u64,
+        price_mag: u64,
+        conf: u64,
         clock: &Clock,
         ctx: &mut TxContext,
     ): Policy<T> {
@@ -569,10 +594,12 @@ module pyth_cover_pool::pyth_cover_pool {
             pool.max_total_cover == 0 || pool.total_cover + cover <= pool.max_total_cover,
             EPoolCoverCap,
         );
+        assert_sale_open(pool, price_mag, conf);
         let required = premium_for_duration(pool, cover, duration_secs);
         assert!(required > 0, EZeroPremium);
         let paid = coin::value(&premium);
         assert!(paid >= required, EInsufficientPremium);
+        assert!(paid == required, EWrongPremium);
         let fee = (((paid as u128) * (pool.treasury_fee_bps as u128)) / BPS) as u64;
         let mut premium_balance = coin::into_balance(premium);
         if (fee > 0) {
@@ -610,6 +637,16 @@ module pyth_cover_pool::pyth_cover_pool {
             breached: false,
             breach_price: 0,
         }
+    }
+
+    fun sale_cutoff<T>(pool: &DepegCoverPool<T>): u64 {
+        ((((pool.threshold as u128) * ((BPS as u128) + (SALE_CUTOFF_BUFFER_BPS as u128))) +
+            BPS - 1) / BPS) as u64
+    }
+
+    fun assert_sale_open<T>(pool: &DepegCoverPool<T>, price_mag: u64, conf: u64) {
+        assert!(price_mag > conf, ESaleClosed);
+        assert!(price_mag - conf > sale_cutoff(pool), ESaleClosed);
     }
 
     /// Read + verify the pool's Pyth feed: matches the insured feed id, is fresh,
@@ -651,6 +688,19 @@ module pyth_cover_pool::pyth_cover_pool {
         );
 
         (magnitude, conf)
+    }
+
+    fun is_adverse<T>(pool: &DepegCoverPool<T>, price_mag: u64, conf: u64): bool {
+        ((price_mag as u128) + (conf as u128)) <= (pool.threshold as u128)
+    }
+
+    fun is_healthy<T>(pool: &DepegCoverPool<T>, price_mag: u64, conf: u64): bool {
+        price_mag > conf && price_mag - conf > pool.threshold
+    }
+
+    fun confirmation_deadline_ms<T>(pool: &DepegCoverPool<T>): u64 {
+        pool.epoch_first_breach_ms +
+            pool.min_dwell_secs * 1000 * (CONFIRMATION_GRACE_MULTIPLIER + 1)
     }
 
     /// Pay out a latched policy: burn it, release its liability, and take its cover
@@ -742,20 +792,16 @@ module pyth_cover_pool::pyth_cover_pool {
         object::delete(id);
     }
 
-    // --- Dwell-based breach latch ---
-    // Settlement decouples *detecting* a sustained breach from *collecting* the
-    // payout. A keeper calls `record_breach` while the feed is below the floor: the
-    // first sub-threshold read arms the policy, and a confirming read at least
-    // `min_dwell_secs` later latches it. The holder then `claim_latched`s the payout
-    // — even after the price recovers or the policy expires. Two reads a dwell apart
-    // require a sustained depeg, so a transient wick or one manipulated update cannot
-    // force a payout.
+    // --- Dwell-based pool epoch latch ---
+    // Settlement decouples detecting a bounded depeg epoch from collecting payout.
+    // Keepers should call `record_pool_breach`: the first adverse read arms the pool
+    // epoch, and a confirming read inside the allowed dwell window confirms it.
+    // `record_breach` is retained for policy-holder compatibility but now routes
+    // through the same pool epoch rules instead of creating an independent latch.
 
-    /// Record a sub-threshold observation on this policy, reading Pyth on-chain. Arms
-    /// the dwell on the first call and latches the policy on a confirming call at
-    /// least `min_dwell_secs` later. Aborts unless the feed is at/below the pool floor
-    /// (adverse-bounded) and the policy is unexpired; a confirming call inside the
-    /// dwell window is a no-op (the keeper retries once the window elapses).
+    /// Record a breach observation through a policy-holder path. This is a
+    /// compatibility wrapper around the pool epoch state machine: it cannot make a
+    /// policy claimable unless the confirmed pool epoch covers that policy.
     public fun record_breach<T>(
         pool: &mut DepegCoverPool<T>,
         policy: &mut Policy<T>,
@@ -809,11 +855,26 @@ module pyth_cover_pool::pyth_cover_pool {
         clock: &Clock,
         ctx: &mut TxContext,
     ) {
-        if (pool.epoch_breached) return;
         let now = clock::timestamp_ms(clock);
-        assert!(price_mag + conf <= pool.threshold, ENotDepegged);
+        if (!is_adverse(pool, price_mag, conf)) {
+            if ((pool.epoch_armed || pool.epoch_breached) && is_healthy(pool, price_mag, conf)) {
+                do_pool_recovery(pool, price_mag, conf, clock);
+                return;
+            };
+            assert!(false, ENotDepegged);
+        };
+        if (pool.epoch_breached) return;
         if (!pool.epoch_armed) {
             pool.epoch_armed = true;
+            pool.epoch_first_breach_ms = now;
+            pool.epoch_breach_price = price_mag;
+            event::emit(PoolBreachArmed {
+                pool: object::id(pool),
+                epoch_id: pool.epoch_id,
+                price: price_mag,
+                at_ms: now,
+            });
+        } else if (now > confirmation_deadline_ms(pool)) {
             pool.epoch_first_breach_ms = now;
             pool.epoch_breach_price = price_mag;
             event::emit(PoolBreachArmed {
@@ -886,31 +947,35 @@ module pyth_cover_pool::pyth_cover_pool {
         // Activation delay: no breach counts until the policy has been active a while,
         // so cover bought at the instant of a depeg cannot pay out.
         assert!(now >= policy.activation_ms, ENotActive);
-        // Adverse-bound: the upper edge of the confidence band must clear the floor,
-        // for BOTH the arming and the confirming read.
-        assert!(price_mag + conf <= pool.threshold, ENotDepegged);
-        if (!policy.armed) {
-            // Arm: start the dwell window on the first sub-threshold observation.
+        do_pool_latch(pool, price_mag, conf, clock, ctx);
+        if (
+            policy.epoch_id == pool.epoch_id &&
+            pool.epoch_armed &&
+            policy.activation_ms <= pool.epoch_first_breach_ms &&
+            (!policy.armed || policy.first_breach_ms != pool.epoch_first_breach_ms)
+        ) {
             policy.armed = true;
-            policy.first_breach_ms = now;
-            policy.breach_price = price_mag;
-            event::emit(BreachArmed { pool: object::id(pool), price: price_mag, at_ms: now });
-        } else if (now >= policy.first_breach_ms + pool.min_dwell_secs * 1000) {
-            // Confirm: a second sub-threshold read a full dwell later latches it.
+            policy.first_breach_ms = pool.epoch_first_breach_ms;
+            policy.breach_price = pool.epoch_breach_price;
+            event::emit(BreachArmed {
+                pool: object::id(pool),
+                price: pool.epoch_breach_price,
+                at_ms: pool.epoch_first_breach_ms,
+            });
+        };
+        if (epoch_claims_policy(pool, policy)) {
             let policy_id = object::id(policy);
             assert!(table::contains(&pool.policies, policy_id), EPolicyNotActive);
             table::borrow_mut(&mut pool.policies, policy_id).breached = true;
-            policy.breach_price = price_mag;
+            policy.breach_price = table::borrow(&pool.epochs, policy.epoch_id).price;
             policy.breached = true;
-            pay_keeper_bounty(pool, ctx);
-            event::emit(BreachConfirmed { pool: object::id(pool), price: price_mag });
+            event::emit(BreachConfirmed { pool: object::id(pool), price: policy.breach_price });
         };
-        // else: armed but still inside the dwell window — no-op, retry later.
     }
 
-    /// Claim a latched policy — pays even after the price recovered or the policy
-    /// expired, because the sustained breach was recorded during coverage. No Pyth
-    /// read needed.
+    /// Claim a latched policy — pays after the pool epoch made the policy eligible
+    /// or after the compatibility path marked the owned policy from that same epoch.
+    /// No Pyth read is needed at claim time.
     public fun claim_latched<T>(
         pool: &mut DepegCoverPool<T>,
         policy: Policy<T>,
@@ -959,6 +1024,7 @@ module pyth_cover_pool::pyth_cover_pool {
         assert_admin(pool, cap);
         assert!(kind <= K_MAX_POLICY_DURATION_SECS, EBadParamKind);
         assert_valid_param_value(pool, kind, value);
+        assert_can_update_param(pool, kind);
         let eta_ms = clock::timestamp_ms(clock) + pool.timelock_secs * 1000;
         pool.pending = option::some(PendingParamUpdate { kind, value, eta_ms });
         event::emit(ParamUpdateProposed { pool: object::id(pool), kind, value, eta_ms });
@@ -974,6 +1040,7 @@ module pyth_cover_pool::pyth_cover_pool {
         assert!(option::is_some(&pool.pending), ENoPendingUpdate);
         let u = *option::borrow(&pool.pending);
         assert!(clock::timestamp_ms(clock) >= u.eta_ms, ETimelockNotElapsed);
+        assert_can_update_param(pool, u.kind);
         apply_param(pool, u.kind, u.value);
         pool.pending = option::none();
         event::emit(ParamUpdateExecuted { pool: object::id(pool), kind: u.kind, value: u.value });
@@ -1033,6 +1100,24 @@ module pyth_cover_pool::pyth_cover_pool {
                     value <= 7_776_000,
                 EBadParamValue,
             )
+        }
+    }
+
+    fun is_settlement_param(kind: u8): bool {
+        kind == K_THRESHOLD ||
+            kind == K_MAX_AGE_SECS ||
+            kind == K_MAX_CONF_BPS ||
+            kind == K_MIN_DWELL_SECS ||
+            kind == K_ACTIVATION_DELAY_SECS ||
+            kind == K_MAX_POLICY_DURATION_SECS
+    }
+
+    fun assert_can_update_param<T>(pool: &DepegCoverPool<T>, kind: u8) {
+        if (is_settlement_param(kind)) {
+            assert!(
+                pool.total_cover == 0 && !pool.epoch_armed && !pool.epoch_breached,
+                EOutstandingCover,
+            );
         }
     }
 
@@ -1115,6 +1200,20 @@ module pyth_cover_pool::pyth_cover_pool {
         ctx: &mut TxContext,
     ): AdminCap {
         AdminCap { id: object::new(ctx), pool_id: object::id(pool) }
+    }
+
+    #[test_only]
+    public fun buy_cover_at_price_for_testing<T>(
+        pool: &mut DepegCoverPool<T>,
+        premium: Coin<T>,
+        cover: u64,
+        expiry_ms: u64,
+        price_mag: u64,
+        conf: u64,
+        clock: &Clock,
+        ctx: &mut TxContext,
+    ): Policy<T> {
+        buy_cover_checked(pool, premium, cover, expiry_ms, price_mag, conf, clock, ctx)
     }
 
     #[test_only]

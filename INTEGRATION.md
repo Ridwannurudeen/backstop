@@ -1,10 +1,9 @@
 # Backstop Integration Kit
 
-Backstop's production surface is the Sui mainnet `pyth_cover_pool` v3 deployment
-for suiUSDe depeg cover. It is fully collateralized in SUI, priced by pool terms,
-and settled by Pyth with freshness, confidence-band, activation-delay, and dwell
-checks. v3 also adds pool-level depeg epochs for batch claimability during a mass
-depeg.
+Backstop's live production surface is the Sui mainnet `pyth_cover_pool` v3
+deployment for suiUSDe depeg cover. It is experimental and low-cap. The v4
+source in this branch adds stricter sale and settlement hardening, but those
+changes are not live until a new package and pool are deployed.
 
 Install the TypeScript SDK:
 
@@ -77,11 +76,29 @@ const tx = buildDepegBuyCoverTx({
 await signAndExecute({ transaction: tx, chain: "sui:mainnet" });
 ```
 
+The corrected v4 source requires a fresh Pyth sale check inside the buy PTB. Use
+the explicit v4 builder only after deploying a v4 package/pool:
+
+```ts
+import { buildDepegBuyCoverWithPythTx } from "@gudman/backstop-sdk";
+
+const tx = await buildDepegBuyCoverWithPythTx({
+  client,
+  pkg: V4_DEPEG_COVER_PKG,
+  poolId: V4_DEPEG_POOL,
+  premiumMist,
+  coverMist,
+  expiryMs,
+  owner: positionOwner,
+});
+```
+
 ## Record Breach
 
-`record_breach` refreshes Pyth inside the PTB and advances the policy's dwell
-latch if the adverse price band is below the floor. A claim is not single-read:
-keepers call once to arm, then again after `min_dwell_secs` to confirm.
+`record_breach` refreshes Pyth inside the PTB. On v4 source it is a compatibility
+path around pool-epoch eligibility, not a separate per-policy event machine. A
+claim is not single-read: keepers call once to arm, then again after
+`min_dwell_secs` to confirm.
 
 ```ts
 import {
@@ -104,8 +121,8 @@ await signAndExecute({ transaction: tx, chain: "sui:mainnet" });
 
 The current production mainnet pool is v3 and supports `record_pool_breach` and
 `record_pool_recovery`: one sustained pool epoch can make every policy that was
-active at arm time and unexpired at confirmation claimable. Per-policy
-`record_breach` remains available for direct holder/position-manager flows.
+active at arm time and unexpired at confirmation claimable. Prefer this path for
+all keeper operations.
 
 ```ts
 import {
@@ -157,9 +174,8 @@ await signAndExecute({ transaction: tx, chain: "sui:mainnet" });
 4. Convert that exposure into a SUI payout amount using Pyth SUI/USD.
 5. Quote the Backstop pool.
 6. Buy a policy into the user's wallet, or into a protocol-owned position manager.
-7. Run a keeper that records breach observations during a sustained depeg. Prefer
-   pool-level epochs for mass-depeg handling; use per-policy `record_breach` for
-   direct position-manager settlement.
+7. Run a keeper that records breach observations during a sustained depeg through
+   pool-level epochs.
 8. Claim latched policies into the intended reserve or user payout recipient.
 
 Backstop's app already implements fixture-backed NAVI and Suilend parsers in
@@ -172,9 +188,10 @@ npm run verify:depeg-ptbs
 
 ## Direct PTB Shape
 
-For protocols that do not want the SDK wrapper, the production calls are
-`buy_cover`, `record_breach`, `record_pool_breach`, `record_pool_recovery`, and
-`claim_latched`.
+For protocols that do not want the SDK wrapper, the live v3 production calls are
+`buy_cover`, `record_pool_breach`, `record_pool_recovery`, and
+`claim_latched`. `record_breach` remains available for compatibility but should
+not be your primary keeper path.
 
 ```ts
 tx.moveCall({
@@ -185,6 +202,24 @@ tx.moveCall({
     premiumCoin,
     tx.pure.u64(coverMist),
     tx.pure.u64(expiryMs),
+    tx.object("0x6"),
+  ],
+});
+```
+
+The corrected v4 `buy_cover` call adds the same-PTB `PriceInfoObject` before
+`Clock`:
+
+```ts
+tx.moveCall({
+  target: `${V4_DEPEG_COVER_PKG}::pyth_cover_pool::buy_cover`,
+  typeArguments: ["0x2::sui::SUI"],
+  arguments: [
+    tx.object(V4_DEPEG_POOL),
+    premiumCoin,
+    tx.pure.u64(coverMist),
+    tx.pure.u64(expiryMs),
+    tx.object(priceInfoObjectId),
     tx.object("0x6"),
   ],
 });
@@ -235,5 +270,7 @@ tx.moveCall({
 });
 ```
 
-`record_breach` should normally be built through the SDK because the SDK fetches
-Hermes update data and inserts the Pyth update call before the Move call.
+`record_pool_breach`, `record_pool_recovery`, and `record_breach` should
+normally be built through the SDK because the SDK fetches Hermes update data and
+inserts the Pyth update call before the Move call. For v4 purchases, use
+`buildDepegBuyCoverWithPythTx` for the same reason.

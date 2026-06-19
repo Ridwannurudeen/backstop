@@ -64,11 +64,14 @@ module pyth_lending_demo::pyth_lending_demo {
         premium: Coin<SUI>,
         cover: u64,
         expiry_ms: u64,
+        price_info_object: &PriceInfoObject,
         clock: &Clock,
         ctx: &mut TxContext,
     ) {
         assert!(option::is_none(&m.policy), EAlreadyInsured);
-        let policy = pyth_cover_pool::buy_cover(pool, premium, cover, expiry_ms, clock, ctx);
+        let policy = pyth_cover_pool::buy_cover(
+            pool, premium, cover, expiry_ms, price_info_object, clock, ctx,
+        );
         option::fill(&mut m.policy, policy);
     }
 
@@ -128,5 +131,23 @@ module pyth_lending_demo::pyth_lending_demo {
         pyth_cover_pool::latch_at_price_for_testing(
             pool, option::borrow_mut(&mut m.policy), price_mag, 0, clock, ctx,
         );
+    }
+
+    #[test_only]
+    public fun insure_at_price_for_testing(
+        m: &mut LendingMarket,
+        pool: &mut DepegCoverPool<SUI>,
+        premium: Coin<SUI>,
+        cover: u64,
+        expiry_ms: u64,
+        price_mag: u64,
+        clock: &Clock,
+        ctx: &mut TxContext,
+    ) {
+        assert!(option::is_none(&m.policy), EAlreadyInsured);
+        let policy = pyth_cover_pool::buy_cover_at_price_for_testing(
+            pool, premium, cover, expiry_ms, price_mag, 0, clock, ctx,
+        );
+        option::fill(&mut m.policy, policy);
     }
 }

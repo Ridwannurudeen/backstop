@@ -23,6 +23,9 @@ Scope this checklist to the production path first:
   cover.
 - Treasury withdrawal must not touch LP funds or policy collateral.
 - Keeper bounty must be best-effort and must not block settlement.
+- LP deposits must not mint zero shares.
+- Cover purchase must reject excess premium rather than accepting donations into
+  pool value.
 
 ## Oracle Settlement
 
@@ -31,18 +34,25 @@ Scope this checklist to the production path first:
 - `price + conf <= threshold` is the payout condition, not point price alone.
 - Reads with confidence wider than `max_conf_bps` must reject.
 - `record_breach` must reject stale Pyth data through `get_price_no_older_than`.
-- The first sub-threshold read should only arm the policy.
-- The confirming read must occur at least `min_dwell_secs` after arming.
+- `buy_cover` must also reject stale, wrong-feed, wrong-exponent, or uncertain
+  Pyth data and must require the lower confidence edge to be safely above the
+  sale cutoff.
+- The first sub-threshold read should only arm the pool epoch.
+- The confirming read must occur at least `min_dwell_secs` after arming and
+  before the confirmation deadline expires.
+- A healthy supplied observation must reset an open epoch.
 - A recovered price after latch must not erase the claim.
 - A confirmed pool-level epoch must make only policies active before epoch arm
   and unexpired at epoch confirmation claimable.
+- Direct per-policy `record_breach` must not bypass pool-epoch eligibility.
 - Pool recovery must advance `epoch_id` only for confirmed epochs, must reopen
   buys/deposits, and must not erase old-epoch claim rights.
 
 ## Economics
 
-- Premium must scale by duration for v2 pools.
+- Premium must scale by duration.
 - Premium must round up so dust terms do not buy free cover.
+- Premium payment must be exact.
 - Selected expiry must be greater than activation time.
 - Selected term must not exceed `max_policy_duration_secs`.
 - Per-policy and aggregate exposure caps must be enforced.
@@ -55,6 +65,8 @@ Scope this checklist to the production path first:
 - `AdminCap` must govern only its pool.
 - Parameter changes must pass bounds checks.
 - Timelock must be enforced before execution.
+- Settlement-term changes must be blocked while outstanding cover or an open
+  epoch exists.
 - Pause must not block `record_breach`, `claim_latched`, `expire_policy`, or
   `withdraw_lp`.
 - UpgradeCaps should remain policy `DEP_ONLY` on mainnet.
@@ -65,13 +77,11 @@ Scope this checklist to the production path first:
 - The UI must sign with `sui:mainnet` for the depeg pool.
 - The 30-day UI term should use a small expiry safety margin under the on-chain
   max term.
-- `quoteDepegPremium` must mirror v2 duration pricing.
-- `buildDepegRecordBreachTx` must refresh Pyth in the same PTB before calling
-  `record_breach`.
-- v3 `buildDepegRecordPoolBreachTx` and `buildDepegRecordPoolRecoveryTx` must
-  refresh Pyth in the same PTB before calling the pool-level entrypoints.
-- The UI/keeper must distinguish v2 per-policy pools from v3 epoch-enabled pools
-  and avoid presenting v3 semantics as live on v2.
+- `quoteDepegPremium` must mirror duration pricing.
+- `buildDepegBuyCoverTx`, `buildDepegRecordBreachTx`,
+  `buildDepegRecordPoolBreachTx`, and `buildDepegRecordPoolRecoveryTx` must
+  refresh Pyth in the same PTB before calling the Move entrypoint.
+- The UI/keeper should use pool-level epochs as the primary path.
 - Proof-health must verify package existence, pool state, upgrade policy, custody,
   staged claim, and production active cover from Sui mainnet.
 

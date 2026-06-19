@@ -20,12 +20,14 @@ npm run build
 - SRX / RiskFeed testnet readers
 - legacy testnet cover-pool builders, kept for lab/proof work only
 - mainnet Pyth depeg readers, duration-aware premium quotes, expiry-release
-  builders, and transaction builders
-- v3 pool-epoch builders (`record_pool_breach` / `record_pool_recovery`) for
+  builders, Pyth-refreshing keeper builders, and an explicit v4 purchase builder
+- pool-epoch builders (`record_pool_breach` / `record_pool_recovery`) for
   batch claimability
 
 Version `0.1.1` points at the v3 production pool recorded in `deployment.json`.
-The RiskFeed/SRX/Predict surface is testnet-only today.
+The current repository source contains v4 hardening that is not live until a new
+package/pool is deployed. The RiskFeed/SRX/Predict surface is testnet-only
+today.
 
 ## Mainnet Depeg Examples
 
@@ -64,7 +66,24 @@ const tx = buildDepegBuyCoverTx({
 });
 ```
 
-Record breach:
+The corrected v4 source adds a same-PTB Pyth sale check. Use the explicit v4
+builder only with a v4 package/pool:
+
+```ts
+import { buildDepegBuyCoverWithPythTx } from "@gudman/backstop-sdk";
+
+const tx = await buildDepegBuyCoverWithPythTx({
+  client,
+  pkg: V4_DEPEG_COVER_PKG,
+  poolId: V4_DEPEG_POOL,
+  premiumMist,
+  coverMist,
+  expiryMs: BigInt(Date.now() + 30 * 86_400_000 - 60_000),
+  owner,
+});
+```
+
+Record breach compatibility path:
 
 ```ts
 import {
@@ -80,6 +99,8 @@ const tx = await buildDepegRecordBreachTx({
   policyId,
 });
 ```
+
+Prefer the pool-level epoch builders for keeper operations.
 
 Record a pool-level epoch:
 
