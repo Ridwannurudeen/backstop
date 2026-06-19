@@ -339,6 +339,7 @@ export default function DepegActions() {
     !!pool && suilendSuggestedCoverMist > suilendSizedCoverMist;
   const naviCoverDisabled = naviSizedCoverMist <= 0n || !suiUsdPrice;
   const suilendCoverDisabled = suilendSizedCoverMist <= 0n || !suiUsdPrice;
+  const directBuyDisabled = !!pool && !pool.directSalesEnabled;
   const nowMs = Date.now();
   const poolEpochOpen = !!pool && (pool.epochArmed || pool.epochBreached);
   const poolEpochConfirmMs =
@@ -367,6 +368,7 @@ export default function DepegActions() {
     isPending ||
     coverSui <= 0 ||
     premiumMist === undefined ||
+    directBuyDisabled ||
     !!pool?.paused ||
     poolEpochOpen ||
     termExceedsMax ||
@@ -1215,8 +1217,18 @@ export default function DepegActions() {
               Selected term exceeds this pool's maximum policy duration.
             </p>
           )}
+          {directBuyDisabled && (
+            <p className="note">
+              Direct wallet buys are disabled on this pool. Protocol adapters
+              with the pool BuyerCap can buy position-bound cover.
+            </p>
+          )}
           <button className="btn" disabled={buyDisabled} onClick={buy}>
-            {isPending ? "Working..." : "Buy depeg cover"}
+            {isPending
+              ? "Working..."
+              : directBuyDisabled
+                ? "Adapter-only pool"
+                : "Buy depeg cover"}
           </button>
         </div>
       </div>

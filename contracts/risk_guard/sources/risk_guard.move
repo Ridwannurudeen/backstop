@@ -51,9 +51,10 @@ module risk_guard::risk_guard {
     }
 
     /// True while the market's latest crash probability is within tolerance.
-    /// An unknown market (no reading yet) is treated as unsafe — fail closed.
+    /// An unknown or challenged market is treated as unsafe — fail closed.
     public fun is_safe<T>(t: &GuardedTreasury<T>, feed: &RiskFeed): bool {
         risk_feed::has_market(feed, t.market)
+            && !risk_feed::is_challenged(feed, t.market)
             && risk_feed::probability_bps(feed, t.market) <= t.max_prob_bps
     }
 
@@ -69,9 +70,10 @@ module risk_guard::risk_guard {
     }
 
     /// Remaining headroom (bps) before withdrawals freeze; 0 if already frozen
-    /// or the market is unknown.
+    /// or the market is unknown/challenged.
     public fun headroom_bps<T>(t: &GuardedTreasury<T>, feed: &RiskFeed): u64 {
         if (!risk_feed::has_market(feed, t.market)) return 0;
+        if (risk_feed::is_challenged(feed, t.market)) return 0;
         let p = risk_feed::probability_bps(feed, t.market);
         if (p >= t.max_prob_bps) 0 else t.max_prob_bps - p
     }

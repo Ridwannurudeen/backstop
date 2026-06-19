@@ -3,7 +3,8 @@
  *
  * Backstop exposes the mainnet Pyth-settled depeg pool plus the older testnet
  * DeepBook/Walrus risk primitives:
- *   - Depeg cover - SUI-collateralized suiUSDe cover settled by Pyth
+ *   - Depeg cover - Pyth-settled suiUSDe cover; live v5 is a low-cap
+ *     BuyerCap-restricted SUI-collateralized pool
  *   - SRX - the Sui Risk Index (CRASH / VOL / TAIL), options-implied
  *   - RiskFeed - market-implied probability-of-failure readings
  *
@@ -45,6 +46,17 @@ const PREMIUM_PERIOD_SECS = 2_592_000n;
 const DAY_SECS = 86_400;
 
 type Fields = Record<string, unknown>;
+
+type PythI64 = {
+  fields: { negative: boolean; magnitude: string };
+};
+
+type PythPriceFields = {
+  price: PythI64;
+  conf: string | number;
+  expo: PythI64;
+  timestamp: string | number;
+};
 
 const isRecord = (v: unknown): v is Fields =>
   typeof v === "object" && v !== null;
@@ -237,9 +249,8 @@ export type DepegReading = {
   priceObjectId: string;
 };
 
-const i64FromFields = (v: {
-  fields: { negative: boolean; magnitude: string };
-}): number => (v.fields.negative ? -1 : 1) * Number(v.fields.magnitude);
+const i64FromFields = (v: PythI64): number =>
+  (v.fields.negative ? -1 : 1) * Number(v.fields.magnitude);
 
 /**
  * Read a Pyth feed's live on-chain price on Sui mainnet — the exact PriceInfoObject
@@ -264,7 +275,9 @@ export async function readDepegPrice(
     o.data?.content as {
       fields?: {
         price_info?: {
-          fields?: { price_feed?: { fields?: { price?: { fields?: any } } } };
+          fields?: {
+            price_feed?: { fields?: { price?: { fields?: PythPriceFields } } };
+          };
         };
       };
     }
@@ -317,6 +330,8 @@ export type DepegPoolState = {
   treasuryMist: bigint;
   /** When true, new deposits/cover are halted (claims are still allowed). */
   paused: boolean;
+  /** When false, direct wallet buys are disabled; adapter BuyerCaps must be used. */
+  directSalesEnabled: boolean;
   /** Governance timelock (seconds) on parameter updates. */
   timelockSecs: number;
   /** Pool-level depeg epoch id (null on pre-epoch pools). */
@@ -391,6 +406,10 @@ export async function readDepegPool(
     keeperBountyMist: u64(f.keeper_bounty),
     treasuryMist: u64(f.treasury),
     paused: Boolean(f.paused),
+    directSalesEnabled:
+      f.direct_sales_enabled === undefined
+        ? true
+        : Boolean(f.direct_sales_enabled),
     timelockSecs: Number(u64(f.timelock_secs)),
     epochId: optionalU64Number(f.epoch_id),
     epochArmed: Boolean(f.epoch_armed),
@@ -413,12 +432,15 @@ export function buildDepegBuyCoverTx(p: {
   expiryMs: bigint;
   priceInfoObjectId: string;
   owner: string;
+  coinType?: string;
+  premiumCoinId?: string;
 }): Transaction {
   const tx = new Transaction();
-  const [prem] = tx.splitCoins(tx.gas, [tx.pure.u64(p.premiumMist)]);
+  const source = p.premiumCoinId ? tx.object(p.premiumCoinId) : tx.gas;
+  const [prem] = tx.splitCoins(source, [tx.pure.u64(p.premiumMist)]);
   const [policy, refund] = tx.moveCall({
     target: `${p.pkg}::pyth_cover_pool::buy_cover`,
-    typeArguments: [SUI_TYPE],
+    typeArguments: [p.coinType ?? SUI_TYPE],
     arguments: [
       tx.object(p.poolId),
       prem,
@@ -432,7 +454,7 @@ export function buildDepegBuyCoverTx(p: {
   return tx;
 }
 
-/** Build a tx to buy v4 depeg cover with a same-PTB Pyth sale check. */
+/** Build a direct-sale depeg cover tx with a same-PTB Pyth sale check. */
 export async function buildDepegBuyCoverWithPythTx(p: {
   client: SuiClient;
   pkg: string;
@@ -442,13 +464,16 @@ export async function buildDepegBuyCoverWithPythTx(p: {
   expiryMs: bigint;
   owner: string;
   feedId?: string;
+  coinType?: string;
+  premiumCoinId?: string;
 }): Promise<Transaction> {
   const feedId = p.feedId ?? SUIUSDE_FEED_ID;
   const { tx, priceInfoObjectId } = await buildPythUpdateTx(p.client, feedId);
-  const [prem] = tx.splitCoins(tx.gas, [tx.pure.u64(p.premiumMist)]);
+  const source = p.premiumCoinId ? tx.object(p.premiumCoinId) : tx.gas;
+  const [prem] = tx.splitCoins(source, [tx.pure.u64(p.premiumMist)]);
   const [policy, refund] = tx.moveCall({
     target: `${p.pkg}::pyth_cover_pool::buy_cover`,
-    typeArguments: [SUI_TYPE],
+    typeArguments: [p.coinType ?? SUI_TYPE],
     arguments: [
       tx.object(p.poolId),
       prem,
@@ -462,18 +487,89 @@ export async function buildDepegBuyCoverWithPythTx(p: {
   return tx;
 }
 
-/** Build a tx to supply SUI liquidity to a depeg pool and receive an LP share. */
+/** Build a tx to buy depeg cover through an adapter BuyerCap after Pyth refresh. */
+export function buildDepegBuyCoverWithCapTx(p: {
+  pkg: string;
+  poolId: string;
+  buyerCapId: string;
+  premiumMist: bigint;
+  coverMist: bigint;
+  expiryMs: bigint;
+  priceInfoObjectId: string;
+  owner: string;
+  coinType?: string;
+  premiumCoinId?: string;
+}): Transaction {
+  const tx = new Transaction();
+  const source = p.premiumCoinId ? tx.object(p.premiumCoinId) : tx.gas;
+  const [prem] = tx.splitCoins(source, [tx.pure.u64(p.premiumMist)]);
+  const [policy, refund] = tx.moveCall({
+    target: `${p.pkg}::pyth_cover_pool::buy_cover_with_cap`,
+    typeArguments: [p.coinType ?? SUI_TYPE],
+    arguments: [
+      tx.object(p.poolId),
+      tx.object(p.buyerCapId),
+      prem,
+      tx.pure.u64(p.coverMist),
+      tx.pure.u64(p.expiryMs),
+      tx.object(p.priceInfoObjectId),
+      tx.object(CLOCK),
+    ],
+  });
+  tx.transferObjects([policy, refund], p.owner);
+  return tx;
+}
+
+/** Build a tx to buy depeg cover through an adapter BuyerCap with same-PTB Pyth. */
+export async function buildDepegBuyCoverWithCapAndPythTx(p: {
+  client: SuiClient;
+  pkg: string;
+  poolId: string;
+  buyerCapId: string;
+  premiumMist: bigint;
+  coverMist: bigint;
+  expiryMs: bigint;
+  owner: string;
+  feedId?: string;
+  coinType?: string;
+  premiumCoinId?: string;
+}): Promise<Transaction> {
+  const feedId = p.feedId ?? SUIUSDE_FEED_ID;
+  const { tx, priceInfoObjectId } = await buildPythUpdateTx(p.client, feedId);
+  const source = p.premiumCoinId ? tx.object(p.premiumCoinId) : tx.gas;
+  const [prem] = tx.splitCoins(source, [tx.pure.u64(p.premiumMist)]);
+  const [policy, refund] = tx.moveCall({
+    target: `${p.pkg}::pyth_cover_pool::buy_cover_with_cap`,
+    typeArguments: [p.coinType ?? SUI_TYPE],
+    arguments: [
+      tx.object(p.poolId),
+      tx.object(p.buyerCapId),
+      prem,
+      tx.pure.u64(p.coverMist),
+      tx.pure.u64(p.expiryMs),
+      tx.object(priceInfoObjectId),
+      tx.object(CLOCK),
+    ],
+  });
+  tx.transferObjects([policy, refund], p.owner);
+  return tx;
+}
+
+/** Build a tx to supply collateral liquidity to a depeg pool and receive an LP share. */
 export function buildDepegDepositLpTx(p: {
   pkg: string;
   poolId: string;
   amountMist: bigint;
   owner: string;
+  coinType?: string;
+  coinId?: string;
 }): Transaction {
   const tx = new Transaction();
-  const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(p.amountMist)]);
+  const source = p.coinId ? tx.object(p.coinId) : tx.gas;
+  const [coin] = tx.splitCoins(source, [tx.pure.u64(p.amountMist)]);
   const share = tx.moveCall({
     target: `${p.pkg}::pyth_cover_pool::deposit_lp`,
-    typeArguments: [SUI_TYPE],
+    typeArguments: [p.coinType ?? SUI_TYPE],
     arguments: [tx.object(p.poolId), coin],
   });
   tx.transferObjects([share], p.owner);
@@ -486,11 +582,12 @@ export function buildDepegWithdrawLpTx(p: {
   poolId: string;
   shareId: string;
   owner: string;
+  coinType?: string;
 }): Transaction {
   const tx = new Transaction();
   const payout = tx.moveCall({
     target: `${p.pkg}::pyth_cover_pool::withdraw_lp`,
-    typeArguments: [SUI_TYPE],
+    typeArguments: [p.coinType ?? SUI_TYPE],
     arguments: [tx.object(p.poolId), tx.object(p.shareId)],
   });
   tx.transferObjects([payout], p.owner);
@@ -523,12 +620,13 @@ export async function buildDepegRecordBreachTx(p: {
   poolId: string;
   policyId: string;
   feedId?: string;
+  coinType?: string;
 }): Promise<Transaction> {
   const feedId = p.feedId ?? SUIUSDE_FEED_ID;
   const { tx, priceInfoObjectId } = await buildPythUpdateTx(p.client, feedId);
   tx.moveCall({
     target: `${p.pkg}::pyth_cover_pool::record_breach`,
-    typeArguments: [SUI_TYPE],
+    typeArguments: [p.coinType ?? SUI_TYPE],
     arguments: [
       tx.object(p.poolId),
       tx.object(p.policyId),
@@ -548,12 +646,13 @@ export async function buildDepegRecordPoolBreachTx(p: {
   pkg: string;
   poolId: string;
   feedId?: string;
+  coinType?: string;
 }): Promise<Transaction> {
   const feedId = p.feedId ?? SUIUSDE_FEED_ID;
   const { tx, priceInfoObjectId } = await buildPythUpdateTx(p.client, feedId);
   tx.moveCall({
     target: `${p.pkg}::pyth_cover_pool::record_pool_breach`,
-    typeArguments: [SUI_TYPE],
+    typeArguments: [p.coinType ?? SUI_TYPE],
     arguments: [
       tx.object(p.poolId),
       tx.object(priceInfoObjectId),
@@ -569,12 +668,13 @@ export async function buildDepegRecordPoolRecoveryTx(p: {
   pkg: string;
   poolId: string;
   feedId?: string;
+  coinType?: string;
 }): Promise<Transaction> {
   const feedId = p.feedId ?? SUIUSDE_FEED_ID;
   const { tx, priceInfoObjectId } = await buildPythUpdateTx(p.client, feedId);
   tx.moveCall({
     target: `${p.pkg}::pyth_cover_pool::record_pool_recovery`,
-    typeArguments: [SUI_TYPE],
+    typeArguments: [p.coinType ?? SUI_TYPE],
     arguments: [
       tx.object(p.poolId),
       tx.object(priceInfoObjectId),
@@ -590,11 +690,12 @@ export function buildDepegClaimLatchedTx(p: {
   poolId: string;
   policyId: string;
   owner: string;
+  coinType?: string;
 }): Transaction {
   const tx = new Transaction();
   const payout = tx.moveCall({
     target: `${p.pkg}::pyth_cover_pool::claim_latched`,
-    typeArguments: [SUI_TYPE],
+    typeArguments: [p.coinType ?? SUI_TYPE],
     arguments: [tx.object(p.poolId), tx.object(p.policyId)],
   });
   tx.transferObjects([payout], p.owner);
@@ -608,12 +709,13 @@ export async function readDepegPolicyClaimableByPoolEpoch(
     pkg: string;
     poolId: string;
     policyId: string;
+    coinType?: string;
   },
 ): Promise<boolean> {
   const tx = new Transaction();
   tx.moveCall({
     target: `${p.pkg}::pyth_cover_pool::policy_claimable_by_pool_epoch`,
-    typeArguments: [SUI_TYPE],
+    typeArguments: [p.coinType ?? SUI_TYPE],
     arguments: [tx.object(p.poolId), tx.object(p.policyId)],
   });
   const res = await client.devInspectTransactionBlock({
@@ -630,11 +732,12 @@ export function buildDepegExpirePolicyTx(p: {
   pkg: string;
   poolId: string;
   policyId: string;
+  coinType?: string;
 }): Transaction {
   const tx = new Transaction();
   tx.moveCall({
     target: `${p.pkg}::pyth_cover_pool::expire_policy`,
-    typeArguments: [SUI_TYPE],
+    typeArguments: [p.coinType ?? SUI_TYPE],
     arguments: [tx.object(p.poolId), tx.object(p.policyId), tx.object(CLOCK)],
   });
   return tx;
@@ -645,11 +748,12 @@ export function buildDepegExpirePolicyByIdTx(p: {
   pkg: string;
   poolId: string;
   policyId: string;
+  coinType?: string;
 }): Transaction {
   const tx = new Transaction();
   tx.moveCall({
     target: `${p.pkg}::pyth_cover_pool::expire_policy_by_id`,
-    typeArguments: [SUI_TYPE],
+    typeArguments: [p.coinType ?? SUI_TYPE],
     arguments: [tx.object(p.poolId), tx.pure.id(p.policyId), tx.object(CLOCK)],
   });
   return tx;

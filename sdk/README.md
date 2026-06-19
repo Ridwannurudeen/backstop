@@ -20,14 +20,15 @@ npm run build
 - SRX / RiskFeed testnet readers
 - legacy testnet cover-pool builders, kept for lab/proof work only
 - mainnet Pyth depeg readers, duration-aware premium quotes, expiry-release
-  builders, Pyth-refreshing keeper builders, and an explicit v4 purchase builder
+  builders, Pyth-refreshing keeper builders, direct-sale compatibility builders,
+  and BuyerCap purchase builders for adapter-held policies
 - pool-epoch builders (`record_pool_breach` / `record_pool_recovery`) for
   batch claimability
 
-Version `0.1.1` points at the v3 production pool recorded in `deployment.json`.
-The current repository source contains v4 hardening that is not live until a new
-package/pool is deployed. The RiskFeed/SRX/Predict surface is testnet-only
-today.
+Version `0.1.2` points at the v5 low-cap mainnet pool recorded in
+`deployment.json`. Direct wallet buys are disabled on that pool; protocol
+adapters buy position-bound cover with the pool-scoped `BuyerCap`. The
+RiskFeed/SRX/Predict surface is testnet-only today.
 
 ## Mainnet Depeg Examples
 
@@ -47,35 +48,37 @@ const coverMist = 50_000_000n;
 const premiumMist = quoteDepegPremium(pool, coverMist, 30);
 ```
 
-Buy cover:
+Buy cover for a protocol adapter:
 
 ```ts
 import {
   PYTH_DEPEG_COVER_PKG,
   PYTH_DEPEG_POOL,
-  buildDepegBuyCoverTx,
+  buildDepegBuyCoverWithCapAndPythTx,
 } from "@gudman/backstop-sdk";
 
-const tx = buildDepegBuyCoverTx({
+const tx = await buildDepegBuyCoverWithCapAndPythTx({
+  client,
   pkg: PYTH_DEPEG_COVER_PKG,
   poolId: PYTH_DEPEG_POOL,
+  buyerCapId,
   premiumMist,
   coverMist,
   expiryMs: BigInt(Date.now() + 30 * 86_400_000 - 60_000),
-  owner,
+  owner: adapterOrPositionManager,
 });
 ```
 
-The corrected v4 source adds a same-PTB Pyth sale check. Use the explicit v4
-builder only with a v4 package/pool:
+Direct-sale builders remain available only for legacy or intentionally
+direct-sales-enabled pools:
 
 ```ts
 import { buildDepegBuyCoverWithPythTx } from "@gudman/backstop-sdk";
 
 const tx = await buildDepegBuyCoverWithPythTx({
   client,
-  pkg: V4_DEPEG_COVER_PKG,
-  poolId: V4_DEPEG_POOL,
+  pkg: LEGACY_DEPEG_COVER_PKG,
+  poolId: LEGACY_DEPEG_POOL,
   premiumMist,
   coverMist,
   expiryMs: BigInt(Date.now() + 30 * 86_400_000 - 60_000),
@@ -100,7 +103,9 @@ const tx = await buildDepegRecordBreachTx({
 });
 ```
 
-Prefer the pool-level epoch builders for keeper operations.
+Prefer the pool-level epoch builders for keeper operations. For the v5 adapter
+market, use the reference `pyth_lending_demo::record_shortfall` flow from the
+repository integration scripts.
 
 Record a pool-level epoch:
 
@@ -142,7 +147,7 @@ const tx = buildDepegClaimLatchedTx({
 });
 ```
 
-See `../INTEGRATION.md` for NAVI/Suilend integration shape and direct PTB
+See `../INTEGRATION.md` for NAVI/Suilend integration shape and BuyerCap PTB
 examples.
 
 ## Important language

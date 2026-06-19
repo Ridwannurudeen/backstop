@@ -1,4 +1,4 @@
-// Drive the pyth_lending_demo consumer end-to-end on Sui MAINNET: a SUI-reserve
+// Drive the pyth_lending_demo consumer end-to-end on Sui MAINNET: a collateral-reserve
 // lending market buys Pyth-settled depeg cover, and — when the insured stablecoin
 // breaches the pool floor — latches the breach and claims the payout into its reserve.
 //
@@ -15,9 +15,16 @@
 //
 // Run (no funds):  npx tsx src/provisionPythLending.ts
 // Run (execute):   LENDING_PKG=.. POOL=.. SUI_KEY_ALIAS=.. COVER=.. PREMIUM=.. \
-//                  [MARKET=.. RESERVE=.. THRESHOLD_USD=0.985] \
+//                  [MARKET=.. BUYER_CAP=.. RESERVE=.. COIN_TYPE=..] \
+//                  [LP_COIN=.. RESERVE_COIN=.. PREMIUM_COIN=..] \
+//                  [THRESHOLD_USD=0.985] \
 //                  npx tsx src/provisionPythLending.ts --execute
-import { SuiClient } from "@mysten/sui/client";
+import {
+  SuiClient,
+  type SuiEvent,
+  type SuiObjectChange,
+  type SuiTransactionBlockResponse,
+} from "@mysten/sui/client";
 import { Transaction } from "@mysten/sui/transactions";
 import { bcs } from "@mysten/sui/bcs";
 import {
@@ -54,9 +61,10 @@ const bytes = (s: string) => Array.from(new TextEncoder().encode(s));
 const hexBytes = (h: string) => Array.from(Buffer.from(h, "hex"));
 const DEFAULT_POLICY_DURATION_SECS = 30 * 86_400 - 60;
 
-/** Create + share a suiUSDe DepegCoverPool<SUI> (pyth_cover_pool). */
+/** Create + share a suiUSDe DepegCoverPool<T> (pyth_cover_pool). */
 export function buildCreatePoolTx(opts: {
   backstopPkg: string;
+  coinType?: string;
   feedId: string;
   expoMag: number;
   thresholdUnits: bigint;
@@ -76,7 +84,7 @@ export function buildCreatePoolTx(opts: {
   const tx = new Transaction();
   tx.moveCall({
     target: `${opts.backstopPkg}::pyth_cover_pool::create_and_share`,
-    typeArguments: [SUI],
+    typeArguments: [opts.coinType ?? SUI],
     arguments: [
       tx.pure.vector("u8", hexBytes(opts.feedId)),
       tx.pure.bool(true), // USD feeds carry a negative exponent
@@ -99,32 +107,37 @@ export function buildCreatePoolTx(opts: {
   return tx;
 }
 
-/** Seed the pool with SUI LP capital; the LpShare goes to `recipient`. */
+/** Seed the pool with collateral LP capital; the LpShare goes to `recipient`. */
 export function buildDepositLpTx(
   backstopPkg: string,
   pool: string,
   amountMist: bigint,
   recipient: string,
+  coinType = SUI,
+  coinId?: string,
 ): Transaction {
   const tx = new Transaction();
-  const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(amountMist)]);
+  const source = coinId ? tx.object(coinId) : tx.gas;
+  const [coin] = tx.splitCoins(source, [tx.pure.u64(amountMist)]);
   const share = tx.moveCall({
     target: `${backstopPkg}::pyth_cover_pool::deposit_lp`,
-    typeArguments: [SUI],
+    typeArguments: [coinType],
     arguments: [tx.object(pool), coin],
   });
   tx.transferObjects([share], recipient);
   return tx;
 }
 
-/** Create + share a SUI-reserve lending market labelled `asset`. */
+/** Create + share a collateral-reserve lending market labelled `asset`. */
 export function buildCreateMarketTx(
   lendPkg: string,
   asset: string,
+  coinType = SUI,
 ): Transaction {
   const tx = new Transaction();
   tx.moveCall({
     target: `${lendPkg}::pyth_lending_demo::create_and_share`,
+    typeArguments: [coinType],
     arguments: [tx.pure.vector("u8", bytes(asset))],
   });
   return tx;
@@ -135,29 +148,53 @@ export function buildDepositReserveTx(
   lendPkg: string,
   market: string,
   amountMist: bigint,
+  coinType = SUI,
+  coinId?: string,
 ): Transaction {
   const tx = new Transaction();
-  const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(amountMist)]);
+  const source = coinId ? tx.object(coinId) : tx.gas;
+  const [coin] = tx.splitCoins(source, [tx.pure.u64(amountMist)]);
   tx.moveCall({
     target: `${lendPkg}::pyth_lending_demo::deposit_reserve`,
+    typeArguments: [coinType],
     arguments: [tx.object(market), coin],
   });
   return tx;
 }
 
-/** Legacy no-Pyth buy path for pre-v4 deployments. */
+/** Install a pool BuyerCap into the lending market so cover is position-bound. */
+export function buildInstallBuyerCapTx(
+  lendPkg: string,
+  market: string,
+  buyerCap: string,
+  coinType = SUI,
+): Transaction {
+  const tx = new Transaction();
+  tx.moveCall({
+    target: `${lendPkg}::pyth_lending_demo::install_buyer_cap`,
+    typeArguments: [coinType],
+    arguments: [tx.object(market), tx.object(buyerCap)],
+  });
+  return tx;
+}
+
+/** Legacy no-Pyth buy path for old deployments. */
 export function buildInsureTx(opts: {
   lendPkg: string;
   market: string;
   pool: string;
+  coinType?: string;
+  premiumCoinId?: string;
   premiumMist: bigint;
   cover: bigint;
   expiryMs: bigint;
 }): Transaction {
   const tx = new Transaction();
-  const [premium] = tx.splitCoins(tx.gas, [tx.pure.u64(opts.premiumMist)]);
+  const source = opts.premiumCoinId ? tx.object(opts.premiumCoinId) : tx.gas;
+  const [premium] = tx.splitCoins(source, [tx.pure.u64(opts.premiumMist)]);
   tx.moveCall({
     target: `${opts.lendPkg}::pyth_lending_demo::insure`,
+    typeArguments: [opts.coinType ?? SUI],
     arguments: [
       tx.object(opts.market),
       tx.object(opts.pool),
@@ -170,12 +207,14 @@ export function buildInsureTx(opts: {
   return tx;
 }
 
-/** Buy v4 depeg cover from `pool` into the market with a same-PTB Pyth sale check. */
+/** Buy depeg cover from `pool` into the market with a same-PTB Pyth sale check. */
 export async function buildInsureWithPythTx(opts: {
   client: SuiClient;
   lendPkg: string;
   market: string;
   pool: string;
+  coinType?: string;
+  premiumCoinId?: string;
   premiumMist: bigint;
   cover: bigint;
   expiryMs: bigint;
@@ -190,9 +229,11 @@ export async function buildInsureWithPythTx(opts: {
   const [priceInfoObjectId] = await pyth.updatePriceFeeds(tx, updates, [
     opts.feedId,
   ]);
-  const [premium] = tx.splitCoins(tx.gas, [tx.pure.u64(opts.premiumMist)]);
+  const source = opts.premiumCoinId ? tx.object(opts.premiumCoinId) : tx.gas;
+  const [premium] = tx.splitCoins(source, [tx.pure.u64(opts.premiumMist)]);
   const refund = tx.moveCall({
     target: `${opts.lendPkg}::pyth_lending_demo::insure`,
+    typeArguments: [opts.coinType ?? SUI],
     arguments: [
       tx.object(opts.market),
       tx.object(opts.pool),
@@ -213,6 +254,7 @@ export async function buildRecordShortfallTx(opts: {
   lendPkg: string;
   market: string;
   pool: string;
+  coinType?: string;
   feedId: string;
 }): Promise<Transaction> {
   const tx = new Transaction();
@@ -225,6 +267,7 @@ export async function buildRecordShortfallTx(opts: {
   ]);
   tx.moveCall({
     target: `${opts.lendPkg}::pyth_lending_demo::record_shortfall`,
+    typeArguments: [opts.coinType ?? SUI],
     arguments: [
       tx.object(opts.market),
       tx.object(opts.pool),
@@ -240,10 +283,12 @@ export function buildCoverShortfallTx(
   lendPkg: string,
   market: string,
   pool: string,
+  coinType = SUI,
 ): Transaction {
   const tx = new Transaction();
   tx.moveCall({
     target: `${lendPkg}::pyth_lending_demo::cover_shortfall`,
+    typeArguments: [coinType],
     arguments: [tx.object(market), tx.object(pool)],
   });
   return tx;
@@ -321,14 +366,17 @@ async function simulate(client: SuiClient): Promise<void> {
   );
   console.log("  lifecycle a funded wallet runs (--execute):");
   console.log(
-    "    1. create + seed pool → a DepegCoverPool<SUI> (if POOL unset)",
+    "    1. create + seed pool -> a DepegCoverPool<T> (if POOL unset)",
   );
-  console.log("    2. create_and_share   → a SUI-reserve LendingMarket");
-  console.log("    3. deposit_reserve    → seed the reserve (optional)");
-  console.log("    4. insure             → buy depeg cover from the pool");
-  console.log("    5. record_shortfall   → refresh Pyth + latch the breach");
   console.log(
-    "    6. cover_shortfall    → claim the latched payout into reserve\n",
+    "    2. create_and_share   -> a collateral-reserve LendingMarket<T>",
+  );
+  console.log("    3. install_buyer_cap  -> bind pool buys to the adapter");
+  console.log("    4. deposit_reserve    -> seed the reserve (optional)");
+  console.log("    5. insure             -> buy depeg cover from the pool");
+  console.log("    6. record_shortfall   -> refresh Pyth + latch the breach");
+  console.log(
+    "    7. cover_shortfall    -> claim the latched payout into reserve\n",
   );
   console.log(
     "  env for --execute: LENDING_PKG, SUI_KEY_ALIAS, COVER, PREMIUM",
@@ -337,7 +385,10 @@ async function simulate(client: SuiClient): Promise<void> {
     "                     + POOL (reuse) OR BACKSTOP_PKG (create+seed a pool)",
   );
   console.log(
-    "                     [MARKET, RESERVE, LP_SEED, THRESHOLD_USD, MAX_POLICY_DURATION_SECS, KEEPER_BOUNTY]  (needs a funded mainnet wallet)",
+    "                     [MARKET, BUYER_CAP, COIN_TYPE, LP_COIN, RESERVE_COIN, PREMIUM_COIN]",
+  );
+  console.log(
+    "                     [RESERVE, LP_SEED, THRESHOLD_USD, MAX_POLICY_DURATION_SECS, KEEPER_BOUNTY]  (needs a funded mainnet wallet)",
   );
 }
 
@@ -348,6 +399,7 @@ async function execute(client: SuiClient): Promise<void> {
     return v;
   };
   const lendPkg = env("LENDING_PKG");
+  const coinType = process.env.COIN_TYPE ?? SUI;
   const cover = BigInt(env("COVER"));
   const premium = BigInt(env("PREMIUM"));
   const kp = loadSuiKeypair();
@@ -368,9 +420,12 @@ async function execute(client: SuiClient): Promise<void> {
     await client.waitForTransaction({ digest: out.digest });
     return out;
   };
-  const created = (out: any, re: RegExp): string => {
+  const created = (out: SuiTransactionBlockResponse, re: RegExp): string => {
     const c = (out.objectChanges ?? []).find(
-      (o: any) => o.type === "created" && re.test(o.objectType),
+      (
+        o: SuiObjectChange,
+      ): o is Extract<SuiObjectChange, { type: "created" }> =>
+        o.type === "created" && re.test(o.objectType),
     );
     if (!c) throw new Error(`no created object matching ${re}`);
     return c.objectId as string;
@@ -379,6 +434,7 @@ async function execute(client: SuiClient): Promise<void> {
   // 1. pool — reuse POOL if provided, else create + seed a suiUSDe pool
   //    (needs BACKSTOP_PKG = the deployed pyth_cover_pool package).
   let pool = process.env.POOL ?? "";
+  let buyerCap = process.env.BUYER_CAP ?? "";
   if (!pool) {
     const backstopPkg = env("BACKSTOP_PKG");
     const expoMag = 8; // suiUSDe/USD is expo -8 (verified live on mainnet)
@@ -386,6 +442,7 @@ async function execute(client: SuiClient): Promise<void> {
     const out = await run(
       buildCreatePoolTx({
         backstopPkg,
+        coinType,
         feedId: SUIUSDE_FEED,
         expoMag,
         thresholdUnits,
@@ -406,7 +463,7 @@ async function execute(client: SuiClient): Promise<void> {
         treasuryFeeBps: BigInt(process.env.TREASURY_FEE_BPS ?? "500"), // 5% protocol fee
         keeperBountyMist: BigInt(process.env.KEEPER_BOUNTY ?? "100000"), // 0.0001 SUI keeper reward
       }),
-      "create_and_share DepegCoverPool<SUI>",
+      "create_and_share DepegCoverPool",
     );
     pool = created(out, /::pyth_cover_pool::DepegCoverPool/);
     console.log(`   POOL=${pool}`);
@@ -414,9 +471,18 @@ async function execute(client: SuiClient): Promise<void> {
     console.log(
       `   ADMIN_CAP=${adminCap} (pause + timelocked params; held by ${addr})`,
     );
+    buyerCap = created(out, /::pyth_cover_pool::BuyerCap/);
+    console.log(`   BUYER_CAP=${buyerCap} (install into a protocol adapter)`);
     const lpSeed = BigInt(process.env.LP_SEED ?? "100000000"); // 0.1 SUI
     await run(
-      buildDepositLpTx(backstopPkg, pool, lpSeed, addr),
+      buildDepositLpTx(
+        backstopPkg,
+        pool,
+        lpSeed,
+        addr,
+        coinType,
+        process.env.LP_COIN,
+      ),
       `deposit_lp ${lpSeed} mist`,
     );
   }
@@ -425,17 +491,30 @@ async function execute(client: SuiClient): Promise<void> {
   let market = process.env.MARKET;
   if (!market) {
     const out = await run(
-      buildCreateMarketTx(lendPkg, "suiUSDe reserve"),
+      buildCreateMarketTx(lendPkg, "suiUSDe reserve", coinType),
       "create_and_share LendingMarket",
     );
     market = created(out, /::pyth_lending_demo::LendingMarket/);
   }
   console.log(`   MARKET=${market}`);
 
+  if (buyerCap && process.env.SKIP_INSTALL_BUYER_CAP !== "1") {
+    await run(
+      buildInstallBuyerCapTx(lendPkg, market, buyerCap, coinType),
+      "install_buyer_cap",
+    );
+  }
+
   // 3. optional reserve seed
   if (process.env.RESERVE) {
     await run(
-      buildDepositReserveTx(lendPkg, market, BigInt(process.env.RESERVE)),
+      buildDepositReserveTx(
+        lendPkg,
+        market,
+        BigInt(process.env.RESERVE),
+        coinType,
+        process.env.RESERVE_COIN,
+      ),
       `deposit_reserve ${process.env.RESERVE} mist`,
     );
   }
@@ -452,6 +531,8 @@ async function execute(client: SuiClient): Promise<void> {
           lendPkg,
           market,
           pool,
+          coinType,
+          premiumCoinId: process.env.PREMIUM_COIN,
           premiumMist: premium,
           cover,
           expiryMs: expiry,
@@ -462,6 +543,8 @@ async function execute(client: SuiClient): Promise<void> {
           lendPkg,
           market,
           pool,
+          coinType,
+          premiumCoinId: process.env.PREMIUM_COIN,
           premiumMist: premium,
           cover,
           expiryMs: expiry,
@@ -500,6 +583,7 @@ async function execute(client: SuiClient): Promise<void> {
       lendPkg,
       market,
       pool,
+      coinType,
       feedId: SUIUSDE_FEED,
     }),
     "record_shortfall #1 (refresh Pyth + arm dwell)",
@@ -515,15 +599,16 @@ async function execute(client: SuiClient): Promise<void> {
       lendPkg,
       market,
       pool,
+      coinType,
       feedId: SUIUSDE_FEED,
     }),
     "record_shortfall #2 (confirm dwell → latch)",
   );
   const out = await run(
-    buildCoverShortfallTx(lendPkg, market, pool),
+    buildCoverShortfallTx(lendPkg, market, pool, coinType),
     "cover_shortfall (claim payout into reserve)",
   );
-  const ev = (out.events ?? []).find((e: any) =>
+  const ev = (out.events ?? []).find((e: SuiEvent) =>
     /::pyth_lending_demo::ShortfallCovered$/.test(e.type),
   );
   console.log("   ShortfallCovered:", JSON.stringify(ev?.parsedJson));

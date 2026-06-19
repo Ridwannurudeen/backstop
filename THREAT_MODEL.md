@@ -30,14 +30,21 @@ are research/supporting surfaces and must not control production payouts.
 - A healthy supplied observation resets an open pool epoch.
 - Settlement parameters cannot be proposed or executed while outstanding cover
   or an open epoch exists.
+- v5 pools default to disabled direct wallet sales, protocol adapters buy
+  through a pool-scoped `BuyerCap`, and the reference lending adapter supports
+  generic collateral for a future stable pool.
+- RiskFeed default readers now reject challenged readings; analytics and dispute
+  dashboards must opt into the explicit unchecked read.
 
 ## Remaining Material Risks
 
 - SUI collateral does not hedge USD loss during correlated SUI/suiUSDe stress.
-- Policies are not yet position-bound; users can still buy depeg exposure
-  without proving an underlying loss.
+- v5 is BuyerCap-restricted, but the reference adapter is still project-owned;
+  external protocol integration and exposure verification remain unproven.
 - The production pool has not had independent Move review.
-- RiskFeed and SRX are not production settlement oracles.
+- RiskFeed and SRX are not production settlement oracles; challenged reads are
+  safer by default now, but the feed still lacks quorum aggregation,
+  trust-minimized dispute finality, and value-at-risk-sized bonds.
 - Governance remains centralized around AdminCap custody.
 - Pyth Core migration work is required before relying on post-upgrade package
   assumptions after July 31, 2026.

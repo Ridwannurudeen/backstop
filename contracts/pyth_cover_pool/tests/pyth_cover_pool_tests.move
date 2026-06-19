@@ -478,6 +478,49 @@ module pyth_cover_pool::pyth_cover_pool_tests {
     }
 
     #[test]
+    fun buyer_cap_purchase_succeeds_on_restricted_pool() {
+        let mut ctx = tx_context::dummy();
+        let clock = clock::create_for_testing(&mut ctx);
+        let mut pool = new_pool(PREMIUM_BPS, &mut ctx);
+        assert!(!pyth_cover_pool::direct_sales_enabled(&pool), 0);
+        let cap = pyth_cover_pool::new_buyer_cap_for_testing(&pool, &mut ctx);
+        let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(1000, &mut ctx), &mut ctx);
+        let premium = pyth_cover_pool::premium_for(&pool, 500);
+        let policy = pyth_cover_pool::buy_cover_with_cap_at_price_for_testing(
+            &mut pool, &cap, fund(premium, &mut ctx), 500, EXPIRY, PEG, 0, &clock, &mut ctx,
+        );
+        assert!(pyth_cover_pool::total_cover(&pool) == 500, 1);
+
+        unit_test::destroy(policy);
+        unit_test::destroy(cap);
+        unit_test::destroy(lp);
+        clock::destroy_for_testing(clock);
+        unit_test::destroy(pool);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = pyth_cover_pool::EWrongBuyerCap)]
+    fun buyer_cap_wrong_pool_aborts() {
+        let mut ctx = tx_context::dummy();
+        let clock = clock::create_for_testing(&mut ctx);
+        let poola = new_pool(PREMIUM_BPS, &mut ctx);
+        let cap = pyth_cover_pool::new_buyer_cap_for_testing(&poola, &mut ctx);
+        let mut poolb = new_pool(PREMIUM_BPS, &mut ctx);
+        let lp = pyth_cover_pool::deposit_lp(&mut poolb, fund(1000, &mut ctx), &mut ctx);
+        let premium = pyth_cover_pool::premium_for(&poolb, 500);
+        let policy = pyth_cover_pool::buy_cover_with_cap_at_price_for_testing(
+            &mut poolb, &cap, fund(premium, &mut ctx), 500, EXPIRY, PEG, 0, &clock, &mut ctx,
+        );
+
+        unit_test::destroy(policy);
+        unit_test::destroy(cap);
+        unit_test::destroy(lp);
+        clock::destroy_for_testing(clock);
+        unit_test::destroy(poola);
+        unit_test::destroy(poolb);
+    }
+
+    #[test]
     fun pool_epoch_makes_eligible_policies_claimable() {
         let mut ctx = tx_context::dummy();
         let mut clock = clock::create_for_testing(&mut ctx);

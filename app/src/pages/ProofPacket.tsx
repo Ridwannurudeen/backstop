@@ -127,7 +127,8 @@ const proofTxs = [
   {
     label: "Production active cover",
     value: PYTH_PRODUCTION_INSURE_TX,
-    detail: "v4 pool retained premium while suiUSDe stayed above floor",
+    detail:
+      "v5 adapter-held policy retained premium while suiUSDe stayed above floor",
   },
   {
     label: "Archived staged claim",
@@ -155,17 +156,18 @@ console.log({ premiumMist: premiumMist.toString() });`,
   },
   {
     title: "Buy cover for a position",
-    body: `import { buildDepegBuyCoverWithPythTx, PYTH_DEPEG_COVER_PKG, PYTH_DEPEG_POOL } from "@gudman/backstop-sdk";
+    body: `import { buildDepegBuyCoverWithCapAndPythTx, PYTH_DEPEG_COVER_PKG, PYTH_DEPEG_POOL } from "@gudman/backstop-sdk";
 
 const expiryMs = BigInt(Date.now() + 30 * 86_400_000 - 60_000);
-const tx = await buildDepegBuyCoverWithPythTx({
+const tx = await buildDepegBuyCoverWithCapAndPythTx({
   client,
   pkg: PYTH_DEPEG_COVER_PKG,
   poolId: PYTH_DEPEG_POOL,
+  buyerCapId,
   premiumMist,
   coverMist,
   expiryMs,
-  owner: positionOwner,
+  owner: adapterOrPositionManager,
 });
 
 await signAndExecute({ transaction: tx, chain: "sui:mainnet" });`,
@@ -221,7 +223,7 @@ export default function ProofPacket() {
           <p className="proof-kicker">Mainnet proof packet</p>
           <h1>Every load-bearing claim in one place.</h1>
           <p>
-            Current v4 package IDs, pool IDs, custody, upgrade policy, active
+            Current v5 package IDs, pool IDs, custody, upgrade policy, active
             cover, and archived staged-payout evidence are read from Sui mainnet
             and linked to public explorers.
           </p>
@@ -438,7 +440,7 @@ export default function ProofPacket() {
             ],
             [
               "Buy policy",
-              `Call the v4 production pool for ${sui(5_000_000n)}-style cover chunks or a capped position size.`,
+              `Use the v5 BuyerCap adapter for ${sui(1_000_000n)}-style cover chunks or a capped position size.`,
             ],
             [
               "Maintain keeper",

@@ -83,20 +83,20 @@ export const ARENA_OBJ = hx(
 export const MAINNET = "mainnet" as const;
 export const HERMES = "https://hermes.pyth.network";
 export const PYTH_DEPEG_COVER_PKG = hx(
-  "4f8d00eb76a59996a0c88f3d103e950e",
-  "6e4c02132acb8483cc8e1450005f04e9",
+  "49a4385606094ec78faa8b445372e8dd",
+  "515dd0ddb513730a8ba9c4b734d5827c",
 );
 export const PYTH_DEPEG_POOL = hx(
-  "d739a318705fb8b8401da34a3c2c3cde",
-  "6397d033d72f793153ea673216eb58ed",
+  "55fe8bb8730c68931bbbcf876b7007d1",
+  "90febb04e2b82cccac7057868e83d8b1",
 );
 export const PYTH_LENDING_PKG = hx(
-  "25f89307f0e37079a8cd7be1aa10f216",
-  "f1bf3d5b00c2184ea2b8bc9ffc51a670",
+  "dbddf4df28aea4489f7979cc608bea4a",
+  "599a6643f79bfe10cecca1cc06aabaa8",
 );
 export const PYTH_LENDING_MARKET = hx(
-  "459b6df1dee2c3840a52b766d4c617fb",
-  "abb1c5f9d08f557645080829fee9d74c",
+  "da46848a368d5ea6c48f776fc233479c",
+  "30ac807a1b1a2d5c0b59de11b3bac0c0",
 );
 export const PYTH_STAGED_COVER_PKG = hx(
   "51dd7287ac9e97147982023f5f2fa61b",
@@ -111,16 +111,16 @@ export const PYTH_STAGED_LENDING_MARKET = hx(
   "e8393c8bf395c30be81fafc4fd787182",
 );
 export const PYTH_COVER_UPGRADE_CAP = hx(
-  "4bbface3400335b7ea3fe55d65a0884c",
-  "392879bd4ab9e37a77d40f462a11ae2e",
+  "ab787457d400e13af43a54884f199249",
+  "481a3467a9b30deffd27c7e60a064419",
 );
 export const PYTH_LENDING_UPGRADE_CAP = hx(
-  "e355a114113e9e4f1bee132e2602d7b",
-  "05e27c270a572d76bbb1614d494a15bf0",
+  "960d317802d555168e8371a937c330e3",
+  "a193a041a9f054a0abedc24e5748fc07",
 );
 export const PYTH_PRODUCTION_ADMIN_CAP = hx(
-  "3712080bc20fac855a83d4260f064adb",
-  "354a499d5d34c94e33f2396b712bfb9c",
+  "418930e54db7f1886aab9b6764f57cf9",
+  "d68fd45f2fa594bf5c531b732ff6a342",
 );
 export const PYTH_STAGED_ADMIN_CAP = hx(
   "d88b301589365045a1385046bd0cd38b",
@@ -131,15 +131,15 @@ export const PYTH_ADMIN_CUSTODY_OWNER = hx(
   "314e0761ff3c3bc809f298711e73d8e5",
 );
 export const PYTH_COVER_UPGRADE_LOCK_TX =
-  "7LJVLHs4Vb93pzS5WuwEgmwuZN9KEGBXbzx5b43kWLm9";
+  "FhJxJrZFoQmePPcnMiJ2C5TXKFzSaub27GRh934PyK23";
 export const PYTH_LENDING_UPGRADE_LOCK_TX =
-  "GUm7a3fRpyQAQa92eBEEm3yVurGtfHz7vEifg7kaB4RL";
+  "FhJxJrZFoQmePPcnMiJ2C5TXKFzSaub27GRh934PyK23";
 export const PYTH_ADMIN_CUSTODY_TX =
-  "KJzWGum3aqUpH4BKxrX9DdZ5yCLp8yDvNUC28aMCZ39";
+  "FA6QsTgABa8mCvcmZWpAnUFBJRKoG9zuXuFkhUqjFsrZ";
 export const PYTH_STAGED_CLAIM_TX =
   "Dm9gywopkRe9p36J21HTiLJCeRaRhdjwYaDx13WA2ekC";
 export const PYTH_PRODUCTION_INSURE_TX =
-  "Fk1hB7nsaYm5ZDww1sXwohHNYjcc3kmkd3qqUeFVdqwg";
+  "GfEGXtLsJvdRCHakV7dNpq3BHvKuxBJV68tenEtcsNDR";
 export const PYTH_STATE = hx(
   "1f9310238ee9298fb703c3419030b35b",
   "22bb1cc37113e3bb5007c99aec79e5b8",
