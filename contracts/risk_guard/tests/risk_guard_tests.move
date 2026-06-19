@@ -6,6 +6,7 @@ module risk_guard::risk_guard_tests {
     use sui::balance;
     use sui::sui::SUI;
     use sui::test_utils;
+    use sui::test_scenario;
     use risk_feed::risk_feed;
     use risk_guard::risk_guard;
 
@@ -82,7 +83,7 @@ module risk_guard::risk_guard_tests {
             &mut feed, &cap, string::utf8(b"BTC"),
             200, 60_000_000000000, string::utf8(b"blob"), &clock, &ctx,
         );
-        risk_feed::challenge(&mut feed, string::utf8(b"BTC"), fund_sui(50_000_000, &mut ctx), &ctx);
+        risk_feed::challenge(&mut feed, string::utf8(b"BTC"), fund_sui(100_000_000, &mut ctx), &ctx);
 
         let mut t = risk_guard::new_treasury<TESTCOIN>(string::utf8(b"BTC"), 500, &mut ctx);
         risk_guard::deposit(&mut t, fund_coin(1000, &mut ctx));
@@ -96,5 +97,33 @@ module risk_guard::risk_guard_tests {
         test_utils::destroy(t);
         test_utils::destroy(feed);
         test_utils::destroy(cap);
+    }
+
+    // A non-owner cannot drain the shared treasury even while the market is calm.
+    #[test]
+    #[expected_failure(abort_code = risk_guard::ENotOwner)]
+    fun non_owner_withdraw_aborts() {
+        let owner = @0xA;
+        let attacker = @0xB;
+        let mut sc = test_scenario::begin(owner);
+        let (mut feed, cap) = risk_feed::new_for_testing(sc.ctx());
+        let clock = clock::create_for_testing(sc.ctx());
+        risk_feed::publish(
+            &mut feed, &cap, string::utf8(b"BTC"),
+            200, 60_000_000000000, string::utf8(b"blob"), &clock, sc.ctx(),
+        );
+        let mut t = risk_guard::new_treasury<TESTCOIN>(string::utf8(b"BTC"), 500, sc.ctx());
+        risk_guard::deposit(&mut t, fund_coin(1000, sc.ctx()));
+
+        // A different sender attempts the withdrawal.
+        sc.next_tx(attacker);
+        let c = risk_guard::withdraw(&mut t, &feed, 400, sc.ctx()); // aborts ENotOwner
+
+        coin::burn_for_testing(c);
+        clock::destroy_for_testing(clock);
+        test_utils::destroy(t);
+        test_utils::destroy(feed);
+        test_utils::destroy(cap);
+        sc.end();
     }
 }

@@ -77,6 +77,38 @@ module pool_registry::pool_registry {
         event::emit(PoolRegistered { market, pool_id, trigger_bps });
     }
 
+    /// Replace the pool record for an already-registered market (cap-gated). Lets a
+    /// stale or wrong pool pointer be corrected after a pool migration; aborts if the
+    /// market was never registered.
+    public fun update(
+        reg: &mut PoolRegistry,
+        _cap: &RegistryCap,
+        market: String,
+        pool_id: ID,
+        trigger_bps: u64,
+        loading_bps: u64,
+        clock: &Clock,
+    ) {
+        assert!(table::contains(&reg.pools, market), ENotFound);
+        *table::borrow_mut(&mut reg.pools, market) = PoolInfo {
+            pool_id,
+            trigger_bps,
+            loading_bps,
+            created_ms: clock::timestamp_ms(clock),
+        };
+        event::emit(PoolRegistered { market, pool_id, trigger_bps });
+    }
+
+    /// Remove a market's pool record (cap-gated) so a deprecated pool is no longer
+    /// discoverable. Aborts if the market was never registered.
+    public fun deprecate(reg: &mut PoolRegistry, _cap: &RegistryCap, market: String) {
+        assert!(table::contains(&reg.pools, market), ENotFound);
+        table::remove(&mut reg.pools, market);
+        let (found, i) = reg.markets.index_of(&market);
+        if (found) { reg.markets.swap_remove(i); };
+        reg.count = reg.count - 1;
+    }
+
     // --- Views ---
 
     public fun count(reg: &PoolRegistry): u64 { reg.count }

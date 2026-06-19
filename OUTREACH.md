@@ -20,7 +20,7 @@ governance.
 - Sui has already seen emergency intervention become the backstop of last resort.
 - Stablecoin depeg risk is objective enough to settle on-chain.
 - Protocol-native cover is stickier than retail discretionary cover.
-- Backstop v4 is live on mainnet with fresh Pyth sale checks, duration pricing,
+- Backstop v5 is live on mainnet with fresh Pyth sale checks, duration pricing,
   max terms, bounded governance, permissionless expiry cleanup, DEP_ONLY upgrade
   locks, custody transfer evidence, active cover, and archived staged
   mechanism-test evidence.

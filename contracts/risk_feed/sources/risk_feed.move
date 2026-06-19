@@ -28,6 +28,14 @@ module risk_feed::risk_feed {
     /// Minimum bond (MIST) a publisher must stake to publish via `publish_bonded`.
     const MIN_BOND: u64 = 100_000_000; // 0.1 SUI
 
+    /// Minimum bond (MIST) required to open a challenge — same scale as `MIN_BOND`,
+    /// so a dust challenge can't freeze a market's reads for free.
+    const MIN_CHALLENGE_BOND: u64 = MIN_BOND;
+
+    /// Fraction of a slashed publisher's stake forfeited on an upheld challenge, in
+    /// basis points. Capped so a challenge can never confiscate a whole stake.
+    const SLASH_BPS: u64 = 5_000; // 50%
+
     /// Latest market-implied probability-of-failure reading for one market.
     public struct Reading has store, copy, drop {
         /// implied probability of failure, in basis points (0..=10_000)
@@ -64,6 +72,10 @@ module risk_feed::risk_feed {
         readings: Table<String, Reading>,
         stakes: Table<address, Stake>,
         challenges: Table<String, Challenge>,
+        /// number of open challenges outstanding against each publisher's readings
+        open_challenges: Table<address, u64>,
+        /// neutral protocol sink for slashed stake and forfeited challenge bonds
+        slashed_pool: Balance<SUI>,
     }
 
     /// Bootstrap/admin capability: publish via the legacy path and resolve challenges.
@@ -114,6 +126,12 @@ module risk_feed::risk_feed {
     const EStale: u64 = 7;
     /// Reading is under an unresolved challenge.
     const EChallenged: u64 = 8;
+    /// Challenge bond below MIN_CHALLENGE_BOND.
+    const EChallengeBondTooLow: u64 = 9;
+    /// Resolver is the same address as the challenger (self-dealing).
+    const ESelfResolve: u64 = 10;
+    /// Publisher has an open challenge and cannot unstake yet.
+    const EOpenChallenge: u64 = 11;
 
     fun init(ctx: &mut TxContext) {
         transfer::share_object(RiskFeed {
@@ -121,6 +139,8 @@ module risk_feed::risk_feed {
             readings: table::new<String, Reading>(ctx),
             stakes: table::new<address, Stake>(ctx),
             challenges: table::new<String, Challenge>(ctx),
+            open_challenges: table::new<address, u64>(ctx),
+            slashed_pool: balance::zero<SUI>(),
         });
         transfer::transfer(PublisherCap { id: object::new(ctx) }, tx_context::sender(ctx));
     }
@@ -194,6 +214,16 @@ module risk_feed::risk_feed {
         balance::join(&mut table::borrow_mut(&mut feed.stakes, who).bond, coin::into_balance(c));
     }
 
+    /// Withdraw a publisher's residual stake. Blocked while any of the publisher's
+    /// readings is under an open challenge, so a disputed publisher can't escape slashing.
+    public fun unstake(feed: &mut RiskFeed, ctx: &mut TxContext): Coin<SUI> {
+        let who = tx_context::sender(ctx);
+        assert!(table::contains(&feed.stakes, who), ENotPublisher);
+        assert!(!table::contains(&feed.open_challenges, who), EOpenChallenge);
+        let Stake { bond, name: _, published: _ } = table::remove(&mut feed.stakes, who);
+        coin::from_balance(bond, ctx)
+    }
+
     /// Production publish: open to any bonded publisher (>= MIN_BOND staked).
     public fun publish_bonded(
         feed: &mut RiskFeed,
@@ -217,9 +247,10 @@ module risk_feed::risk_feed {
 
     // --- Challenge / slash ---
 
-    /// Challenge a published reading by posting a bond. Resolution slashes the wrong
-    /// side: if upheld, the publisher's stake pays the challenger; else the challenger
-    /// forfeits the bond to the publisher.
+    /// Challenge a published reading by posting a bond (>= MIN_CHALLENGE_BOND, so a
+    /// dust challenge can't freeze the reads for free). On resolution: if upheld, a
+    /// fixed fraction of the publisher's stake is slashed to the neutral sink and the
+    /// challenger recovers their bond; else the bond is forfeited to the neutral sink.
     public fun challenge(
         feed: &mut RiskFeed,
         market: String,
@@ -227,21 +258,31 @@ module risk_feed::risk_feed {
         ctx: &TxContext,
     ) {
         assert!(table::contains(&feed.readings, market), EReadingNotFound);
+        let amount = coin::value(&bond);
+        assert!(amount >= MIN_CHALLENGE_BOND, EChallengeBondTooLow);
         let reading = table::borrow_mut(&mut feed.readings, market);
         assert!(!reading.challenged, EAlreadyChallenged);
         reading.challenged = true;
-        let amount = coin::value(&bond);
+        let publisher = reading.updated_by;
         let challenger = tx_context::sender(ctx);
         table::add(&mut feed.challenges, market, Challenge {
             challenger,
             bond: coin::into_balance(bond),
         });
+        if (table::contains(&feed.open_challenges, publisher)) {
+            let n = table::borrow_mut(&mut feed.open_challenges, publisher);
+            *n = *n + 1;
+        } else {
+            table::add(&mut feed.open_challenges, publisher, 1);
+        };
         event::emit(ReadingChallenged { market, challenger, bond: amount });
     }
 
-    /// Resolve an open challenge. `upheld == true` → the reading was wrong, slash the
-    /// publisher; `false` → the challenger forfeits. A non-bonded (legacy) publisher
-    /// has no stake to slash, so the challenger only recovers their bond.
+    /// Resolve an open challenge. `upheld == true` → the reading was wrong: slash a
+    /// fixed `SLASH_BPS` fraction of the publisher's stake into the neutral sink and
+    /// return the challenger their own bond. `false` → the challenger forfeits their
+    /// bond to the neutral sink. The resolver must not be the challenger, so a single
+    /// party can't both open and rule on a challenge in their own favor.
     public fun resolve_challenge(
         feed: &mut RiskFeed,
         _cap: &PublisherCap,
@@ -251,29 +292,30 @@ module risk_feed::risk_feed {
     ) {
         assert!(table::contains(&feed.challenges, market), ENotChallenged);
         let Challenge { challenger, bond: cbond } = table::remove(&mut feed.challenges, market);
+        assert!(tx_context::sender(ctx) != challenger, ESelfResolve);
         let reading = table::borrow_mut(&mut feed.readings, market);
         reading.challenged = false;
         let publisher = reading.updated_by;
 
+        {
+            let n = table::borrow_mut(&mut feed.open_challenges, publisher);
+            *n = *n - 1;
+            if (*n == 0) { table::remove(&mut feed.open_challenges, publisher); };
+        };
+
         if (upheld) {
-            let cval = balance::value(&cbond);
-            let mut payout = cbond;
+            let mut slash_amt = 0;
             if (table::contains(&feed.stakes, publisher)) {
                 let stake = table::borrow_mut(&mut feed.stakes, publisher);
                 let avail = balance::value(&stake.bond);
-                let slash_amt = if (cval <= avail) cval else avail;
-                balance::join(&mut payout, balance::split(&mut stake.bond, slash_amt));
-                event::emit(ChallengeResolved { market, upheld: true, slashed: slash_amt });
-            } else {
-                event::emit(ChallengeResolved { market, upheld: true, slashed: 0 });
+                slash_amt = avail * SLASH_BPS / 10_000;
+                let slashed = balance::split(&mut stake.bond, slash_amt);
+                balance::join(&mut feed.slashed_pool, slashed);
             };
-            transfer::public_transfer(coin::from_balance(payout, ctx), challenger);
+            event::emit(ChallengeResolved { market, upheld: true, slashed: slash_amt });
+            transfer::public_transfer(coin::from_balance(cbond, ctx), challenger);
         } else {
-            if (table::contains(&feed.stakes, publisher)) {
-                balance::join(&mut table::borrow_mut(&mut feed.stakes, publisher).bond, cbond);
-            } else {
-                transfer::public_transfer(coin::from_balance(cbond, ctx), publisher);
-            };
+            balance::join(&mut feed.slashed_pool, cbond);
             event::emit(ChallengeResolved { market, upheld: false, slashed: 0 });
         };
     }
@@ -331,6 +373,11 @@ module risk_feed::risk_feed {
         else balance::value(&table::borrow(&feed.stakes, who).bond)
     }
 
+    /// Total slashed stake and forfeited challenge bonds held in the neutral sink.
+    public fun slashed_pool(feed: &RiskFeed): u64 {
+        balance::value(&feed.slashed_pool)
+    }
+
     // --- Reading field accessors (for external consumers) ---
     public fun prob_bps(r: &Reading): u64 { r.prob_bps }
     public fun ref_price(r: &Reading): u64 { r.ref_price }
@@ -348,6 +395,8 @@ module risk_feed::risk_feed {
                 readings: table::new<String, Reading>(ctx),
                 stakes: table::new<address, Stake>(ctx),
                 challenges: table::new<String, Challenge>(ctx),
+                open_challenges: table::new<address, u64>(ctx),
+                slashed_pool: balance::zero<SUI>(),
             },
             PublisherCap { id: object::new(ctx) },
         )

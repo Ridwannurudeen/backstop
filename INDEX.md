@@ -1,6 +1,6 @@
 # SRX — the Sui Risk Index family
 
-**The first on-chain, options-implied probability distribution for crypto, extracted trustlessly from DeepBook Predict and published as a public benchmark.**
+**The first on-chain, options-implied probability distribution for crypto, extracted from DeepBook Predict and published via a bonded-publisher feed (testnet research, not trustless).**
 
 Crypto's "fear indexes" today are numbers a website computes off a centralized exchange's data. SRX is different: it is the market's *entire risk-neutral distribution* — read from a live on-chain options market (DeepBook Predict), anchored with reproducible evidence on Walrus, published on-chain by bonded oracles, and slashable when wrong. Anyone — a contract, a treasury, a dashboard — reads it in one call.
 

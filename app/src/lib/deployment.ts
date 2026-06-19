@@ -83,20 +83,20 @@ export const ARENA_OBJ = hx(
 export const MAINNET = "mainnet" as const;
 export const HERMES = "https://hermes.pyth.network";
 export const PYTH_DEPEG_COVER_PKG = hx(
-  "49a4385606094ec78faa8b445372e8dd",
-  "515dd0ddb513730a8ba9c4b734d5827c",
+  "3ec312b1173922dfe6d5866741299f45",
+  "25c135fa90709a39ddb0a0f7e8baccb5",
 );
 export const PYTH_DEPEG_POOL = hx(
-  "55fe8bb8730c68931bbbcf876b7007d1",
-  "90febb04e2b82cccac7057868e83d8b1",
+  "1d9d15da40239822d4201e713ae92d5f",
+  "ec415f9771e4711be30fc7e76886c523",
 );
 export const PYTH_LENDING_PKG = hx(
-  "dbddf4df28aea4489f7979cc608bea4a",
-  "599a6643f79bfe10cecca1cc06aabaa8",
+  "729e11856afe3d1f7678366b7fbcbe8a",
+  "f0aecb623cc0277f372a5b95fa6a3b2e",
 );
 export const PYTH_LENDING_MARKET = hx(
-  "da46848a368d5ea6c48f776fc233479c",
-  "30ac807a1b1a2d5c0b59de11b3bac0c0",
+  "f36d1a0f00e1777e0c4ce3b4355d531f",
+  "15d06b4d0aa6a87160fe4a18e575b209",
 );
 export const PYTH_STAGED_COVER_PKG = hx(
   "51dd7287ac9e97147982023f5f2fa61b",

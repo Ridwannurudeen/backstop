@@ -17,6 +17,11 @@ module risk_index::risk_index {
 
     /// Minimum bond (MIST) a publisher must stake to publish.
     const MIN_BOND: u64 = 100_000_000; // 0.1 SUI
+    /// Minimum bond (MIST) a challenger must post — same scale as MIN_BOND, so a
+    /// challenge can never be opened for dust (a griefing/DoS vector).
+    const MIN_CHALLENGE_BOND: u64 = 100_000_000; // 0.1 SUI
+    /// Fraction of a publisher's stake slashed when a challenge is upheld (bps of stake).
+    const SLASH_BPS: u64 = 5_000; // 50%
 
     const ENotPublisher: u64 = 0;
     const EBondTooLow: u64 = 1;
@@ -25,6 +30,12 @@ module risk_index::risk_index {
     const ENotChallenged: u64 = 4;
     const EAlreadyStaked: u64 = 5;
     const EBadBps: u64 = 6;
+    /// Resolver address equals the challenger (cap-holder self-deal attempt).
+    const ESelfResolve: u64 = 7;
+    /// Challenge bond below MIN_CHALLENGE_BOND.
+    const EChallengeBondTooLow: u64 = 8;
+    /// Publisher still has an open challenge against one of their readings.
+    const EOpenChallenge: u64 = 9;
 
     /// A published SRX snapshot for one market (underlying + horizon).
     public struct IndexReading has store, copy, drop {
@@ -60,6 +71,9 @@ module risk_index::risk_index {
         markets: vector<String>,
         stakes: Table<address, Stake>,
         challenges: Table<String, Challenge>,
+        /// Neutral protocol sink: slashed stake + forfeited challenge bonds land
+        /// here (never the resolver/challenger), so resolution can't be self-dealt.
+        sink: Balance<SUI>,
     }
 
     /// Authority to resolve challenges. (Today the protocol/DAO; roadmap = a ZK
@@ -97,6 +111,7 @@ module risk_index::risk_index {
             markets: vector[],
             stakes: table::new(ctx),
             challenges: table::new(ctx),
+            sink: balance::zero(),
         });
         transfer::transfer(AdminCap { id: object::new(ctx) }, ctx.sender());
     }
@@ -165,6 +180,11 @@ module risk_index::risk_index {
             challenged: false,
         };
         if (table::contains(&index.readings, key)) {
+            // A reading under an open challenge cannot be overwritten until it is
+            // resolved — otherwise a publisher could clear the disputed flag by
+            // re-publishing, or another publisher could overwrite the contested
+            // market and shift the slash onto themselves.
+            assert!(!table::borrow(&index.readings, key).challenged, EAlreadyChallenged);
             *table::borrow_mut(&mut index.readings, key) = reading;
         } else {
             table::add(&mut index.readings, key, reading);
@@ -186,10 +206,11 @@ module risk_index::risk_index {
     ) {
         let key = string::utf8(market);
         assert!(table::contains(&index.readings, key), EReadingNotFound);
+        let amount = coin::value(&bond);
+        assert!(amount >= MIN_CHALLENGE_BOND, EChallengeBondTooLow);
         let reading = table::borrow_mut(&mut index.readings, key);
         assert!(!reading.challenged, EAlreadyChallenged);
         reading.challenged = true;
-        let amount = coin::value(&bond);
         let challenger = ctx.sender();
         table::add(&mut index.challenges, key, Challenge {
             challenger,
@@ -199,7 +220,10 @@ module risk_index::risk_index {
     }
 
     /// Resolve an open challenge. `upheld == true` means the published index was
-    /// wrong → slash the publisher; `false` → the challenger forfeits.
+    /// wrong → slash the publisher; `false` → the challenger forfeits. The resolver
+    /// may never be the challenger, slashing is capped to a fixed fraction of the
+    /// stake, and all slashed/forfeited funds go to the neutral sink — so holding
+    /// the `AdminCap` can never be turned into a stake-theft self-deal.
     public fun resolve_challenge(
         index: &mut RiskIndex,
         _admin: &AdminCap,
@@ -210,27 +234,49 @@ module risk_index::risk_index {
         let key = string::utf8(market);
         assert!(table::contains(&index.challenges, key), ENotChallenged);
         let Challenge { challenger, bond: cbond } = table::remove(&mut index.challenges, key);
+        assert!(ctx.sender() != challenger, ESelfResolve);
         let reading = table::borrow_mut(&mut index.readings, key);
         reading.challenged = false;
         let publisher = reading.publisher;
 
         if (upheld) {
-            // Slash the publisher's stake by the challenger's bond amount and pay
-            // the challenger their bond back plus the slashed reward.
-            let cval = balance::value(&cbond);
-            let stake = table::borrow_mut(&mut index.stakes, publisher);
-            let avail = balance::value(&stake.bond);
-            let slash_amt = if (cval <= avail) cval else avail;
-            let slashed = balance::split(&mut stake.bond, slash_amt);
-            let mut payout = cbond;
-            balance::join(&mut payout, slashed);
-            transfer::public_transfer(coin::from_balance(payout, ctx), challenger);
+            // Reading was wrong: slash a fixed fraction of the publisher's stake into
+            // the neutral sink and return the challenger their own bond (no reward).
+            // The guard tolerates a publisher whose stake was already withdrawn.
+            let mut slash_amt = 0;
+            if (table::contains(&index.stakes, publisher)) {
+                let stake = table::borrow_mut(&mut index.stakes, publisher);
+                slash_amt = balance::value(&stake.bond) * SLASH_BPS / 10_000;
+                let slashed = balance::split(&mut stake.bond, slash_amt);
+                balance::join(&mut index.sink, slashed);
+            };
+            transfer::public_transfer(coin::from_balance(cbond, ctx), challenger);
             event::emit(ChallengeResolved { market: key, upheld: true, slashed: slash_amt });
         } else {
-            // Challenger forfeits the bond into the publisher's stake.
-            balance::join(&mut table::borrow_mut(&mut index.stakes, publisher).bond, cbond);
+            // Challenge was wrong: the challenger forfeits the bond to the neutral
+            // sink (never to the resolver, never back to a self-dealing challenger).
+            balance::join(&mut index.sink, cbond);
             event::emit(ChallengeResolved { market: key, upheld: false, slashed: 0 });
         };
+    }
+
+    /// Withdraw a publisher's residual stake. Blocked while any of the publisher's
+    /// readings is under an open challenge, so a publisher can never dodge a pending
+    /// slash by unstaking first.
+    public fun unstake(index: &mut RiskIndex, ctx: &mut TxContext): Coin<SUI> {
+        let who = ctx.sender();
+        assert!(table::contains(&index.stakes, who), ENotPublisher);
+        let n = index.markets.length();
+        let mut i = 0;
+        while (i < n) {
+            let k = *index.markets.borrow(i);
+            if (table::contains(&index.challenges, k)) {
+                assert!(table::borrow(&index.readings, k).publisher != who, EOpenChallenge);
+            };
+            i = i + 1;
+        };
+        let Stake { bond, name: _, published: _ } = table::remove(&mut index.stakes, who);
+        coin::from_balance(bond, ctx)
     }
 
     // --- Views ---
@@ -262,6 +308,8 @@ module risk_index::risk_index {
         if (!table::contains(&index.stakes, who)) 0
         else balance::value(&table::borrow(&index.stakes, who).bond)
     }
+    /// Total slashed + forfeited funds accrued in the neutral protocol sink.
+    public fun sink_balance(index: &RiskIndex): u64 { balance::value(&index.sink) }
 
     public fun r_crash(r: &IndexReading): u64 { r.srx_crash_bps }
     public fun r_vol(r: &IndexReading): u64 { r.srx_vol_bps }
@@ -279,6 +327,7 @@ module risk_index::risk_index {
                 markets: vector[],
                 stakes: table::new(ctx),
                 challenges: table::new(ctx),
+                sink: balance::zero(),
             },
             AdminCap { id: object::new(ctx) },
         )

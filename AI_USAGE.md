@@ -4,7 +4,9 @@ _Sui Overflow 2026 · honest accounting of where AI is and isn't used._
 
 ## 1. AI in the product (the core)
 
-Backstop's autonomous **AI underwriter** lives in [`agent/`](./agent). Once per cycle it reads
+Backstop's **AI-assisted underwriter** lives in [`agent/`](./agent). By default it runs as a
+deterministic, rules-based underwriter; the Claude path is additive and optional, and has not
+been exercised in any logged run (no `ANTHROPIC_API_KEY` is set). Once per cycle it reads
 the live BTC oracles on DeepBook Predict, prices each market, and produces a grounded
 **accept/decline decision + capacity + premium + risk rationale** per market.
 

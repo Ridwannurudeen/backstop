@@ -221,4 +221,76 @@ module pyth_lending_demo::pyth_lending_demo_tests {
         clock::destroy_for_testing(clock);
         unit_test::destroy(pool);
     }
+
+    // M3: after a policy expires un-breached the market can release it and insure again
+    // (previously the expired policy was trapped and the market bricked permanently).
+    #[test]
+    fun market_reinsures_after_policy_expiry() {
+        let mut ctx = tx_context::dummy();
+        let mut clock = clock::create_for_testing(&mut ctx);
+        let mut pool = new_pool(&mut ctx);
+        let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(1000, &mut ctx), &mut ctx);
+
+        let mut market = pyth_lending_demo::new_for_testing<SUI>(string::utf8(ASSET), &mut ctx);
+        install_buyer_cap(&mut market, &pool, &mut ctx);
+        let premium = pyth_cover_pool::premium_for(&pool, 500);
+        pyth_lending_demo::insure_at_price_for_testing(
+            &mut market, &mut pool, fund(premium, &mut ctx), 500, EXPIRY, PEG, &clock, &mut ctx,
+        );
+        assert!(pyth_lending_demo::is_insured(&market), 0);
+
+        // Policy expires without a depeg → release it, freeing the market + pool liability.
+        clock::set_for_testing(&mut clock, EXPIRY + 1);
+        pyth_lending_demo::release_expired_policy(&mut market, &mut pool, &clock);
+        assert!(!pyth_lending_demo::is_insured(&market), 1);
+        assert!(pyth_cover_pool::total_cover(&pool) == 0, 2);
+
+        // The market can now buy fresh cover (a new 30-day term from now).
+        let next_expiry = EXPIRY + 1 + EXPIRY;
+        let premium2 = pyth_cover_pool::premium_for(&pool, 500);
+        pyth_lending_demo::insure_at_price_for_testing(
+            &mut market, &mut pool, fund(premium2, &mut ctx), 500, next_expiry, PEG, &clock, &mut ctx,
+        );
+        assert!(pyth_lending_demo::is_insured(&market), 3);
+
+        unit_test::destroy(market);
+        unit_test::destroy(lp);
+        clock::destroy_for_testing(clock);
+        unit_test::destroy(pool);
+    }
+
+    // M5: reserve capital can be withdrawn by the market cap holder (was permanently locked).
+    #[test]
+    fun withdraw_reserve_returns_capital() {
+        let mut ctx = tx_context::dummy();
+        let mut market = pyth_lending_demo::new_for_testing<SUI>(string::utf8(ASSET), &mut ctx);
+        let cap = pyth_lending_demo::new_market_cap_for_testing(&market, &mut ctx);
+        pyth_lending_demo::deposit_reserve(&mut market, fund(777, &mut ctx));
+        assert!(pyth_lending_demo::reserve_value(&market) == 777, 0);
+
+        let out = pyth_lending_demo::withdraw_reserve(&mut market, &cap, 777, &mut ctx);
+        assert!(coin::value(&out) == 777, 1);
+        assert!(pyth_lending_demo::reserve_value(&market) == 0, 2);
+
+        coin::burn_for_testing(out);
+        unit_test::destroy(cap);
+        unit_test::destroy(market);
+    }
+
+    // M5: a cap minted for another market cannot withdraw this market's reserve.
+    #[test]
+    #[expected_failure(abort_code = pyth_lending_demo::EWrongMarketCap)]
+    fun withdraw_reserve_wrong_cap_rejected() {
+        let mut ctx = tx_context::dummy();
+        let mut market_a = pyth_lending_demo::new_for_testing<SUI>(string::utf8(ASSET), &mut ctx);
+        let market_b = pyth_lending_demo::new_for_testing<SUI>(string::utf8(ASSET), &mut ctx);
+        let cap_b = pyth_lending_demo::new_market_cap_for_testing(&market_b, &mut ctx);
+        pyth_lending_demo::deposit_reserve(&mut market_a, fund(100, &mut ctx));
+
+        let out = pyth_lending_demo::withdraw_reserve(&mut market_a, &cap_b, 100, &mut ctx); // aborts
+        coin::burn_for_testing(out);
+        unit_test::destroy(cap_b);
+        unit_test::destroy(market_a);
+        unit_test::destroy(market_b);
+    }
 }

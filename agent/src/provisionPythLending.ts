@@ -2,7 +2,7 @@
 // lending market buys Pyth-settled depeg cover, and — when the insured stablecoin
 // breaches the pool floor — latches the breach and claims the payout into its reserve.
 //
-//  - buildCreateMarketTx / buildDepositReserveTx / buildInsureTx /
+//  - buildCreateMarketTx / buildDepositReserveTx / buildInsureWithPythTx /
 //    buildRecordShortfallTx / buildCoverShortfallTx: the PTBs a funded wallet runs.
 //    record_shortfall pulls a fresh Pyth update (updatePriceFeeds) and calls
 //    pyth_lending_demo::record_shortfall in one PTB — the trustless latch path.
@@ -174,35 +174,6 @@ export function buildInstallBuyerCapTx(
     target: `${lendPkg}::pyth_lending_demo::install_buyer_cap`,
     typeArguments: [coinType],
     arguments: [tx.object(market), tx.object(buyerCap)],
-  });
-  return tx;
-}
-
-/** Legacy no-Pyth buy path for old deployments. */
-export function buildInsureTx(opts: {
-  lendPkg: string;
-  market: string;
-  pool: string;
-  coinType?: string;
-  premiumCoinId?: string;
-  premiumMist: bigint;
-  cover: bigint;
-  expiryMs: bigint;
-}): Transaction {
-  const tx = new Transaction();
-  const source = opts.premiumCoinId ? tx.object(opts.premiumCoinId) : tx.gas;
-  const [premium] = tx.splitCoins(source, [tx.pure.u64(opts.premiumMist)]);
-  tx.moveCall({
-    target: `${opts.lendPkg}::pyth_lending_demo::insure`,
-    typeArguments: [opts.coinType ?? SUI],
-    arguments: [
-      tx.object(opts.market),
-      tx.object(opts.pool),
-      premium,
-      tx.pure.u64(opts.cover),
-      tx.pure.u64(opts.expiryMs),
-      tx.object(CLOCK),
-    ],
   });
   return tx;
 }
@@ -525,30 +496,19 @@ async function execute(client: SuiClient): Promise<void> {
   );
   const expiry = BigInt(Date.now()) + policyDurationSecs * 1000n;
   await run(
-    process.env.USE_V4_BUY
-      ? await buildInsureWithPythTx({
-          client,
-          lendPkg,
-          market,
-          pool,
-          coinType,
-          premiumCoinId: process.env.PREMIUM_COIN,
-          premiumMist: premium,
-          cover,
-          expiryMs: expiry,
-          feedId: SUIUSDE_FEED,
-          recipient: addr,
-        })
-      : buildInsureTx({
-          lendPkg,
-          market,
-          pool,
-          coinType,
-          premiumCoinId: process.env.PREMIUM_COIN,
-          premiumMist: premium,
-          cover,
-          expiryMs: expiry,
-        }),
+    await buildInsureWithPythTx({
+      client,
+      lendPkg,
+      market,
+      pool,
+      coinType,
+      premiumCoinId: process.env.PREMIUM_COIN,
+      premiumMist: premium,
+      cover,
+      expiryMs: expiry,
+      feedId: SUIUSDE_FEED,
+      recipient: addr,
+    }),
     `insure (cover ${cover}, premium ${premium})`,
   );
 

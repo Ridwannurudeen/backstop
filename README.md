@@ -1,13 +1,15 @@
 # Backstop
 
-**Solvency cover for Sui DeFi: Pyth-settled depeg protection with
+**Early, low-cap depeg cover for Sui DeFi: Pyth-settled depeg protection with
 DeepBook/Walrus risk-research lineage.**
 
 Live app: https://backstop.gudman.xyz
 
 Backstop protects Sui DeFi from depeg and bad-debt cascades before emergency
-validator intervention is the only option. The shipped product is a
-Pyth-settled, SUI-collateralized depeg-cover pool on Sui mainnet. The live v5
+validator intervention is the only option. The mainnet deployment is an early,
+low-cap experimental Pyth-settled, SUI-collateralized depeg-cover pool on Sui
+mainnet; it is not a funded production insurance product an external user can
+buy from today. The live v5
 pool is BuyerCap-restricted: direct wallet sales are disabled, and cover is
 bought through a protocol adapter that holds the policy. DeepBook Predict, SRX,
 RiskFeed, Walrus, and agent-accountability modules are live testnet/research
@@ -32,7 +34,7 @@ oracle.
   DEP_ONLY upgrade locks, AdminCap custody transfer, archived staged
   mechanism-test claim evidence, and current production active cover
 
-The default mainnet pool is the v5 low-cap deployment from 2026-06-19, so fresh
+The default mainnet pool is the v6 audit-hardened low-cap deployment, so fresh
 Pyth sale checks, required-premium charging with excess refunds, zero-share LP
 protection, pool-epoch-only direct latch compatibility, bounded dwell
 confirmation, healthy-observation reset, settlement-term immutability while
@@ -163,7 +165,7 @@ npm run monitor:depeg
 
 ## SDK
 
-The SDK is published as `@gudman/backstop-sdk@0.1.2` with the v5 mainnet
+The SDK is published as `@gudman/backstop-sdk@0.1.4` with the v6 mainnet
 package, pool, and lending-market constants.
 
 ```bash

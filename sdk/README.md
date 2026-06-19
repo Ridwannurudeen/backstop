@@ -25,7 +25,7 @@ npm run build
 - pool-epoch builders (`record_pool_breach` / `record_pool_recovery`) for
   batch claimability
 
-Version `0.1.2` points at the v5 low-cap mainnet pool recorded in
+Version `0.1.4` points at the v6 low-cap mainnet pool recorded in
 `deployment.json`. Direct wallet buys are disabled on that pool; protocol
 adapters buy position-bound cover with the pool-scoped `BuyerCap`. The
 RiskFeed/SRX/Predict surface is testnet-only today.

@@ -41,15 +41,14 @@ module accountability::passport_tests {
         passport::note_decision(&mut p, &cap);
         assert!(passport::decisions(&p) == 2, 4);
 
-        // Slash 400 → returns a coin, bond drops to 1100.
-        let seized = passport::slash(&mut p, &cap, 400, &mut ctx);
-        assert!(coin::value(&seized) == 400, 5);
+        // Slash 400 → bond drops to 1100, seized stake locked (not paid to admin).
+        passport::slash(&mut p, &cap, 400);
         assert!(passport::bond_value(&p) == 1_100, 6);
+        assert!(passport::slashed_value(&p) == 400, 5);
 
         // Reputation reads ledger accuracy.
         assert!(passport::reputation_bps(&p, &ledger) == 10_000, 7);
 
-        coin::burn_for_testing(seized);
         test_utils::destroy(p);
         clock::destroy_for_testing(clock);
         test_utils::destroy(ledger);
@@ -66,12 +65,25 @@ module accountability::passport_tests {
         let mut p = passport::new_for_testing(
             b"oracle-1", sui_coin(100, &mut ctx), &ledger, &clock, &mut ctx,
         );
-        let seized = passport::slash(&mut p, &cap, 101, &mut ctx);
+        passport::slash(&mut p, &cap, 101);
 
-        coin::burn_for_testing(seized);
         test_utils::destroy(p);
         clock::destroy_for_testing(clock);
         test_utils::destroy(ledger);
         test_utils::destroy(cap);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = passport::EBondTooLow)]
+    fun register_below_min_bond_aborts() {
+        let mut ctx = tx_context::dummy();
+        let (ledger, _cap) = calibration::new_for_testing(&mut ctx);
+        let clock = clock::create_for_testing(&mut ctx);
+        // A 1_000-MIST bond is far below MIN_BOND (0.1 SUI) → registration aborts.
+        passport::register(b"oracle-1", sui_coin(1_000, &mut ctx), &ledger, &clock, &mut ctx);
+
+        clock::destroy_for_testing(clock);
+        test_utils::destroy(ledger);
+        test_utils::destroy(_cap);
     }
 }
