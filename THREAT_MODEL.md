@@ -19,7 +19,7 @@ are research/supporting surfaces and must not control production payouts.
 
 - Cover purchase now requires a fresh Pyth read and rejects sales whose lower
   confidence edge is too close to the depeg floor.
-- `buy_cover` rejects excess premium instead of accepting donations that can
+- `buy_cover` refunds excess premium instead of accepting donations that can
   distort share price.
 - LP deposits abort if they would mint zero shares.
 - Direct per-policy `record_breach` no longer creates an independent payout

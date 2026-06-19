@@ -76,10 +76,11 @@ export default function HowItWorks() {
           <ul className="doc-list">
             <li>
               <b>Live on mainnet:</b> Pyth-settled stablecoin-depeg cover: the
-              v3 package, production pool, wallet actions, duration-priced
-              economics, permissionless expiry sweep, pool-level depeg epochs,
-              proof-health checks, and a staged mechanism-test claim are all
-              recorded on Sui mainnet.
+              v4 package, low-cap production pool, wallet actions,
+              duration-priced economics, permissionless expiry sweep, pool-level
+              depeg epochs, fresh Pyth sale checks, proof-health checks, and
+              archived staged mechanism-test claim evidence are recorded on Sui
+              mainnet.
             </li>
             <li>
               <b>Live on testnet:</b> the RiskFeed + SRX index, autonomous

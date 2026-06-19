@@ -24,7 +24,7 @@ Scope this checklist to the production path first:
 - Treasury withdrawal must not touch LP funds or policy collateral.
 - Keeper bounty must be best-effort and must not block settlement.
 - LP deposits must not mint zero shares.
-- Cover purchase must reject excess premium rather than accepting donations into
+- Cover purchase must refund excess premium rather than accepting donations into
   pool value.
 
 ## Oracle Settlement
@@ -52,7 +52,7 @@ Scope this checklist to the production path first:
 
 - Premium must scale by duration.
 - Premium must round up so dust terms do not buy free cover.
-- Premium payment must be exact.
+- Premium payment must cover the required amount; any excess must be refunded.
 - Selected expiry must be greater than activation time.
 - Selected term must not exceed `max_policy_duration_secs`.
 - Per-policy and aggregate exposure caps must be enforced.
@@ -78,12 +78,13 @@ Scope this checklist to the production path first:
 - The 30-day UI term should use a small expiry safety margin under the on-chain
   max term.
 - `quoteDepegPremium` must mirror duration pricing.
-- `buildDepegBuyCoverTx`, `buildDepegRecordBreachTx`,
+- `buildDepegBuyCoverWithPythTx`, `buildDepegRecordBreachTx`,
   `buildDepegRecordPoolBreachTx`, and `buildDepegRecordPoolRecoveryTx` must
   refresh Pyth in the same PTB before calling the Move entrypoint.
 - The UI/keeper should use pool-level epochs as the primary path.
 - Proof-health must verify package existence, pool state, upgrade policy, custody,
-  staged claim, and production active cover from Sui mainnet.
+  archived staged-claim evidence, and current production active cover from Sui
+  mainnet.
 
 ## Verification Commands
 

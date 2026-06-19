@@ -66,8 +66,9 @@ export default function DepegCover() {
           <p className="note">
             suiUSDe is the flagship market - Ethena-backed, live across Sui
             DeFi. Pricing is set by pool terms; settlement is objective and
-            on-chain. The production mainnet pool is live, while the paid claim
-            proof is a staged mechanism test against a separate proof pool.
+            on-chain. The current v4 mainnet pool is live, while the paid claim
+            proof is archived v3 mechanism-test evidence against a separate
+            proof pool.
           </p>
 
           <h4>Reference consumer</h4>
@@ -81,7 +82,7 @@ export default function DepegCover() {
           </p>
           <p className="note">
             The lending consumer is deployed against mainnet Pyth/Wormhole and
-            covered by 4/4 Move tests. Its paid-claim evidence is a staged
+            covered by Move tests. Its paid-claim evidence is an archived staged
             mechanism test, not a real production depeg event.
           </p>
         </>

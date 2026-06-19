@@ -103,7 +103,6 @@ module pyth_cover_pool::pyth_cover_pool {
     const EStillDepegged: u64 = 27;
     const ESaleClosed: u64 = 28;
     const EZeroShares: u64 = 29;
-    const EWrongPremium: u64 = 30;
     const EOutstandingCover: u64 = 31;
 
     // Parameter kinds for timelocked updates.
@@ -551,9 +550,10 @@ module pyth_cover_pool::pyth_cover_pool {
         premium_for_duration_unchecked(pool, cover, duration_secs)
     }
 
-    /// Buy depeg cover. `premium` must cover the pool-priced premium; the protocol
-    /// fee goes to treasury, and the remainder accrues to LPs. The pool must remain
-    /// fully collateralized after taking on the new liability.
+    /// Buy depeg cover. `premium` must cover the pool-priced premium; any excess
+    /// is returned to the caller instead of being donated into pool value. The
+    /// protocol fee goes to treasury, and the remainder accrues to LPs. The pool
+    /// must remain fully collateralized after taking on the new liability.
     public fun buy_cover<T>(
         pool: &mut DepegCoverPool<T>,
         premium: Coin<T>,
@@ -562,7 +562,7 @@ module pyth_cover_pool::pyth_cover_pool {
         price_info_object: &PriceInfoObject,
         clock: &Clock,
         ctx: &mut TxContext,
-    ): Policy<T> {
+    ): (Policy<T>, Coin<T>) {
         let (price_mag, conf) = read_price_magnitude(pool, price_info_object, clock);
         buy_cover_checked(pool, premium, cover, expiry_ms, price_mag, conf, clock, ctx)
     }
@@ -576,7 +576,7 @@ module pyth_cover_pool::pyth_cover_pool {
         conf: u64,
         clock: &Clock,
         ctx: &mut TxContext,
-    ): Policy<T> {
+    ): (Policy<T>, Coin<T>) {
         assert!(!pool.paused, EPaused);
         assert!(!pool.epoch_armed && !pool.epoch_breached, EPoolEpochOpen);
         assert!(cover > 0, EZeroAmount);
@@ -599,9 +599,13 @@ module pyth_cover_pool::pyth_cover_pool {
         assert!(required > 0, EZeroPremium);
         let paid = coin::value(&premium);
         assert!(paid >= required, EInsufficientPremium);
-        assert!(paid == required, EWrongPremium);
-        let fee = (((paid as u128) * (pool.treasury_fee_bps as u128)) / BPS) as u64;
         let mut premium_balance = coin::into_balance(premium);
+        let refund = if (paid > required) {
+            coin::take(&mut premium_balance, paid - required, ctx)
+        } else {
+            coin::zero<T>(ctx)
+        };
+        let fee = (((required as u128) * (pool.treasury_fee_bps as u128)) / BPS) as u64;
         if (fee > 0) {
             balance::join(&mut pool.treasury, balance::split(&mut premium_balance, fee));
         };
@@ -620,15 +624,15 @@ module pyth_cover_pool::pyth_cover_pool {
         event::emit(CoverBought {
             pool: object::id(pool),
             cover,
-            premium: paid,
+            premium: required,
             expiry_ms,
             duration_secs,
         });
-        Policy {
+        let policy = Policy {
             id: policy_uid,
             pool_id: object::id(pool),
             cover,
-            premium_paid: paid,
+            premium_paid: required,
             expiry_ms,
             activation_ms,
             epoch_id: pool.epoch_id,
@@ -636,7 +640,8 @@ module pyth_cover_pool::pyth_cover_pool {
             first_breach_ms: 0,
             breached: false,
             breach_price: 0,
-        }
+        };
+        (policy, refund)
     }
 
     fun sale_cutoff<T>(pool: &DepegCoverPool<T>): u64 {
@@ -859,7 +864,7 @@ module pyth_cover_pool::pyth_cover_pool {
         if (!is_adverse(pool, price_mag, conf)) {
             if ((pool.epoch_armed || pool.epoch_breached) && is_healthy(pool, price_mag, conf)) {
                 do_pool_recovery(pool, price_mag, conf, clock);
-                return;
+                return
             };
             assert!(false, ENotDepegged);
         };
@@ -1213,6 +1218,23 @@ module pyth_cover_pool::pyth_cover_pool {
         clock: &Clock,
         ctx: &mut TxContext,
     ): Policy<T> {
+        let (policy, refund) =
+            buy_cover_checked(pool, premium, cover, expiry_ms, price_mag, conf, clock, ctx);
+        coin::destroy_zero(refund);
+        policy
+    }
+
+    #[test_only]
+    public fun buy_cover_at_price_with_refund_for_testing<T>(
+        pool: &mut DepegCoverPool<T>,
+        premium: Coin<T>,
+        cover: u64,
+        expiry_ms: u64,
+        price_mag: u64,
+        conf: u64,
+        clock: &Clock,
+        ctx: &mut TxContext,
+    ): (Policy<T>, Coin<T>) {
         buy_cover_checked(pool, premium, cover, expiry_ms, price_mag, conf, clock, ctx)
     }
 

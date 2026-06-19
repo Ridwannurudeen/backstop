@@ -67,12 +67,13 @@ module pyth_lending_demo::pyth_lending_demo {
         price_info_object: &PriceInfoObject,
         clock: &Clock,
         ctx: &mut TxContext,
-    ) {
+    ): Coin<SUI> {
         assert!(option::is_none(&m.policy), EAlreadyInsured);
-        let policy = pyth_cover_pool::buy_cover(
+        let (policy, refund) = pyth_cover_pool::buy_cover(
             pool, premium, cover, expiry_ms, price_info_object, clock, ctx,
         );
         option::fill(&mut m.policy, policy);
+        refund
     }
 
     /// Record a sub-threshold observation on the held policy by reading Pyth on-chain.

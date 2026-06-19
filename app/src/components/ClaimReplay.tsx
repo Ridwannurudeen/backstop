@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  PYTH_DEPEG_COVER_PKG,
-  PYTH_DEPEG_POOL,
+  PYTH_STAGED_COVER_PKG,
   PYTH_STAGED_CLAIM_TX,
+  PYTH_STAGED_POOL,
   SUIUSDE_FEED_ID,
 } from "../lib/deployment";
 
@@ -73,7 +73,7 @@ export default function ClaimReplay() {
     >
       <div className="replay-top">
         <div>
-          <span>Mainnet staged proof replay</span>
+          <span>Archived mainnet staged proof replay</span>
           <strong>Claim lifecycle</strong>
         </div>
         <button type="button" onClick={() => setStep(0)}>
@@ -140,16 +140,16 @@ export default function ClaimReplay() {
       <div className="receipt-card">
         <div>
           <span>Settlement receipt</span>
-          <strong>Staged payout paid on Sui mainnet</strong>
+          <strong>Staged v3 payout paid on Sui mainnet</strong>
         </div>
         <dl>
           <div>
             <dt>Pool</dt>
-            <dd>{short(PYTH_DEPEG_POOL)}</dd>
+            <dd>{short(PYTH_STAGED_POOL)}</dd>
           </div>
           <div>
             <dt>Package</dt>
-            <dd>{short(PYTH_DEPEG_COVER_PKG)}</dd>
+            <dd>{short(PYTH_STAGED_COVER_PKG)}</dd>
           </div>
           <div>
             <dt>Feed</dt>

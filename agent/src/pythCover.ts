@@ -52,7 +52,7 @@ const Price = bcs.struct("Price", {
 const i64Num = (v: { negative: boolean; magnitude: string }): number =>
   (v.negative ? -1 : 1) * Number(v.magnitude);
 
-/** Buy v3 depeg cover. Premium is split from gas (SUI pool) or from `premiumCoinId`. */
+/** Buy depeg cover using an already-refreshed PriceInfoObject. */
 export function buildBuyCoverTx(opts: {
   pkg: string;
   pool: string;
@@ -60,13 +60,14 @@ export function buildBuyCoverTx(opts: {
   premiumMist: bigint;
   cover: bigint;
   expiryMs: bigint;
+  priceInfoObjectId: string;
   recipient: string;
   premiumCoinId?: string;
 }): Transaction {
   const tx = new Transaction();
   const source = opts.premiumCoinId ? tx.object(opts.premiumCoinId) : tx.gas;
   const [premium] = tx.splitCoins(source, [tx.pure.u64(opts.premiumMist)]);
-  const policy = tx.moveCall({
+  const [policy, refund] = tx.moveCall({
     target: `${opts.pkg}::pyth_cover_pool::buy_cover`,
     typeArguments: [opts.coinType],
     arguments: [
@@ -74,10 +75,11 @@ export function buildBuyCoverTx(opts: {
       premium,
       tx.pure.u64(opts.cover),
       tx.pure.u64(opts.expiryMs),
+      tx.object(opts.priceInfoObjectId),
       tx.object(CLOCK),
     ],
   });
-  tx.transferObjects([policy], opts.recipient);
+  tx.transferObjects([policy, refund], opts.recipient);
   return tx;
 }
 
@@ -104,7 +106,7 @@ export async function buildBuyCoverWithPythTx(opts: {
   ]);
   const source = opts.premiumCoinId ? tx.object(opts.premiumCoinId) : tx.gas;
   const [premium] = tx.splitCoins(source, [tx.pure.u64(opts.premiumMist)]);
-  const policy = tx.moveCall({
+  const [policy, refund] = tx.moveCall({
     target: `${opts.pkg}::pyth_cover_pool::buy_cover`,
     typeArguments: [opts.coinType],
     arguments: [
@@ -116,7 +118,7 @@ export async function buildBuyCoverWithPythTx(opts: {
       tx.object(CLOCK),
     ],
   });
-  tx.transferObjects([policy], opts.recipient);
+  tx.transferObjects([policy, refund], opts.recipient);
   return tx;
 }
 
@@ -292,7 +294,8 @@ async function execute(client: SuiClient): Promise<void> {
 
   // Phase 1 — buy cover. The policy can't record a breach until its activation
   // delay elapses, so arming happens on a later run (phase 2), not here.
-  const buyTx = buildBuyCoverTx({
+  const buyTx = await buildBuyCoverWithPythTx({
+    client,
     pkg,
     pool,
     coinType,
@@ -300,6 +303,7 @@ async function execute(client: SuiClient): Promise<void> {
     cover: BigInt(env("COVER")),
     expiryMs: BigInt(Date.now() + 86_400_000),
     recipient: addr,
+    feedId: SUIUSDE_FEED,
   });
   const bought = await send(buyTx, "buy_cover");
   const policy = (

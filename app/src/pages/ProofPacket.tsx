@@ -11,6 +11,7 @@ import {
   PYTH_LENDING_PKG,
   PYTH_LENDING_UPGRADE_CAP,
   PYTH_PRODUCTION_INSURE_TX,
+  PYTH_STAGED_COVER_PKG,
   PYTH_STAGED_CLAIM_TX,
   PYTH_STAGED_LENDING_MARKET,
   PYTH_STAGED_POOL,
@@ -46,13 +47,13 @@ const evidenceType = (label: string) => {
 };
 
 const safetyLabel = (label: string) => {
-  if (label.includes("Staged")) return "Staged proof";
+  if (label.toLowerCase().includes("staged")) return "Staged proof";
   if (label.includes("Admin")) return "Admin controlled";
   return "Demo scale";
 };
 
 const proofBoundary = (label: string) => {
-  if (label.includes("Staged")) {
+  if (label.toLowerCase().includes("staged")) {
     return "Proves the mechanism paid; does not prove organic external demand.";
   }
   if (label.includes("Admin")) {
@@ -81,14 +82,19 @@ const proofObjects = [
     href: objectUrl(PYTH_LENDING_MARKET),
   },
   {
-    label: "Staged proof pool",
+    label: "Archived staged proof pool",
     value: PYTH_STAGED_POOL,
     href: objectUrl(PYTH_STAGED_POOL),
   },
   {
-    label: "Staged proof market",
+    label: "Archived staged proof market",
     value: PYTH_STAGED_LENDING_MARKET,
     href: objectUrl(PYTH_STAGED_LENDING_MARKET),
+  },
+  {
+    label: "Archived staged cover package",
+    value: PYTH_STAGED_COVER_PKG,
+    href: objectUrl(PYTH_STAGED_COVER_PKG),
   },
   {
     label: "Lending package",
@@ -121,12 +127,12 @@ const proofTxs = [
   {
     label: "Production active cover",
     value: PYTH_PRODUCTION_INSURE_TX,
-    detail: "production pool retained premium while suiUSDe stayed above floor",
+    detail: "v4 pool retained premium while suiUSDe stayed above floor",
   },
   {
-    label: "Staged claim",
+    label: "Archived staged claim",
     value: PYTH_STAGED_CLAIM_TX,
-    detail: "mechanism-test buy, dwell, confirm, and claim paid on mainnet",
+    detail: "v3 mechanism-test buy, dwell, confirm, and claim paid on mainnet",
   },
 ];
 
@@ -142,17 +148,18 @@ import {
 
 const client = new SuiClient({ url: getFullnodeUrl("mainnet") });
 const pool = await readDepegPool(client, PYTH_DEPEG_POOL);
-const coverMist = 50_000_000n; // 0.05 SUI payout
+const coverMist = 5_000_000n; // 0.005 SUI payout
 const premiumMist = quoteDepegPremium(pool, coverMist, 30);
 
 console.log({ premiumMist: premiumMist.toString() });`,
   },
   {
     title: "Buy cover for a position",
-    body: `import { buildDepegBuyCoverTx, PYTH_DEPEG_COVER_PKG, PYTH_DEPEG_POOL } from "@gudman/backstop-sdk";
+    body: `import { buildDepegBuyCoverWithPythTx, PYTH_DEPEG_COVER_PKG, PYTH_DEPEG_POOL } from "@gudman/backstop-sdk";
 
 const expiryMs = BigInt(Date.now() + 30 * 86_400_000 - 60_000);
-const tx = buildDepegBuyCoverTx({
+const tx = await buildDepegBuyCoverWithPythTx({
+  client,
   pkg: PYTH_DEPEG_COVER_PKG,
   poolId: PYTH_DEPEG_POOL,
   premiumMist,
@@ -214,9 +221,9 @@ export default function ProofPacket() {
           <p className="proof-kicker">Mainnet proof packet</p>
           <h1>Every load-bearing claim in one place.</h1>
           <p>
-            Package IDs, pool IDs, custody, upgrade policy, staged payout, and
-            production active-cover evidence are read from Sui mainnet and
-            linked to public explorers.
+            Current v4 package IDs, pool IDs, custody, upgrade policy, active
+            cover, and archived staged-payout evidence are read from Sui mainnet
+            and linked to public explorers.
           </p>
         </div>
         <div className="proof-score-card">
@@ -431,7 +438,7 @@ export default function ProofPacket() {
             ],
             [
               "Buy policy",
-              `Call the v2 production pool for ${sui(50_000_000n)}-style cover chunks or a capped position size.`,
+              `Call the v4 production pool for ${sui(5_000_000n)}-style cover chunks or a capped position size.`,
             ],
             [
               "Maintain keeper",

@@ -1,17 +1,17 @@
 # Security
 
 Backstop is not yet production-safe insurance. Treat the current mainnet pool as
-an experimental, low-cap deployment until a corrected package is deployed,
-reviewed, and operated with external users.
+an experimental, low-cap deployment until it is independently reviewed and
+operated with external users.
 
 ## Current Status
 
-- Mainnet v3 exists and is useful as a mechanism proof.
-- This branch contains v4 source hardening for the next package deployment.
+- Mainnet v4 is deployed as a tiny corrected pool with active cover.
+- Mainnet v3 remains archived as mechanism-test evidence.
 - No independent Move security review has been completed.
 - No public bug bounty is active.
 - Do not raise pool caps or market the deployment as production-safe before an
-  external Move review and corrected deployment.
+  external Move review and real integration validation.
 
 ## Reporting
 

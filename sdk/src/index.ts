@@ -404,18 +404,19 @@ export async function readDepegPool(
   };
 }
 
-/** Build a tx to buy SUI-collateralized v3 depeg cover (premium in MIST). */
+/** Build a tx to buy depeg cover after the caller has already refreshed Pyth. */
 export function buildDepegBuyCoverTx(p: {
   pkg: string;
   poolId: string;
   premiumMist: bigint;
   coverMist: bigint;
   expiryMs: bigint;
+  priceInfoObjectId: string;
   owner: string;
 }): Transaction {
   const tx = new Transaction();
   const [prem] = tx.splitCoins(tx.gas, [tx.pure.u64(p.premiumMist)]);
-  const policy = tx.moveCall({
+  const [policy, refund] = tx.moveCall({
     target: `${p.pkg}::pyth_cover_pool::buy_cover`,
     typeArguments: [SUI_TYPE],
     arguments: [
@@ -423,10 +424,11 @@ export function buildDepegBuyCoverTx(p: {
       prem,
       tx.pure.u64(p.coverMist),
       tx.pure.u64(p.expiryMs),
+      tx.object(p.priceInfoObjectId),
       tx.object(CLOCK),
     ],
   });
-  tx.transferObjects([policy], p.owner);
+  tx.transferObjects([policy, refund], p.owner);
   return tx;
 }
 
@@ -444,7 +446,7 @@ export async function buildDepegBuyCoverWithPythTx(p: {
   const feedId = p.feedId ?? SUIUSDE_FEED_ID;
   const { tx, priceInfoObjectId } = await buildPythUpdateTx(p.client, feedId);
   const [prem] = tx.splitCoins(tx.gas, [tx.pure.u64(p.premiumMist)]);
-  const policy = tx.moveCall({
+  const [policy, refund] = tx.moveCall({
     target: `${p.pkg}::pyth_cover_pool::buy_cover`,
     typeArguments: [SUI_TYPE],
     arguments: [
@@ -456,7 +458,7 @@ export async function buildDepegBuyCoverWithPythTx(p: {
       tx.object(CLOCK),
     ],
   });
-  tx.transferObjects([policy], p.owner);
+  tx.transferObjects([policy, refund], p.owner);
   return tx;
 }
 

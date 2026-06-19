@@ -145,7 +145,7 @@ export function buildDepositReserveTx(
   return tx;
 }
 
-/** Buy v3 depeg cover from `pool` into the market (premium split from gas). */
+/** Legacy no-Pyth buy path for pre-v4 deployments. */
 export function buildInsureTx(opts: {
   lendPkg: string;
   market: string;
@@ -180,6 +180,7 @@ export async function buildInsureWithPythTx(opts: {
   cover: bigint;
   expiryMs: bigint;
   feedId: string;
+  recipient: string;
 }): Promise<Transaction> {
   const tx = new Transaction();
   const updates = await new SuiPriceServiceConnection(
@@ -190,7 +191,7 @@ export async function buildInsureWithPythTx(opts: {
     opts.feedId,
   ]);
   const [premium] = tx.splitCoins(tx.gas, [tx.pure.u64(opts.premiumMist)]);
-  tx.moveCall({
+  const refund = tx.moveCall({
     target: `${opts.lendPkg}::pyth_lending_demo::insure`,
     arguments: [
       tx.object(opts.market),
@@ -202,6 +203,7 @@ export async function buildInsureWithPythTx(opts: {
       tx.object(CLOCK),
     ],
   });
+  tx.transferObjects([refund], opts.recipient);
   return tx;
 }
 
@@ -444,14 +446,26 @@ async function execute(client: SuiClient): Promise<void> {
   );
   const expiry = BigInt(Date.now()) + policyDurationSecs * 1000n;
   await run(
-    buildInsureTx({
-      lendPkg,
-      market,
-      pool,
-      premiumMist: premium,
-      cover,
-      expiryMs: expiry,
-    }),
+    process.env.USE_V4_BUY
+      ? await buildInsureWithPythTx({
+          client,
+          lendPkg,
+          market,
+          pool,
+          premiumMist: premium,
+          cover,
+          expiryMs: expiry,
+          feedId: SUIUSDE_FEED,
+          recipient: addr,
+        })
+      : buildInsureTx({
+          lendPkg,
+          market,
+          pool,
+          premiumMist: premium,
+          cover,
+          expiryMs: expiry,
+        }),
     `insure (cover ${cover}, premium ${premium})`,
   );
 

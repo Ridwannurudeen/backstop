@@ -44,20 +44,20 @@ export const MAINNET = "mainnet" as const;
 export const HERMES = "https://hermes.pyth.network";
 
 export const PYTH_DEPEG_COVER_PKG = hx(
-  "51dd7287ac9e97147982023f5f2fa61b",
-  "f5df2939d671216b19d142938f34ab05",
+  "4f8d00eb76a59996a0c88f3d103e950e",
+  "6e4c02132acb8483cc8e1450005f04e9",
 );
 export const PYTH_DEPEG_POOL = hx(
-  "4ab0a68e6c299353811a54b660c7e1d8",
-  "cda7645a5f58c77b8593ca4bc617dc53",
+  "d739a318705fb8b8401da34a3c2c3cde",
+  "6397d033d72f793153ea673216eb58ed",
 );
 export const PYTH_LENDING_PKG = hx(
-  "33cd7e03003948545527609769b77541",
-  "a9c0f3f8005894d8736fdf293cbf531a",
+  "25f89307f0e37079a8cd7be1aa10f216",
+  "f1bf3d5b00c2184ea2b8bc9ffc51a670",
 );
 export const PYTH_LENDING_MARKET = hx(
-  "27d3f2753ab05170d0484a70114191f4",
-  "fcdb35275db9b2ad9895db18cc92e712",
+  "459b6df1dee2c3840a52b766d4c617fb",
+  "abb1c5f9d08f557645080829fee9d74c",
 );
 
 export const PYTH_STATE = hx(

@@ -40,6 +40,7 @@ type Fields = Record<string, unknown>;
 type DeploymentPool = {
   pool?: string;
   lendingMarket?: string;
+  archived?: boolean;
 };
 
 type Deployment = {
@@ -205,7 +206,7 @@ function loadPoolConfigs(): PoolConfig[] {
       lendingMarket: pyth.productionPool.lendingMarket,
     });
   }
-  if (pyth?.stagedProof?.pool) {
+  if (pyth?.stagedProof?.pool && !pyth.stagedProof.archived) {
     addPoolConfig(configs, {
       label: "staged",
       pkg,
@@ -558,7 +559,8 @@ function decidePoolAction(
     if (!priceTriggered(pool, reading)) {
       return {
         kind: "wait",
-        reason: "pool epoch armed, but current confidence band is not below floor",
+        reason:
+          "pool epoch armed, but current confidence band is not below floor",
       };
     }
     const readyAt = (pool.epochFirstBreachMs ?? 0) + pool.minDwellSecs * 1000;
