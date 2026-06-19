@@ -3,8 +3,9 @@
 ///
 /// A pool insures one asset (one Pyth feed id) against breaking below a `threshold`
 /// price — e.g. a stablecoin depeg ("pay if suiUSDe < $0.985"). LPs supply capital
-/// and earn premiums; a holder buys cover; and when Pyth's adverse price band stays
-/// at or below the threshold, the holder claims a payout straight from the pool.
+/// and earn premiums; protocol adapters with a pool BuyerCap buy position-bound
+/// cover; and when Pyth's adverse price band stays at or below the threshold, the
+/// protected reserve claims a payout straight from the pool.
 ///
 /// The settlement read uses `pyth::pyth::get_price_no_older_than`, which aborts on a
 /// stale price by construction — so there is no Backstop-controlled value, and no
@@ -104,6 +105,8 @@ module pyth_cover_pool::pyth_cover_pool {
     const ESaleClosed: u64 = 28;
     const EZeroShares: u64 = 29;
     const EOutstandingCover: u64 = 31;
+    const EDirectSalesDisabled: u64 = 32;
+    const EWrongBuyerCap: u64 = 33;
 
     // Parameter kinds for timelocked updates.
     const K_THRESHOLD: u8 = 0;
@@ -161,9 +164,12 @@ module pyth_cover_pool::pyth_cover_pool {
         treasury_fee_bps: u64,
         /// Fixed treasury-funded reward paid to the keeper that confirms a breach.
         keeper_bounty: u64,
-        /// When true, `deposit_lp` and `buy_cover` are halted (a guardian emergency
-        /// lever). The claim / settlement path is pause-EXEMPT — payouts never block.
+        /// When true, `deposit_lp` and cover purchases are halted (a guardian
+        /// emergency lever). The claim / settlement path is pause-EXEMPT.
         paused: bool,
+        /// When false, public wallet buys are disabled; only a protocol adapter
+        /// holding a BuyerCap for this pool can buy cover.
+        direct_sales_enabled: bool,
         /// Governance delay (seconds) a proposed parameter update must wait before it
         /// can be executed — no silent live changes under LPs/holders.
         timelock_secs: u64,
@@ -192,6 +198,14 @@ module pyth_cover_pool::pyth_cover_pool {
     /// Governs one pool: pause toggle + timelocked parameter updates. Minted to the
     /// pool creator at `create_and_share`. Not phantom-typed — it carries `pool_id`.
     public struct AdminCap has key, store {
+        id: UID,
+        pool_id: ID,
+    }
+
+    /// Capability for a protocol adapter to buy cover into its own position object.
+    /// Store this inside a shared adapter/market object instead of transferring it
+    /// to end users.
+    public struct BuyerCap<phantom T> has key, store {
         id: UID,
         pool_id: ID,
     }
@@ -376,6 +390,7 @@ module pyth_cover_pool::pyth_cover_pool {
             treasury_fee_bps,
             keeper_bounty,
             paused: false,
+            direct_sales_enabled: false,
             timelock_secs,
             pending: option::none(),
             funds: balance::zero<T>(),
@@ -393,8 +408,9 @@ module pyth_cover_pool::pyth_cover_pool {
         }
     }
 
-    /// Create and share a depeg-cover pool insuring `feed_id` below `threshold`, and
-    /// transfer its `AdminCap` (pause + timelocked governance) to the creator.
+    /// Create and share a depeg-cover pool insuring `feed_id` below `threshold`.
+    /// The creator receives the `AdminCap` plus a `BuyerCap` to install into a
+    /// protocol adapter. Direct wallet sales are disabled by default.
     #[allow(lint(self_transfer))]
     public fun create_and_share<T>(
         feed_id: vector<u8>,
@@ -429,7 +445,19 @@ module pyth_cover_pool::pyth_cover_pool {
             premium_bps,
         });
         transfer::transfer(AdminCap { id: object::new(ctx), pool_id }, ctx.sender());
+        transfer::transfer(BuyerCap<T> { id: object::new(ctx), pool_id }, ctx.sender());
         transfer::share_object(pool);
+    }
+
+    /// Mint another adapter buyer capability for this pool. Use when onboarding
+    /// a protocol integration; do not transfer this cap to retail users.
+    public fun issue_buyer_cap<T>(
+        pool: &DepegCoverPool<T>,
+        cap: &AdminCap,
+        ctx: &mut TxContext,
+    ): BuyerCap<T> {
+        assert_admin(pool, cap);
+        BuyerCap<T> { id: object::new(ctx), pool_id: object::id(pool) }
     }
 
     // --- Liquidity provision ---
@@ -550,10 +578,8 @@ module pyth_cover_pool::pyth_cover_pool {
         premium_for_duration_unchecked(pool, cover, duration_secs)
     }
 
-    /// Buy depeg cover. `premium` must cover the pool-priced premium; any excess
-    /// is returned to the caller instead of being donated into pool value. The
-    /// protocol fee goes to treasury, and the remainder accrues to LPs. The pool
-    /// must remain fully collateralized after taking on the new liability.
+    /// Legacy direct wallet purchase path. Production pools disable direct sales
+    /// so cover has to be bought through a BuyerCap-holding protocol adapter.
     public fun buy_cover<T>(
         pool: &mut DepegCoverPool<T>,
         premium: Coin<T>,
@@ -563,6 +589,27 @@ module pyth_cover_pool::pyth_cover_pool {
         clock: &Clock,
         ctx: &mut TxContext,
     ): (Policy<T>, Coin<T>) {
+        assert!(pool.direct_sales_enabled, EDirectSalesDisabled);
+        let (price_mag, conf) = read_price_magnitude(pool, price_info_object, clock);
+        buy_cover_checked(pool, premium, cover, expiry_ms, price_mag, conf, clock, ctx)
+    }
+
+    /// Buy depeg cover through a protocol adapter cap. `premium` must cover the
+    /// pool-priced premium; any excess is returned to the caller instead of being
+    /// donated into pool value. The protocol fee goes to treasury, and the
+    /// remainder accrues to LPs. The pool must remain fully collateralized after
+    /// taking on the new liability.
+    public fun buy_cover_with_cap<T>(
+        pool: &mut DepegCoverPool<T>,
+        cap: &BuyerCap<T>,
+        premium: Coin<T>,
+        cover: u64,
+        expiry_ms: u64,
+        price_info_object: &PriceInfoObject,
+        clock: &Clock,
+        ctx: &mut TxContext,
+    ): (Policy<T>, Coin<T>) {
+        assert!(cap.pool_id == object::id(pool), EWrongBuyerCap);
         let (price_mag, conf) = read_price_magnitude(pool, price_info_object, clock);
         buy_cover_checked(pool, premium, cover, expiry_ms, price_mag, conf, clock, ctx)
     }
@@ -1146,6 +1193,7 @@ module pyth_cover_pool::pyth_cover_pool {
     public fun keeper_bounty<T>(pool: &DepegCoverPool<T>): u64 { pool.keeper_bounty }
     public fun treasury_value<T>(pool: &DepegCoverPool<T>): u64 { balance::value(&pool.treasury) }
     public fun is_paused<T>(pool: &DepegCoverPool<T>): bool { pool.paused }
+    public fun direct_sales_enabled<T>(pool: &DepegCoverPool<T>): bool { pool.direct_sales_enabled }
     public fun timelock_secs<T>(pool: &DepegCoverPool<T>): u64 { pool.timelock_secs }
     public fun has_pending_update<T>(pool: &DepegCoverPool<T>): bool { option::is_some(&pool.pending) }
     public fun epoch_id<T>(pool: &DepegCoverPool<T>): u64 { pool.epoch_id }
@@ -1168,6 +1216,7 @@ module pyth_cover_pool::pyth_cover_pool {
     public fun policy_first_breach_ms<T>(p: &Policy<T>): u64 { p.first_breach_ms }
     public fun policy_activation_ms<T>(p: &Policy<T>): u64 { p.activation_ms }
     public fun policy_id<T>(p: &Policy<T>): ID { object::id(p) }
+    public fun buyer_cap_pool_id<T>(cap: &BuyerCap<T>): ID { cap.pool_id }
 
     #[test_only]
     public fun new_pool_for_testing<T>(
@@ -1208,6 +1257,14 @@ module pyth_cover_pool::pyth_cover_pool {
     }
 
     #[test_only]
+    public fun new_buyer_cap_for_testing<T>(
+        pool: &DepegCoverPool<T>,
+        ctx: &mut TxContext,
+    ): BuyerCap<T> {
+        BuyerCap<T> { id: object::new(ctx), pool_id: object::id(pool) }
+    }
+
+    #[test_only]
     public fun buy_cover_at_price_for_testing<T>(
         pool: &mut DepegCoverPool<T>,
         premium: Coin<T>,
@@ -1218,6 +1275,25 @@ module pyth_cover_pool::pyth_cover_pool {
         clock: &Clock,
         ctx: &mut TxContext,
     ): Policy<T> {
+        let (policy, refund) =
+            buy_cover_checked(pool, premium, cover, expiry_ms, price_mag, conf, clock, ctx);
+        coin::destroy_zero(refund);
+        policy
+    }
+
+    #[test_only]
+    public fun buy_cover_with_cap_at_price_for_testing<T>(
+        pool: &mut DepegCoverPool<T>,
+        cap: &BuyerCap<T>,
+        premium: Coin<T>,
+        cover: u64,
+        expiry_ms: u64,
+        price_mag: u64,
+        conf: u64,
+        clock: &Clock,
+        ctx: &mut TxContext,
+    ): Policy<T> {
+        assert!(cap.pool_id == object::id(pool), EWrongBuyerCap);
         let (policy, refund) =
             buy_cover_checked(pool, premium, cover, expiry_ms, price_mag, conf, clock, ctx);
         coin::destroy_zero(refund);

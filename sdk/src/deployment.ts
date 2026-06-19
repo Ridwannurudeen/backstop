@@ -1,5 +1,5 @@
-// Backstop live deployment (Sui testnet). Canonical full ids also in the repo's
-// deployment.json. Hex halves joined at runtime — these are PUBLIC object ids.
+// Backstop live deployments. Canonical full ids also live in the repo's
+// deployment.json. Hex halves joined at runtime; these are PUBLIC object ids.
 const hx = (a: string, b: string) => "0x" + a + b;
 
 export const NETWORK = "testnet" as const;
@@ -44,20 +44,20 @@ export const MAINNET = "mainnet" as const;
 export const HERMES = "https://hermes.pyth.network";
 
 export const PYTH_DEPEG_COVER_PKG = hx(
-  "4f8d00eb76a59996a0c88f3d103e950e",
-  "6e4c02132acb8483cc8e1450005f04e9",
+  "49a4385606094ec78faa8b445372e8dd",
+  "515dd0ddb513730a8ba9c4b734d5827c",
 );
 export const PYTH_DEPEG_POOL = hx(
-  "d739a318705fb8b8401da34a3c2c3cde",
-  "6397d033d72f793153ea673216eb58ed",
+  "55fe8bb8730c68931bbbcf876b7007d1",
+  "90febb04e2b82cccac7057868e83d8b1",
 );
 export const PYTH_LENDING_PKG = hx(
-  "25f89307f0e37079a8cd7be1aa10f216",
-  "f1bf3d5b00c2184ea2b8bc9ffc51a670",
+  "dbddf4df28aea4489f7979cc608bea4a",
+  "599a6643f79bfe10cecca1cc06aabaa8",
 );
 export const PYTH_LENDING_MARKET = hx(
-  "459b6df1dee2c3840a52b766d4c617fb",
-  "abb1c5f9d08f557645080829fee9d74c",
+  "da46848a368d5ea6c48f776fc233479c",
+  "30ac807a1b1a2d5c0b59de11b3bac0c0",
 );
 
 export const PYTH_STATE = hx(

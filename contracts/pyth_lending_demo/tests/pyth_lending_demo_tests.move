@@ -9,6 +9,8 @@ module pyth_lending_demo::pyth_lending_demo_tests {
     use pyth_cover_pool::pyth_cover_pool;
     use pyth_lending_demo::pyth_lending_demo;
 
+    public struct USDC has drop {}
+
     // suiUSDe/USD at expo -8: $1.00 = 100_000_000, depeg floor $0.97.
     const FEED: vector<u8> = b"SUIUSDE/USD";
     const EXPO_MAG: u64 = 8;
@@ -34,12 +36,29 @@ module pyth_lending_demo::pyth_lending_demo_tests {
         coin::from_balance(balance::create_for_testing<SUI>(amount), ctx)
     }
 
-    fun new_pool(ctx: &mut TxContext): pyth_cover_pool::DepegCoverPool<SUI> {
-        pyth_cover_pool::new_pool_for_testing<SUI>(
+    fun fund_usdc(amount: u64, ctx: &mut TxContext): coin::Coin<USDC> {
+        coin::from_balance(balance::create_for_testing<USDC>(amount), ctx)
+    }
+
+    fun new_pool_for<T>(ctx: &mut TxContext): pyth_cover_pool::DepegCoverPool<T> {
+        pyth_cover_pool::new_pool_for_testing<T>(
             FEED, true, EXPO_MAG, THRESHOLD, MAX_AGE, PREMIUM_BPS, SURGE_BPS,
             MAX_CONF_BPS, DWELL_SECS, ACT_SECS, MAX_TERM_SECS, 0, 0, TIMELOCK_SECS, TREASURY_FEE_BPS,
             KEEPER_BOUNTY, ctx,
         )
+    }
+
+    fun new_pool(ctx: &mut TxContext): pyth_cover_pool::DepegCoverPool<SUI> {
+        new_pool_for<SUI>(ctx)
+    }
+
+    fun install_buyer_cap(
+        market: &mut pyth_lending_demo::LendingMarket<SUI>,
+        pool: &pyth_cover_pool::DepegCoverPool<SUI>,
+        ctx: &mut TxContext,
+    ) {
+        let cap = pyth_cover_pool::new_buyer_cap_for_testing(pool, ctx);
+        pyth_lending_demo::install_buyer_cap(market, cap);
     }
 
     #[test]
@@ -52,7 +71,9 @@ module pyth_lending_demo::pyth_lending_demo_tests {
         let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(1000, &mut ctx), &mut ctx);
 
         // Lending market buys 500 of depeg cover; premium = 500 * 2% = 10.
-        let mut market = pyth_lending_demo::new_for_testing(string::utf8(ASSET), &mut ctx);
+        let mut market = pyth_lending_demo::new_for_testing<SUI>(string::utf8(ASSET), &mut ctx);
+        install_buyer_cap(&mut market, &pool, &mut ctx);
+        assert!(pyth_lending_demo::has_buyer_cap(&market), 4);
         let premium = pyth_cover_pool::premium_for(&pool, 500);
         pyth_lending_demo::insure_at_price_for_testing(
             &mut market, &mut pool, fund(premium, &mut ctx), 500, EXPIRY, PEG, &clock, &mut ctx,
@@ -90,7 +111,8 @@ module pyth_lending_demo::pyth_lending_demo_tests {
         let mut pool = new_pool(&mut ctx);
         let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(1000, &mut ctx), &mut ctx);
 
-        let mut market = pyth_lending_demo::new_for_testing(string::utf8(ASSET), &mut ctx);
+        let mut market = pyth_lending_demo::new_for_testing<SUI>(string::utf8(ASSET), &mut ctx);
+        install_buyer_cap(&mut market, &pool, &mut ctx);
         let premium = pyth_cover_pool::premium_for(&pool, 500);
         pyth_lending_demo::insure_at_price_for_testing(
             &mut market, &mut pool, fund(premium, &mut ctx), 500, EXPIRY, PEG, &clock, &mut ctx,
@@ -108,6 +130,60 @@ module pyth_lending_demo::pyth_lending_demo_tests {
     }
 
     #[test]
+    fun stable_collateral_market_flow() {
+        let mut ctx = tx_context::dummy();
+        let mut clock = clock::create_for_testing(&mut ctx);
+
+        let mut pool = new_pool_for<USDC>(&mut ctx);
+        let lp = pyth_cover_pool::deposit_lp(&mut pool, fund_usdc(1000, &mut ctx), &mut ctx);
+
+        let mut market = pyth_lending_demo::new_for_testing<USDC>(string::utf8(ASSET), &mut ctx);
+        let cap = pyth_cover_pool::new_buyer_cap_for_testing(&pool, &mut ctx);
+        pyth_lending_demo::install_buyer_cap(&mut market, cap);
+        let premium = pyth_cover_pool::premium_for(&pool, 500);
+        pyth_lending_demo::insure_at_price_for_testing(
+            &mut market, &mut pool, fund_usdc(premium, &mut ctx), 500, EXPIRY, PEG, &clock, &mut ctx,
+        );
+
+        clock::set_for_testing(&mut clock, ARM_MS);
+        pyth_lending_demo::record_shortfall_at_price_for_testing(
+            &mut market, &mut pool, DEPEG, &clock, &mut ctx,
+        );
+        clock::set_for_testing(&mut clock, CONFIRM_MS);
+        pyth_lending_demo::record_shortfall_at_price_for_testing(
+            &mut market, &mut pool, DEPEG, &clock, &mut ctx,
+        );
+
+        pyth_lending_demo::cover_shortfall(&mut market, &mut pool, &mut ctx);
+        assert!(pyth_lending_demo::reserve_value(&market) == 500, 0);
+
+        unit_test::destroy(market);
+        unit_test::destroy(lp);
+        clock::destroy_for_testing(clock);
+        unit_test::destroy(pool);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = pyth_lending_demo::ENoBuyerCap)]
+    fun insure_without_buyer_cap_aborts() {
+        let mut ctx = tx_context::dummy();
+        let clock = clock::create_for_testing(&mut ctx);
+        let mut pool = new_pool(&mut ctx);
+        let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(1000, &mut ctx), &mut ctx);
+
+        let mut market = pyth_lending_demo::new_for_testing<SUI>(string::utf8(ASSET), &mut ctx);
+        let premium = pyth_cover_pool::premium_for(&pool, 500);
+        pyth_lending_demo::insure_at_price_for_testing(
+            &mut market, &mut pool, fund(premium, &mut ctx), 500, EXPIRY, PEG, &clock, &mut ctx,
+        );
+
+        unit_test::destroy(market);
+        unit_test::destroy(lp);
+        clock::destroy_for_testing(clock);
+        unit_test::destroy(pool);
+    }
+
+    #[test]
     #[expected_failure(abort_code = pyth_lending_demo::ENotInsured)]
     fun cover_without_policy_aborts() {
         let mut ctx = tx_context::dummy();
@@ -115,7 +191,7 @@ module pyth_lending_demo::pyth_lending_demo_tests {
         let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(1000, &mut ctx), &mut ctx);
 
         // No policy bought → claiming a shortfall must abort.
-        let mut market = pyth_lending_demo::new_for_testing(string::utf8(ASSET), &mut ctx);
+        let mut market = pyth_lending_demo::new_for_testing<SUI>(string::utf8(ASSET), &mut ctx);
         pyth_lending_demo::cover_shortfall(&mut market, &mut pool, &mut ctx);
 
         unit_test::destroy(market);
@@ -131,7 +207,8 @@ module pyth_lending_demo::pyth_lending_demo_tests {
         let mut pool = new_pool(&mut ctx);
         let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(1000, &mut ctx), &mut ctx);
 
-        let mut market = pyth_lending_demo::new_for_testing(string::utf8(ASSET), &mut ctx);
+        let mut market = pyth_lending_demo::new_for_testing<SUI>(string::utf8(ASSET), &mut ctx);
+        install_buyer_cap(&mut market, &pool, &mut ctx);
         let premium = pyth_cover_pool::premium_for(&pool, 500);
         pyth_lending_demo::insure_at_price_for_testing(
             &mut market, &mut pool, fund(premium, &mut ctx), 500, EXPIRY, PEG, &clock, &mut ctx,

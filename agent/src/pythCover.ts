@@ -83,7 +83,7 @@ export function buildBuyCoverTx(opts: {
   return tx;
 }
 
-/** Buy v4 depeg cover with a same-PTB Pyth sale check. */
+/** Buy direct-sale depeg cover with a same-PTB Pyth sale check. */
 export async function buildBuyCoverWithPythTx(opts: {
   client: SuiClient;
   pkg: string;

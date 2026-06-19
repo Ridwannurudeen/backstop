@@ -4,6 +4,7 @@ module risk_guard::risk_guard_tests {
     use sui::clock;
     use sui::coin;
     use sui::balance;
+    use sui::sui::SUI;
     use sui::test_utils;
     use risk_feed::risk_feed;
     use risk_guard::risk_guard;
@@ -12,6 +13,10 @@ module risk_guard::risk_guard_tests {
 
     fun fund_coin(amount: u64, ctx: &mut TxContext): coin::Coin<TESTCOIN> {
         coin::from_balance(balance::create_for_testing<TESTCOIN>(amount), ctx)
+    }
+
+    fun fund_sui(amount: u64, ctx: &mut TxContext): coin::Coin<SUI> {
+        coin::mint_for_testing<SUI>(amount, ctx)
     }
 
     #[test]
@@ -59,6 +64,32 @@ module risk_guard::risk_guard_tests {
         assert!(!risk_guard::is_safe(&t, &feed), 0);
 
         let c = risk_guard::withdraw(&mut t, &feed, 400, &mut ctx); // aborts here
+
+        coin::burn_for_testing(c);
+        clock::destroy_for_testing(clock);
+        test_utils::destroy(t);
+        test_utils::destroy(feed);
+        test_utils::destroy(cap);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = risk_guard::ECrashRiskTooHigh)]
+    fun withdraw_frozen_when_feed_is_challenged() {
+        let mut ctx = tx_context::dummy();
+        let (mut feed, cap) = risk_feed::new_for_testing(&mut ctx);
+        let clock = clock::create_for_testing(&mut ctx);
+        risk_feed::publish(
+            &mut feed, &cap, string::utf8(b"BTC"),
+            200, 60_000_000000000, string::utf8(b"blob"), &clock, &ctx,
+        );
+        risk_feed::challenge(&mut feed, string::utf8(b"BTC"), fund_sui(50_000_000, &mut ctx), &ctx);
+
+        let mut t = risk_guard::new_treasury<TESTCOIN>(string::utf8(b"BTC"), 500, &mut ctx);
+        risk_guard::deposit(&mut t, fund_coin(1000, &mut ctx));
+        assert!(!risk_guard::is_safe(&t, &feed), 0);
+        assert!(risk_guard::headroom_bps(&t, &feed) == 0, 1);
+
+        let c = risk_guard::withdraw(&mut t, &feed, 400, &mut ctx);
 
         coin::burn_for_testing(c);
         clock::destroy_for_testing(clock);

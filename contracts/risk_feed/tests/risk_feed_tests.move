@@ -67,6 +67,36 @@ module risk_feed::risk_feed_tests {
     }
 
     #[test]
+    #[expected_failure(abort_code = risk_feed::EChallenged)]
+    fun challenged_default_read_aborts() {
+        let (mut sc, mut feed, cap, clock) = setup();
+        sc.next_tx(BOB);
+        risk_feed::challenge(&mut feed, key(), sui_coin(50_000_000, sc.ctx()), sc.ctx());
+        let _ = risk_feed::probability_bps(&feed, key());
+        teardown(sc, feed, cap, clock);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = risk_feed::EChallenged)]
+    fun challenged_fresh_read_aborts() {
+        let (mut sc, mut feed, cap, mut clock) = setup();
+        sc.next_tx(BOB);
+        risk_feed::challenge(&mut feed, key(), sui_coin(50_000_000, sc.ctx()), sc.ctx());
+        clock::set_for_testing(&mut clock, 1400);
+        let _ = risk_feed::probability_bps_fresh(&feed, key(), &clock, 500);
+        teardown(sc, feed, cap, clock);
+    }
+
+    #[test]
+    fun challenged_unchecked_read_is_explicit() {
+        let (mut sc, mut feed, cap, clock) = setup();
+        sc.next_tx(BOB);
+        risk_feed::challenge(&mut feed, key(), sui_coin(50_000_000, sc.ctx()), sc.ctx());
+        assert!(risk_feed::probability_bps_unchecked(&feed, key()) == 1914, 0);
+        teardown(sc, feed, cap, clock);
+    }
+
+    #[test]
     fun challenge_upheld_slashes_publisher() {
         let (mut sc, mut feed, cap, clock) = setup();
         sc.next_tx(BOB);

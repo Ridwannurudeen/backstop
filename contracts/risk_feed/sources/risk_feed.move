@@ -9,6 +9,8 @@
 ///   - Anyone can become a publisher by staking a slashable SUI bond.
 ///   - A published reading can be **challenged** by posting a bond; resolution is
 ///     still made through `PublisherCap`, so this is accountable but not trustless.
+///   - Default probability reads reject challenged readings; analytics can opt into
+///     `*_unchecked` when they explicitly want to display disputed data.
 ///   - Reads can demand **freshness** (`*_fresh`), so consumers never settle on a
 ///     stale reading (the failure mode a naive parametric trigger is prone to).
 ///
@@ -110,6 +112,8 @@ module risk_feed::risk_feed {
     const ENotChallenged: u64 = 6;
     /// Reading is older than the caller's freshness bound.
     const EStale: u64 = 7;
+    /// Reading is under an unresolved challenge.
+    const EChallenged: u64 = 8;
 
     fun init(ctx: &mut TxContext) {
         transfer::share_object(RiskFeed {
@@ -276,14 +280,17 @@ module risk_feed::risk_feed {
 
     // --- Reads ---
 
-    /// Latest probability (bps) for `market`. Aborts if none.
+    /// Latest probability (bps) for `market`. Aborts if none or challenged.
     public fun probability_bps(feed: &RiskFeed, market: String): u64 {
         assert!(table::contains(&feed.readings, market), EReadingNotFound);
-        table::borrow(&feed.readings, market).prob_bps
+        let r = table::borrow(&feed.readings, market);
+        assert!(!r.challenged, EChallenged);
+        r.prob_bps
     }
 
     /// Latest probability (bps), but only if the reading is no older than `max_age_ms`.
-    /// Use this anywhere a stale reading could cause a wrong settlement.
+    /// Aborts if the reading is challenged. Use this anywhere a stale or disputed
+    /// reading could cause a wrong settlement.
     public fun probability_bps_fresh(
         feed: &RiskFeed,
         market: String,
@@ -292,9 +299,17 @@ module risk_feed::risk_feed {
     ): u64 {
         assert!(table::contains(&feed.readings, market), EReadingNotFound);
         let r = table::borrow(&feed.readings, market);
+        assert!(!r.challenged, EChallenged);
         let now = clock::timestamp_ms(clock);
         assert!(now >= r.ts_ms && now - r.ts_ms <= max_age_ms, EStale);
         r.prob_bps
+    }
+
+    /// Latest probability (bps) even if challenged. Use only for dashboards,
+    /// diagnostics, and dispute UIs that also surface `is_challenged`.
+    public fun probability_bps_unchecked(feed: &RiskFeed, market: String): u64 {
+        assert!(table::contains(&feed.readings, market), EReadingNotFound);
+        table::borrow(&feed.readings, market).prob_bps
     }
 
     /// The full latest reading for `market`. Aborts if none.

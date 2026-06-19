@@ -309,7 +309,7 @@ async function main() {
   );
   await txOk(
     d.pythDepeg?.productionPool?.insureDigest,
-    "pyth production no-depeg insure",
+    "pyth production adapter insure",
     MAINNET_RPC,
   );
   await txOk(

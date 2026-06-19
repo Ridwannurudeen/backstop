@@ -57,6 +57,7 @@ type PoolConfig = {
   pkg: string;
   poolId: string;
   lendingPkg: string;
+  lendingCoinType?: string;
   lendingMarket?: string;
 };
 
@@ -79,6 +80,7 @@ type PolicyRecord = {
   poolId: string;
   poolLabel: string;
   lendingPkg: string;
+  lendingCoinType?: string;
   marketId?: string;
   owner?: string;
   poolStatePresent: boolean;
@@ -203,6 +205,7 @@ function loadPoolConfigs(): PoolConfig[] {
       pkg,
       poolId: pyth.productionPool.pool,
       lendingPkg,
+      lendingCoinType: process.env.COIN_TYPE,
       lendingMarket: pyth.productionPool.lendingMarket,
     });
   }
@@ -212,6 +215,7 @@ function loadPoolConfigs(): PoolConfig[] {
       pkg,
       poolId: pyth.stagedProof.pool,
       lendingPkg,
+      lendingCoinType: process.env.COIN_TYPE,
       lendingMarket: pyth.stagedProof.lendingMarket,
     });
   }
@@ -223,6 +227,7 @@ function loadPoolConfigs(): PoolConfig[] {
       pkg,
       poolId: envPool,
       lendingPkg,
+      lendingCoinType: process.env.COIN_TYPE,
       lendingMarket:
         process.env.BACKSTOP_DEPEG_LENDING_MARKET ?? process.env.MARKET,
     });
@@ -234,6 +239,7 @@ function loadPoolConfigs(): PoolConfig[] {
       pkg,
       poolId: PYTH_DEPEG_POOL,
       lendingPkg,
+      lendingCoinType: process.env.COIN_TYPE,
     });
   }
 
@@ -386,6 +392,7 @@ async function readMarketPolicy(
     poolId: config.poolId,
     poolLabel: config.label,
     lendingPkg: config.lendingPkg,
+    lendingCoinType: config.lendingCoinType,
     marketId: config.lendingMarket,
     poolStatePresent: poolStates.has(parsed.id.toLowerCase()),
     poolEpochClaimable: currentPoolEpochClaims(pool, parsed),
@@ -533,7 +540,10 @@ function decidePoolAction(
   nowMs: number,
 ): PoolAction {
   if (pool.epochId === null) {
-    return { kind: "wait", reason: "pool-level epochs are not deployed here" };
+    return {
+      kind: "wait",
+      reason: "legacy pool has no pool-level epoch state",
+    };
   }
 
   if (pool.epochBreached) {
@@ -698,6 +708,9 @@ async function buildRecordTx(
     if (!policy.marketId) throw new Error("missing lending market id");
     tx.moveCall({
       target: `${policy.lendingPkg}::pyth_lending_demo::record_shortfall`,
+      ...(policy.lendingCoinType
+        ? { typeArguments: [policy.lendingCoinType] }
+        : {}),
       arguments: [
         tx.object(policy.marketId),
         tx.object(policy.poolId),
@@ -710,7 +723,7 @@ async function buildRecordTx(
 
   tx.moveCall({
     target: `${policy.pkg}::pyth_cover_pool::record_breach`,
-    typeArguments: [SUI_TYPE],
+    typeArguments: [policy.lendingCoinType ?? SUI_TYPE],
     arguments: [
       tx.object(policy.poolId),
       tx.object(policy.id),
@@ -727,6 +740,9 @@ function buildClaimTx(policy: PolicyRecord, recipient: string): Transaction {
     if (!policy.marketId) throw new Error("missing lending market id");
     tx.moveCall({
       target: `${policy.lendingPkg}::pyth_lending_demo::cover_shortfall`,
+      ...(policy.lendingCoinType
+        ? { typeArguments: [policy.lendingCoinType] }
+        : {}),
       arguments: [tx.object(policy.marketId), tx.object(policy.poolId)],
     });
     return tx;
@@ -734,7 +750,7 @@ function buildClaimTx(policy: PolicyRecord, recipient: string): Transaction {
 
   const payout = tx.moveCall({
     target: `${policy.pkg}::pyth_cover_pool::claim_latched`,
-    typeArguments: [SUI_TYPE],
+    typeArguments: [policy.lendingCoinType ?? SUI_TYPE],
     arguments: [tx.object(policy.poolId), tx.object(policy.id)],
   });
   tx.transferObjects([payout], recipient);
@@ -745,7 +761,7 @@ function buildExpireTx(policy: PolicyRecord): Transaction {
   const tx = new Transaction();
   tx.moveCall({
     target: `${policy.pkg}::pyth_cover_pool::expire_policy_by_id`,
-    typeArguments: [SUI_TYPE],
+    typeArguments: [policy.lendingCoinType ?? SUI_TYPE],
     arguments: [
       tx.object(policy.poolId),
       tx.pure.id(policy.id),

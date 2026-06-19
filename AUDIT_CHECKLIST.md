@@ -26,6 +26,11 @@ Scope this checklist to the production path first:
 - LP deposits must not mint zero shares.
 - Cover purchase must refund excess premium rather than accepting donations into
   pool value.
+- New restricted pools must reject direct wallet buys unless `direct_sales_enabled`
+  is intentionally enabled.
+- `BuyerCap` purchases must only work for the pool that issued the cap.
+- The collateral type argument must be consistent across pool, LP shares,
+  policies, and adapter-held reserves.
 
 ## Oracle Settlement
 
@@ -82,6 +87,8 @@ Scope this checklist to the production path first:
   `buildDepegRecordPoolBreachTx`, and `buildDepegRecordPoolRecoveryTx` must
   refresh Pyth in the same PTB before calling the Move entrypoint.
 - The UI/keeper should use pool-level epochs as the primary path.
+- App and SDK builders should support `coinType`, explicit premium/LP coin
+  object IDs, and BuyerCap buy PTBs for stable-collateral and adapter flows.
 - Proof-health must verify package existence, pool state, upgrade policy, custody,
   archived staged-claim evidence, and current production active cover from Sui
   mainnet.

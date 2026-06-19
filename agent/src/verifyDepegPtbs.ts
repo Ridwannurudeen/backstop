@@ -31,6 +31,7 @@ const ZERO_SENDER = "0x" + "0".repeat(64);
 const RECORD_NOT_ACTIVE = 14;
 const CLAIM_NOT_BREACHED = 11;
 const WITHDRAW_INSOLVENT = 2;
+const DIRECT_SALES_DISABLED = 32;
 const EXPIRY_SAFETY_MS = 60_000;
 type MoveCallResult = ReturnType<Transaction["moveCall"]>;
 
@@ -228,6 +229,7 @@ async function main(): Promise<void> {
   );
   const coverMist = 1_000_000n;
   const premiumMist = quoteDepegPremium(pool, coverMist);
+  const directSalesEnabled = pool.directSalesEnabled;
 
   await inspect(
     client,
@@ -254,7 +256,9 @@ async function main(): Promise<void> {
         owner: ZERO_SENDER,
       }),
     ),
-    { kind: "success" },
+    directSalesEnabled
+      ? { kind: "success" }
+      : { kind: "abort", code: DIRECT_SALES_DISABLED },
   );
 
   const shareId = await createdObjectFromTx(
@@ -274,34 +278,40 @@ async function main(): Promise<void> {
     { kind: "success-or-abort", code: WITHDRAW_INSOLVENT },
   );
 
-  await inspect(
-    client,
-    "production buy -> record_breach PTB",
-    await retryTransient("build production record_breach probe", () =>
-      buildBuyThenRecordProbe(client, {
-        pkg: coverPackage,
-        pool: productionPool,
-        premiumMist,
-        coverMist,
-        expiryMs: BigInt(Date.now() + 30 * 86_400_000 - EXPIRY_SAFETY_MS),
-      }),
-    ),
-    { kind: "abort", code: RECORD_NOT_ACTIVE },
-  );
-  await inspect(
-    client,
-    "production buy -> claim_latched PTB",
-    await retryTransient("build production claim_latched probe", () =>
-      buildBuyThenClaimProbe(client, {
-        pkg: coverPackage,
-        pool: productionPool,
-        premiumMist,
-        coverMist,
-        expiryMs: BigInt(Date.now() + 30 * 86_400_000 - EXPIRY_SAFETY_MS),
-      }),
-    ),
-    { kind: "abort", code: CLAIM_NOT_BREACHED },
-  );
+  if (directSalesEnabled) {
+    await inspect(
+      client,
+      "production buy -> record_breach PTB",
+      await retryTransient("build production record_breach probe", () =>
+        buildBuyThenRecordProbe(client, {
+          pkg: coverPackage,
+          pool: productionPool,
+          premiumMist,
+          coverMist,
+          expiryMs: BigInt(Date.now() + 30 * 86_400_000 - EXPIRY_SAFETY_MS),
+        }),
+      ),
+      { kind: "abort", code: RECORD_NOT_ACTIVE },
+    );
+    await inspect(
+      client,
+      "production buy -> claim_latched PTB",
+      await retryTransient("build production claim_latched probe", () =>
+        buildBuyThenClaimProbe(client, {
+          pkg: coverPackage,
+          pool: productionPool,
+          premiumMist,
+          coverMist,
+          expiryMs: BigInt(Date.now() + 30 * 86_400_000 - EXPIRY_SAFETY_MS),
+        }),
+      ),
+      { kind: "abort", code: CLAIM_NOT_BREACHED },
+    );
+  } else {
+    ok(
+      "production pool rejects direct buys; adapter BuyerCap path is required",
+    );
+  }
 }
 
 main().catch((error) => {

@@ -66,9 +66,9 @@ export default function DepegCover() {
           <p className="note">
             suiUSDe is the flagship market - Ethena-backed, live across Sui
             DeFi. Pricing is set by pool terms; settlement is objective and
-            on-chain. The current v4 mainnet pool is live, while the paid claim
-            proof is archived v3 mechanism-test evidence against a separate
-            proof pool.
+            on-chain. The current v5 mainnet pool is BuyerCap-restricted, while
+            the paid claim proof is archived v3 mechanism-test evidence against
+            a separate proof pool.
           </p>
 
           <h4>Reference consumer</h4>
