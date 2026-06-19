@@ -56,9 +56,9 @@ const truncate = (value: string) =>
   value.length > 19 ? `${value.slice(0, 10)}...${value.slice(-6)}` : value;
 
 const poolCollateral = (detail?: string) => {
-  if (!detail) return "1.0019 SUI";
+  if (!detail) return "—";
   const [value] = detail.split(" TVL");
-  return value || "1.0019 SUI";
+  return value || "—";
 };
 
 export default function Landing() {
@@ -80,10 +80,10 @@ export default function Landing() {
   const stagedClaim = proof.data?.checks.find(
     (item) => item.label === "Archived staged claim",
   );
-  const proofHealthValue = total ? `${okCount}/${total}` : "8/8";
-  const proofHealthOk = total === 0 || okCount === total;
-  const activeCoverValue = productionCover?.value ?? "0.005 SUI";
-  const stagedClaimValue = stagedClaim?.value ?? "Paid";
+  const proofHealthValue = total ? `${okCount}/${total}` : "checking…";
+  const proofHealthOk = total > 0 && okCount === total;
+  const activeCoverValue = productionCover?.value ?? "—";
+  const stagedClaimValue = stagedClaim?.value ?? "—";
   const productionPoolDetail =
     productionPool?.detail ?? `v5 pool ${truncate(PYTH_DEPEG_POOL)}`;
 
@@ -212,6 +212,9 @@ export default function Landing() {
             </Link>
           </div>
           <div className="receipt-ledger">
+            <p className="muted">
+              Testnet lab - historical sample decision, not a live attestation.
+            </p>
             <div className="receipt-ledger-head">
               <span>BTC &lt; $56,868</span>
               <strong>Accepted</strong>

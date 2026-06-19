@@ -34,7 +34,9 @@ module cover_pool::cover_pool_tests {
 
         let s1 = cover_pool::deposit_lp(&mut pool, fund(1000, &mut ctx), &mut ctx);
         let s2 = cover_pool::deposit_lp(&mut pool, fund(500, &mut ctx), &mut ctx);
-        assert!(cover_pool::shares(&s1) == 1000, 0);
+        // First deposit locks DEAD_SHARES (100): s1 = 1000 - 100. Total shares still
+        // tracks the full 1000, so the pro-rata second deposit is unchanged (500).
+        assert!(cover_pool::shares(&s1) == 900, 0);
         assert!(cover_pool::shares(&s2) == 500, 1);
         assert!(cover_pool::total_shares(&pool) == 1500, 2);
         assert!(cover_pool::pool_value(&pool) == 1500, 3);
@@ -58,6 +60,23 @@ module cover_pool::cover_pool_tests {
         unit_test::destroy(pool);
         unit_test::destroy(feed);
         unit_test::destroy(cap);
+    }
+
+    // Regression: the classic first-depositor inflation / round-to-zero theft. The
+    // live buy lane is disabled, so we use `donate_for_testing` to simulate the
+    // premium donation that inflates `funds` without minting shares. A tiny honest
+    // deposit would then round to 0 shares — the `shares > 0` guard must abort.
+    #[test]
+    #[expected_failure(abort_code = cover_pool::EZeroShares)]
+    fun first_depositor_inflation_blocked() {
+        let mut ctx = tx_context::dummy();
+        let mut pool = new_pool(1000, 10_000, &mut ctx);
+        let attacker = cover_pool::deposit_lp(&mut pool, fund(1000, &mut ctx), &mut ctx);
+        cover_pool::donate_for_testing(&mut pool, fund(1_000_000, &mut ctx));
+        let victim = cover_pool::deposit_lp(&mut pool, fund(10, &mut ctx), &mut ctx);
+        unit_test::destroy(victim);
+        unit_test::destroy(attacker);
+        unit_test::destroy(pool);
     }
 
     #[test]

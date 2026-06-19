@@ -1,7 +1,7 @@
 {
   "name": "backstop",
   "private": true,
-  "description": "Backstop - mainnet depeg cover for Sui DeFi",
+  "description": "Backstop - early, low-cap experimental mainnet depeg cover for Sui DeFi",
   "scripts": {
     "verify:public": "node scripts/verify-public.mjs",
     "verify:depeg": "npm --prefix agent run verify-depeg-integrations",

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Backstop Pillar 2 — autonomous AI underwriter for DeepBook Predict crash-protection markets.",
+  "description": "Backstop Pillar 2 — deterministic rules-based underwriter for DeepBook Predict crash-protection markets, with an optional additive Claude path (not yet exercised).",
   "scripts": {
     "start": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",

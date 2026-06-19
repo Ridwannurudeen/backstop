@@ -38,6 +38,20 @@ module cover_pool::cover_pool {
     const ENotExpired: u64 = 6;
     /// Legacy RiskFeed-settled buy/claim lane is intentionally disabled.
     const ELegacyLaneDisabled: u64 = 7;
+    /// First deposit is below the required minimum initial liquidity.
+    const EBelowMinInitialLiquidity: u64 = 8;
+    /// Deposit would mint 0 shares (round-to-zero / first-depositor inflation).
+    const EZeroShares: u64 = 9;
+
+    /// First-depositor inflation / round-to-zero mitigation (Uniswap V2 style):
+    /// the first deposit must seed at least `MIN_INITIAL_LIQUIDITY`, and
+    /// `DEAD_SHARES` are permanently locked (owned by no `LpShare`) so the share
+    /// price can't be cheaply manipulated to round a later LP's deposit down to 0
+    /// shares. The `buy_cover` premium-donation lane that makes this exploitable is
+    /// currently disabled (`ELegacyLaneDisabled`), so this is hardening-in-depth and
+    /// keeps the share math consistent with `oracle_pool` should the lane re-enable.
+    const MIN_INITIAL_LIQUIDITY: u64 = 1_000;
+    const DEAD_SHARES: u64 = 100;
 
     /// Shared mutualized cover pool underwriting one RiskFeed market in coin `T`.
     public struct CoverPool<phantom T> has key {
@@ -147,10 +161,13 @@ module cover_pool::cover_pool {
         assert!(amount > 0, EZeroAmount);
         let value_before = balance::value(&pool.funds);
         let shares = if (pool.total_shares == 0 || value_before == 0) {
-            amount
+            assert!(amount >= MIN_INITIAL_LIQUIDITY, EBelowMinInitialLiquidity);
+            pool.total_shares = pool.total_shares + DEAD_SHARES;
+            amount - DEAD_SHARES
         } else {
             (((amount as u128) * (pool.total_shares as u128)) / (value_before as u128)) as u64
         };
+        assert!(shares > 0, EZeroShares);
         balance::join(&mut pool.funds, coin::into_balance(coin));
         pool.total_shares = pool.total_shares + shares;
         LpShare { id: object::new(ctx), pool_id: object::id(pool), shares }
@@ -303,6 +320,13 @@ module cover_pool::cover_pool {
         ctx: &mut TxContext,
     ): CoverPool<T> {
         new_pool<T>(market, trigger_bps, loading_bps, ctx)
+    }
+
+    #[test_only]
+    /// Join capital into `funds` without minting shares — simulates the disabled
+    /// premium-donation lane so the first-depositor inflation guard can be tested.
+    public fun donate_for_testing<T>(pool: &mut CoverPool<T>, coin: Coin<T>) {
+        balance::join(&mut pool.funds, coin::into_balance(coin));
     }
 
     #[test_only]

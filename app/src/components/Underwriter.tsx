@@ -67,17 +67,21 @@ export default function Underwriter() {
       <h3>Underwriting decision receipts</h3>
       <p className="muted">
         The Sui testnet lab reads DeepBook Predict's volatility surface, turns
-        it into a market-implied <b>probability of failure</b>, prices capacity
-        and premium, then records each accept or decline to Walrus.{" "}
+        it into a market-implied <b>probability of failure</b>, then applies
+        deterministic underwriting rules to price capacity and premium and
+        record each accept or decline to Walrus. Point-in-time snapshot, not a
+        live feed.{" "}
         {data && (
-          <span>Last run {new Date(data.generatedAt).toLocaleString()}</span>
+          <span>
+            Snapshot generated {new Date(data.generatedAt).toLocaleString()}
+          </span>
         )}
       </p>
 
       {decisions.length > 0 && (
         <div
           className="uw-stats"
-          title="The agent's verifiable on-chain track record"
+          title="Point-in-time snapshot of the testnet lab's recorded rule decisions"
         >
           <div className="uw-stat">
             <div className="n">{track.evaluated}</div>

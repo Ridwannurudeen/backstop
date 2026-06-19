@@ -21,6 +21,19 @@ module oracle_pool::oracle_pool {
     const ENotSettled: u64 = 5;
     const ENotInTheMoney: u64 = 6;
     const EStillInTheMoney: u64 = 7;
+    const EBelowMinInitialLiquidity: u64 = 8;
+    const EZeroShares: u64 = 9;
+
+    /// First-depositor inflation / round-to-zero mitigation (Uniswap V2 style):
+    /// the first deposit must seed at least `MIN_INITIAL_LIQUIDITY`, and
+    /// `DEAD_SHARES` are permanently locked (owned by no `LpShare`). `buy_cover`
+    /// joins premium into `funds` without minting shares, so without this guard an
+    /// attacker could seed a 1-share pool, inflate `funds`, and make a later honest
+    /// deposit round to 0 shares while their capital stays in the pool. Locking
+    /// dead shares keeps the share price from being cheaply manipulated; the
+    /// `shares > 0` assert below rejects any deposit that would still round to zero.
+    const MIN_INITIAL_LIQUIDITY: u64 = 1_000;
+    const DEAD_SHARES: u64 = 100;
 
     /// A cover pool bound to one DeepBook oracle + DOWN strike (1e9-scaled, the
     /// same scale as the oracle's settlement price).
@@ -86,10 +99,13 @@ module oracle_pool::oracle_pool {
         assert!(amount > 0, EZeroAmount);
         let before = balance::value(&pool.funds);
         let shares = if (pool.total_shares == 0 || before == 0) {
-            amount
+            assert!(amount >= MIN_INITIAL_LIQUIDITY, EBelowMinInitialLiquidity);
+            pool.total_shares = pool.total_shares + DEAD_SHARES;
+            amount - DEAD_SHARES
         } else {
             (((amount as u128) * (pool.total_shares as u128)) / (before as u128)) as u64
         };
+        assert!(shares > 0, EZeroShares);
         balance::join(&mut pool.funds, coin::into_balance(coin));
         pool.total_shares = pool.total_shares + shares;
         LpShare { id: object::new(ctx), pool_id: object::id(pool), shares }

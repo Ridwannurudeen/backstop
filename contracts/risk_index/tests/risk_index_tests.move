@@ -52,32 +52,38 @@ module risk_index::risk_index_tests {
     #[test]
     fun challenge_upheld_slashes_publisher() {
         let (mut sc, mut index, admin, clock) = setup();
-        // Bob challenges with a 0.05 SUI bond.
+        // Bob challenges with the minimum 0.1 SUI bond (MIN_CHALLENGE_BOND).
         sc.next_tx(BOB);
-        risk_index::challenge(&mut index, MKT, sui_coin(50_000_000, sc.ctx()), sc.ctx());
+        risk_index::challenge(&mut index, MKT, sui_coin(100_000_000, sc.ctx()), sc.ctx());
         assert!(risk_index::is_challenged(&index, key()), 0);
 
-        // Admin upholds the challenge: Alice slashed 0.05, Bob paid 0.10.
+        // Admin (Alice, != Bob) upholds: SLASH_BPS (50%) of Alice's 0.1 SUI stake is
+        // slashed to the neutral sink; Bob only recovers his own bond (no reward).
+        sc.next_tx(ALICE);
         risk_index::resolve_challenge(&mut index, &admin, MKT, true, sc.ctx());
         assert!(risk_index::stake_bond(&index, ALICE) == 50_000_000, 1);
-        assert!(!risk_index::is_challenged(&index, key()), 2);
+        assert!(risk_index::sink_balance(&index) == 50_000_000, 2);
+        assert!(!risk_index::is_challenged(&index, key()), 3);
 
         sc.next_tx(BOB);
         let paid = ts::take_from_sender<Coin<SUI>>(&sc);
-        assert!(coin::value(&paid) == 100_000_000, 3); // bond back + slash reward
+        assert!(coin::value(&paid) == 100_000_000, 4); // own bond back only
         ts::return_to_sender(&sc, paid);
         teardown(sc, index, admin, clock);
     }
 
     #[test]
-    fun challenge_rejected_forfeits_to_publisher() {
+    fun challenge_rejected_forfeits_to_sink() {
         let (mut sc, mut index, admin, clock) = setup();
         sc.next_tx(BOB);
-        risk_index::challenge(&mut index, MKT, sui_coin(50_000_000, sc.ctx()), sc.ctx());
-        // Admin rejects: Bob's 0.05 bond joins Alice's stake → 0.15 total.
+        risk_index::challenge(&mut index, MKT, sui_coin(100_000_000, sc.ctx()), sc.ctx());
+        // Admin (Alice, != Bob) rejects: Bob's bond is forfeited to the neutral sink,
+        // never to the publisher's stake — so resolution can't enrich a colluder.
+        sc.next_tx(ALICE);
         risk_index::resolve_challenge(&mut index, &admin, MKT, false, sc.ctx());
-        assert!(risk_index::stake_bond(&index, ALICE) == 150_000_000, 0);
-        assert!(!risk_index::is_challenged(&index, key()), 1);
+        assert!(risk_index::stake_bond(&index, ALICE) == 100_000_000, 0);
+        assert!(risk_index::sink_balance(&index) == 100_000_000, 1);
+        assert!(!risk_index::is_challenged(&index, key()), 2);
         teardown(sc, index, admin, clock);
     }
 
@@ -110,8 +116,104 @@ module risk_index::risk_index_tests {
     fun double_challenge_aborts() {
         let (mut sc, mut index, admin, clock) = setup();
         sc.next_tx(BOB);
-        risk_index::challenge(&mut index, MKT, sui_coin(50_000_000, sc.ctx()), sc.ctx());
-        risk_index::challenge(&mut index, MKT, sui_coin(50_000_000, sc.ctx()), sc.ctx());
+        risk_index::challenge(&mut index, MKT, sui_coin(100_000_000, sc.ctx()), sc.ctx());
+        risk_index::challenge(&mut index, MKT, sui_coin(100_000_000, sc.ctx()), sc.ctx());
+        teardown(sc, index, admin, clock);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = risk_index::EChallengeBondTooLow)]
+    fun dust_challenge_aborts() {
+        let (mut sc, mut index, admin, clock) = setup();
+        sc.next_tx(BOB);
+        // Below MIN_CHALLENGE_BOND → rejected, closing the dust-challenge DoS.
+        risk_index::challenge(&mut index, MKT, sui_coin(1_000_000, sc.ctx()), sc.ctx());
+        teardown(sc, index, admin, clock);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = risk_index::EAlreadyChallenged)]
+    fun publish_cannot_overwrite_challenged() {
+        let (mut sc, mut index, admin, clock) = setup();
+        sc.next_tx(BOB);
+        risk_index::challenge(&mut index, MKT, sui_coin(100_000_000, sc.ctx()), sc.ctx());
+        // Alice tries to re-publish the contested market while it is challenged.
+        sc.next_tx(ALICE);
+        risk_index::publish(
+            &mut index, MKT, b"BTC", 2_592_000_000, 60_000_000000000,
+            1, 1, 1, b"walrus-cdf-2", &clock, sc.ctx(),
+        );
+        teardown(sc, index, admin, clock);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = risk_index::ESelfResolve)]
+    fun resolver_is_challenger_aborts() {
+        let (mut sc, mut index, admin, clock) = setup();
+        sc.next_tx(BOB);
+        risk_index::challenge(&mut index, MKT, sui_coin(100_000_000, sc.ctx()), sc.ctx());
+        // Bob holds the cap and resolves his own challenge → self-deal blocked.
+        risk_index::resolve_challenge(&mut index, &admin, MKT, true, sc.ctx());
+        teardown(sc, index, admin, clock);
+    }
+
+    #[test]
+    fun slash_capped_to_sink() {
+        let (mut sc, mut index, admin, clock) = setup();
+        // Alice tops up to 1.0 SUI so the cap is unmistakable.
+        risk_index::top_up(&mut index, sui_coin(900_000_000, sc.ctx()), sc.ctx());
+        assert!(risk_index::stake_bond(&index, ALICE) == 1_000_000_000, 0);
+        sc.next_tx(BOB);
+        risk_index::challenge(&mut index, MKT, sui_coin(100_000_000, sc.ctx()), sc.ctx());
+        sc.next_tx(ALICE);
+        risk_index::resolve_challenge(&mut index, &admin, MKT, true, sc.ctx());
+        // Exactly SLASH_BPS (50%) of the 1.0 SUI stake → sink; never the whole stake.
+        assert!(risk_index::stake_bond(&index, ALICE) == 500_000_000, 1);
+        assert!(risk_index::sink_balance(&index) == 500_000_000, 2);
+        teardown(sc, index, admin, clock);
+    }
+
+    #[test]
+    fun resolve_after_stake_removed() {
+        let (mut sc, mut index, admin, clock) = setup();
+        // Alice unstakes while no challenge is open, then her reading is challenged.
+        let residual = risk_index::unstake(&mut index, sc.ctx());
+        assert!(coin::value(&residual) == 100_000_000, 0);
+        coin::burn_for_testing(residual);
+        sc.next_tx(BOB);
+        risk_index::challenge(&mut index, MKT, sui_coin(100_000_000, sc.ctx()), sc.ctx());
+        // Upheld with no stake present must not abort (contains guard); slash is 0.
+        sc.next_tx(ALICE);
+        risk_index::resolve_challenge(&mut index, &admin, MKT, true, sc.ctx());
+        assert!(risk_index::sink_balance(&index) == 0, 1);
+        assert!(!risk_index::is_challenged(&index, key()), 2);
+        sc.next_tx(BOB);
+        let paid = ts::take_from_sender<Coin<SUI>>(&sc);
+        assert!(coin::value(&paid) == 100_000_000, 3); // bond returned intact
+        ts::return_to_sender(&sc, paid);
+        teardown(sc, index, admin, clock);
+    }
+
+    #[test]
+    fun unstake_works() {
+        let (mut sc, mut index, admin, clock) = setup();
+        let residual = risk_index::unstake(&mut index, sc.ctx());
+        assert!(coin::value(&residual) == 100_000_000, 0);
+        assert!(risk_index::stake_bond(&index, ALICE) == 0, 1);
+        coin::burn_for_testing(residual);
+        teardown(sc, index, admin, clock);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = risk_index::EOpenChallenge)]
+    fun unstake_blocked_during_challenge() {
+        let (mut sc, mut index, admin, clock) = setup();
+        sc.next_tx(BOB);
+        risk_index::challenge(&mut index, MKT, sui_coin(100_000_000, sc.ctx()), sc.ctx());
+        // Alice cannot withdraw her stake while her reading is contested.
+        sc.next_tx(ALICE);
+        let residual = risk_index::unstake(&mut index, sc.ctx());
+        coin::burn_for_testing(residual);
         teardown(sc, index, admin, clock);
     }
 }

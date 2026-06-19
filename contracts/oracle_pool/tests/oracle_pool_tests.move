@@ -73,8 +73,11 @@ module oracle_pool::oracle_pool_tests {
         // Settle in-the-money and pay, clearing the cover, leaving premium for LPs.
         let payout = oracle_pool::claim_settled_for_testing(&mut p, ITM, policy, &mut ctx);
         coin::burn_for_testing(payout); // 400 paid out; 630 remains (1000+30-400)
+        // The first deposit locks DEAD_SHARES (100) of the 1000 total, so the LP
+        // owns 900/1000 of the pool: 900 * 630 / 1000 = 567 (the rest backs the
+        // permanently-locked dead shares).
         let out = oracle_pool::withdraw_lp(&mut p, lp, &mut ctx);
-        assert!(coin::value(&out) == 630, 0);
+        assert!(coin::value(&out) == 567, 0);
         coin::burn_for_testing(out);
         test_utils::destroy(p);
     }
@@ -84,10 +87,32 @@ module oracle_pool::oracle_pool_tests {
     fun buy_blocked_when_undercollateralized() {
         let mut ctx = tx_context::dummy();
         let mut p = pool(&mut ctx);
-        let lp = oracle_pool::deposit_lp(&mut p, fund(100, &mut ctx), &mut ctx);
-        let policy = oracle_pool::buy_cover(&mut p, fund(10, &mut ctx), 1000, &mut ctx);
+        // Seed at the minimum initial liquidity, then buy cover the pool can't back.
+        let lp = oracle_pool::deposit_lp(&mut p, fund(1000, &mut ctx), &mut ctx);
+        let policy = oracle_pool::buy_cover(&mut p, fund(10, &mut ctx), 2000, &mut ctx);
         test_utils::destroy(policy);
         test_utils::destroy(lp);
+        test_utils::destroy(p);
+    }
+
+    // Regression: the classic first-depositor inflation / round-to-zero theft.
+    // Attacker seeds a minimal pool (1 share unit per coin minus dead shares),
+    // inflates `funds` via a large premium that mints no shares, then a tiny honest
+    // deposit would round to 0 shares — the `shares > 0` guard must abort instead.
+    #[test]
+    #[expected_failure(abort_code = oracle_pool::EZeroShares)]
+    fun first_depositor_inflation_blocked() {
+        let mut ctx = tx_context::dummy();
+        let mut p = pool(&mut ctx);
+        let attacker = oracle_pool::deposit_lp(&mut p, fund(1000, &mut ctx), &mut ctx);
+        // buy_cover joins the premium into funds without minting shares.
+        let policy = oracle_pool::buy_cover(&mut p, fund(1_000_000, &mut ctx), 1, &mut ctx);
+        // value_before/total_shares is now ~1001 per share, so depositing 10 rounds
+        // to 0 shares -> aborts instead of donating the victim's capital.
+        let victim = oracle_pool::deposit_lp(&mut p, fund(10, &mut ctx), &mut ctx);
+        test_utils::destroy(victim);
+        test_utils::destroy(policy);
+        test_utils::destroy(attacker);
         test_utils::destroy(p);
     }
 }

@@ -72,4 +72,46 @@ module pool_registry::pool_registry_tests {
         test_utils::destroy(reg);
         test_utils::destroy(cap);
     }
+
+    #[test]
+    fun update_and_deprecate_market() {
+        let mut ctx = tx_context::dummy();
+        let (mut reg, cap) = setup(&mut ctx);
+        let clock = clock::create_for_testing(&mut ctx);
+
+        let v1 = dummy_id(&mut ctx);
+        let v2 = dummy_id(&mut ctx);
+        pool_registry::register(&mut reg, &cap, string::utf8(b"BTC"), v1, 1000, 11_000, &clock);
+        assert!(pool_registry::pool_for(&reg, string::utf8(b"BTC")) == v1, 0);
+
+        // Correct a stale/wrong pointer in place.
+        pool_registry::update(&mut reg, &cap, string::utf8(b"BTC"), v2, 1500, 12_000, &clock);
+        assert!(pool_registry::pool_for(&reg, string::utf8(b"BTC")) == v2, 1);
+        assert!(pool_registry::count(&reg) == 1, 2);
+
+        // Deprecate it — no longer discoverable.
+        pool_registry::deprecate(&mut reg, &cap, string::utf8(b"BTC"));
+        assert!(!pool_registry::has(&reg, string::utf8(b"BTC")), 3);
+        assert!(pool_registry::count(&reg) == 0, 4);
+        assert!(pool_registry::markets(&reg).length() == 0, 5);
+
+        clock::destroy_for_testing(clock);
+        test_utils::destroy(reg);
+        test_utils::destroy(cap);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = pool_registry::ENotFound)]
+    fun update_missing_aborts() {
+        let mut ctx = tx_context::dummy();
+        let (mut reg, cap) = setup(&mut ctx);
+        let clock = clock::create_for_testing(&mut ctx);
+
+        let v = dummy_id(&mut ctx);
+        pool_registry::update(&mut reg, &cap, string::utf8(b"BTC"), v, 1000, 11_000, &clock);
+
+        clock::destroy_for_testing(clock);
+        test_utils::destroy(reg);
+        test_utils::destroy(cap);
+    }
 }

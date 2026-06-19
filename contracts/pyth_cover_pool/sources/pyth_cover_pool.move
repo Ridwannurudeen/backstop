@@ -47,6 +47,15 @@ module pyth_cover_pool::pyth_cover_pool {
     /// A pool arm must confirm within this multiple of the dwell window after the
     /// minimum dwell has elapsed; later adverse reads start a new arm.
     const CONFIRMATION_GRACE_MULTIPLIER: u64 = 3;
+    /// Production floor on `min_dwell_secs`: a sustained breach must be observed over
+    /// at least this window, so a single manipulated Pyth tick can never settle.
+    const MIN_DWELL_FLOOR_SECS: u64 = 300;
+    /// Production floor on `activation_delay_secs`: cover cannot become claimable until
+    /// at least this long after purchase, closing last-tick adverse selection.
+    const MIN_ACTIVATION_DELAY_SECS: u64 = 300;
+    /// After a confirmed breach, a claimable policy that is never spent can be reaped by
+    /// anyone once this window passes, releasing the LP capital it would otherwise lock.
+    const CLAIM_GRACE_SECS: u64 = 1_209_600; // 14 days
 
     /// Cover or deposit amount must be non-zero.
     const EZeroAmount: u64 = 0;
@@ -104,7 +113,12 @@ module pyth_cover_pool::pyth_cover_pool {
     const EStillDepegged: u64 = 27;
     const ESaleClosed: u64 = 28;
     const EZeroShares: u64 = 29;
+    /// Deposit into a fully-drained pool that still has shares outstanding — the
+    /// share price is undefined, so the deposit is blocked rather than diluted.
+    const EPoolDrained: u64 = 30;
     const EOutstandingCover: u64 = 31;
+    /// A claimable policy cannot be reaped until its post-confirmation claim window passes.
+    const EClaimWindowOpen: u64 = 34;
     const EDirectSalesDisabled: u64 = 32;
     const EWrongBuyerCap: u64 = 33;
 
@@ -367,6 +381,37 @@ module pyth_cover_pool::pyth_cover_pool {
         keeper_bounty: u64,
         ctx: &mut TxContext,
     ): DepegCoverPool<T> {
+        // Production pools must clear the safety floors; the test-only constructor
+        // (`new_pool_for_testing`) bypasses these so units can drive short windows.
+        assert!(min_dwell_secs >= MIN_DWELL_FLOOR_SECS, EBadParamValue);
+        assert!(activation_delay_secs >= MIN_ACTIVATION_DELAY_SECS, EBadParamValue);
+        build_pool<T>(
+            feed_id, expo_neg, expo_mag, threshold, max_age_secs, premium_bps,
+            surge_premium_bps, max_conf_bps, min_dwell_secs, activation_delay_secs,
+            max_policy_duration_secs, max_cover_per_policy, max_total_cover, timelock_secs,
+            treasury_fee_bps, keeper_bounty, ctx,
+        )
+    }
+
+    fun build_pool<T>(
+        feed_id: vector<u8>,
+        expo_neg: bool,
+        expo_mag: u64,
+        threshold: u64,
+        max_age_secs: u64,
+        premium_bps: u64,
+        surge_premium_bps: u64,
+        max_conf_bps: u64,
+        min_dwell_secs: u64,
+        activation_delay_secs: u64,
+        max_policy_duration_secs: u64,
+        max_cover_per_policy: u64,
+        max_total_cover: u64,
+        timelock_secs: u64,
+        treasury_fee_bps: u64,
+        keeper_bounty: u64,
+        ctx: &mut TxContext,
+    ): DepegCoverPool<T> {
         assert_valid_pool_params(
             threshold, max_age_secs, premium_bps, surge_premium_bps, max_conf_bps,
             min_dwell_secs, activation_delay_secs, max_policy_duration_secs,
@@ -474,9 +519,15 @@ module pyth_cover_pool::pyth_cover_pool {
         let amount = coin::value(&coin);
         assert!(amount > 0, EZeroAmount);
         let value_before = balance::value(&pool.funds);
-        let shares = if (pool.total_shares == 0 || value_before == 0) {
+        // Anchor 1 share = 1 unit ONLY on a genuinely fresh pool. If shares are
+        // outstanding but the pool was fully drained to zero value (a total-loss
+        // claim event), the share price is undefined — block the deposit so the
+        // newcomer's capital is not silently diluted by the worthless zombie shares.
+        // Those holders must redeem their (zero-value) shares first to reset the pool.
+        let shares = if (pool.total_shares == 0) {
             amount
         } else {
+            assert!(value_before > 0, EPoolDrained);
             (((amount as u128) * (pool.total_shares as u128)) / (value_before as u128)) as u64
         };
         assert!(shares > 0, EZeroShares);
@@ -524,6 +575,10 @@ module pyth_cover_pool::pyth_cover_pool {
     ): Coin<T> {
         let LpShare { id, pool_id, shares } = share;
         assert!(pool_id == object::id(pool), EWrongPool);
+        // Freeze redemptions while a breach epoch is armed or confirmed: otherwise LPs
+        // could race to pull the above-collateral buffer ahead of the pending claims,
+        // leaving the slowest LPs to absorb the loss. Recovery reopens withdrawals.
+        assert!(!pool.epoch_armed && !pool.epoch_breached, EPoolEpochOpen);
         object::delete(id);
         let value = balance::value(&pool.funds);
         let payout = (((shares as u128) * (value as u128)) / (pool.total_shares as u128)) as u64;
@@ -543,7 +598,7 @@ module pyth_cover_pool::pyth_cover_pool {
         let util_bps: u128 = if (value == 0) {
             BPS // no capacity to sell against → price at the curve's ceiling
         } else {
-            let u = (((pool.total_cover + cover) as u128) * BPS) / (value as u128);
+            let u = (((pool.total_cover as u128) + (cover as u128)) * BPS) / (value as u128);
             if (u > BPS) { BPS } else { u }
         };
         let surge_add = ((pool.surge_premium_bps as u128) * util_bps) / BPS;
@@ -638,7 +693,8 @@ module pyth_cover_pool::pyth_cover_pool {
         // Exposure caps (0 = uncapped) bound concentrated correlated risk.
         assert!(pool.max_cover_per_policy == 0 || cover <= pool.max_cover_per_policy, EPolicyCoverCap);
         assert!(
-            pool.max_total_cover == 0 || pool.total_cover + cover <= pool.max_total_cover,
+            pool.max_total_cover == 0 ||
+                (pool.total_cover as u128) + (cover as u128) <= (pool.max_total_cover as u128),
             EPoolCoverCap,
         );
         assert_sale_open(pool, price_mag, conf);
@@ -657,7 +713,10 @@ module pyth_cover_pool::pyth_cover_pool {
             balance::join(&mut pool.treasury, balance::split(&mut premium_balance, fee));
         };
         balance::join(&mut pool.funds, premium_balance);
-        assert!(balance::value(&pool.funds) >= pool.total_cover + cover, EInsolvent);
+        assert!(
+            (balance::value(&pool.funds) as u128) >= (pool.total_cover as u128) + (cover as u128),
+            EInsolvent,
+        );
         pool.total_cover = pool.total_cover + cover;
         let policy_uid = object::new(ctx);
         let policy_id = object::uid_to_inner(&policy_uid);
@@ -842,6 +901,31 @@ module pyth_cover_pool::pyth_cover_pool {
             assert!(clock::timestamp_ms(clock) > expiry_ms, ENotExpired);
         };
         object::delete(id);
+    }
+
+    /// Reap a confirmed-breach policy that was never claimed. A latched policy is
+    /// claimable forever, so an abandoned one (lost key, holder never claims) would
+    /// otherwise lock its `cover` in `total_cover` indefinitely and freeze the LP
+    /// capital backing it. Once `CLAIM_GRACE_SECS` has passed since the epoch
+    /// confirmed, anyone may release that liability; the holder has forfeited the
+    /// unclaimed payout. Callable only on a still-claimable, past-window policy.
+    public fun reap_unclaimed_policy<T>(
+        pool: &mut DepegCoverPool<T>,
+        policy_id: ID,
+        clock: &Clock,
+    ) {
+        assert!(table::contains(&pool.policies, policy_id), EPolicyNotActive);
+        let state = table::borrow(&pool.policies, policy_id);
+        assert!(state.breached || epoch_claims_state(pool, state), ENotBreached);
+        let epoch_id = state.epoch_id;
+        let confirmed_ms = table::borrow(&pool.epochs, epoch_id).confirmed_ms;
+        assert!(
+            clock::timestamp_ms(clock) > confirmed_ms + CLAIM_GRACE_SECS * 1000,
+            EClaimWindowOpen,
+        );
+        let removed = table::remove(&mut pool.policies, policy_id);
+        pool.total_cover = pool.total_cover - removed.cover;
+        event::emit(PolicyExpired { pool: object::id(pool), policy: policy_id, cover: removed.cover });
     }
 
     // --- Dwell-based pool epoch latch ---
@@ -1134,9 +1218,9 @@ module pyth_cover_pool::pyth_cover_pool {
         } else if (kind == K_MAX_CONF_BPS) {
             assert!(value > 0 && value <= (BPS as u64), EBadParamValue)
         } else if (kind == K_MIN_DWELL_SECS) {
-            assert!(value > 0 && value <= pool.max_policy_duration_secs, EBadParamValue)
+            assert!(value >= MIN_DWELL_FLOOR_SECS && value <= pool.max_policy_duration_secs, EBadParamValue)
         } else if (kind == K_ACTIVATION_DELAY_SECS) {
-            assert!(value < pool.max_policy_duration_secs, EBadParamValue)
+            assert!(value >= MIN_ACTIVATION_DELAY_SECS && value < pool.max_policy_duration_secs, EBadParamValue)
         } else if (kind == K_MAX_COVER_PER_POLICY) {
             assert!(value == 0 || pool.max_total_cover == 0 || value <= pool.max_total_cover, EBadParamValue)
         } else if (kind == K_MAX_TOTAL_COVER) {
@@ -1238,7 +1322,7 @@ module pyth_cover_pool::pyth_cover_pool {
         keeper_bounty: u64,
         ctx: &mut TxContext,
     ): DepegCoverPool<T> {
-        new_pool<T>(
+        build_pool<T>(
             feed_id, expo_neg, expo_mag, threshold, max_age_secs, premium_bps,
             surge_premium_bps, max_conf_bps, min_dwell_secs, activation_delay_secs,
             max_policy_duration_secs, max_cover_per_policy, max_total_cover,

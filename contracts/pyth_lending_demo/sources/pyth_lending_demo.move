@@ -26,6 +26,8 @@ module pyth_lending_demo::pyth_lending_demo {
     const EAlreadyHasBuyerCap: u64 = 2;
     /// Market has no buyer capability installed.
     const ENoBuyerCap: u64 = 3;
+    /// MarketCap does not govern this market.
+    const EWrongMarketCap: u64 = 4;
 
     /// A collateral-reserve lending market that backstops a depeg shortfall with
     /// a Pyth-settled cover policy.
@@ -35,6 +37,13 @@ module pyth_lending_demo::pyth_lending_demo {
         reserve: Balance<T>,
         buyer_cap: Option<BuyerCap<T>>,
         policy: Option<Policy<T>>,
+    }
+
+    /// Governs one market: authorizes reserve withdrawals. Minted to the market
+    /// creator at `create_and_share`.
+    public struct MarketCap<phantom T> has key, store {
+        id: UID,
+        market_id: ID,
     }
 
     /// Emitted when a depeg payout is claimed into the market's reserve.
@@ -53,9 +62,14 @@ module pyth_lending_demo::pyth_lending_demo {
         }
     }
 
-    /// Create and share a lending market for `asset` (UTF-8 bytes).
+    /// Create and share a lending market for `asset` (UTF-8 bytes). The creator
+    /// receives a `MarketCap` authorizing reserve withdrawals.
+    #[allow(lint(self_transfer))]
     public fun create_and_share<T>(asset: vector<u8>, ctx: &mut TxContext) {
-        transfer::share_object(new_market<T>(string::utf8(asset), ctx));
+        let market = new_market<T>(string::utf8(asset), ctx);
+        let market_id = object::id(&market);
+        transfer::transfer(MarketCap<T> { id: object::new(ctx), market_id }, ctx.sender());
+        transfer::share_object(market);
     }
 
     /// Add capital to the market's reserve.
@@ -123,6 +137,32 @@ module pyth_lending_demo::pyth_lending_demo {
         balance::join(&mut m.reserve, coin::into_balance(payout));
     }
 
+    /// Drop the market's held policy once it has expired without a confirmed breach,
+    /// releasing the pool liability so the market can buy fresh cover. Without this the
+    /// market would brick after its first policy expired un-breached (the common case).
+    /// Aborts (via the pool) if the policy is still claimable or not yet expired.
+    public fun release_expired_policy<T>(
+        m: &mut LendingMarket<T>,
+        pool: &mut DepegCoverPool<T>,
+        clock: &Clock,
+    ) {
+        assert!(option::is_some(&m.policy), ENotInsured);
+        let policy = option::extract(&mut m.policy);
+        pyth_cover_pool::expire_policy(pool, policy, clock);
+    }
+
+    /// Withdraw reserve capital. Without this the reserve — deposits and any claimed
+    /// payout — would be permanently locked in the shared market object.
+    public fun withdraw_reserve<T>(
+        m: &mut LendingMarket<T>,
+        cap: &MarketCap<T>,
+        amount: u64,
+        ctx: &mut TxContext,
+    ): Coin<T> {
+        assert!(cap.market_id == object::id(m), EWrongMarketCap);
+        coin::take(&mut m.reserve, amount, ctx)
+    }
+
     // --- Views ---
 
     public fun reserve_value<T>(m: &LendingMarket<T>): u64 { balance::value(&m.reserve) }
@@ -133,6 +173,14 @@ module pyth_lending_demo::pyth_lending_demo {
     #[test_only]
     public fun new_for_testing<T>(asset: String, ctx: &mut TxContext): LendingMarket<T> {
         new_market<T>(asset, ctx)
+    }
+
+    #[test_only]
+    public fun new_market_cap_for_testing<T>(
+        m: &LendingMarket<T>,
+        ctx: &mut TxContext,
+    ): MarketCap<T> {
+        MarketCap<T> { id: object::new(ctx), market_id: object::id(m) }
     }
 
     #[test_only]

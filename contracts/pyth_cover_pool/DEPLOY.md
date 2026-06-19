@@ -109,15 +109,15 @@ LP_SEED=100000000 RESERVE=0 KEEPER_BOUNTY=100000 \
   empty or below the bounty, settlement still latches and the bounty is skipped.
 - suiUSDe sits near \$1.00, so by default (`THRESHOLD_USD=0.985`) the run stops after
   `insure` with the honest "no depeg → premium retained" outcome.
-- **To stage a live claim now:** set `THRESHOLD_USD=1.05` **and** small
-  `ACTIVATION_DELAY_SECS` + `MIN_DWELL_SECS` (e.g. `5` each). The pool floor is created
-  above spot, so the breach is observed immediately; settlement still requires the
-  policy to ACTIVATE and the breach to be SUSTAINED, so the harness waits the
-  activation delay, arms the dwell, waits `MIN_DWELL_SECS`, confirms, then
-  `cover_shortfall` lands the payout in the reserve — `buy_cover` has no
-  spot-vs-threshold guard, so this is allowed (unlike the testnet Predict IMM).
-  Production launch defaults use a 30 min activation delay and a 10 min dwell; see
-  `DEPEG_CALIBRATION.md`.
+- **To stage a live claim now:** set `THRESHOLD_USD=1.05` **and** the lowest allowed
+  `ACTIVATION_DELAY_SECS` + `MIN_DWELL_SECS` (`300` each — the v6 safety floor; values
+  below 300 are rejected by `new_pool`). The pool floor is created above spot, so the
+  breach is observed immediately; settlement still requires the policy to ACTIVATE and
+  the breach to be SUSTAINED, so the harness waits the activation delay (≥5 min), arms
+  the dwell, waits `MIN_DWELL_SECS` (≥5 min), confirms, then `cover_shortfall` lands the
+  payout in the reserve — `buy_cover` has no spot-vs-threshold guard, so this is allowed
+  (unlike the testnet Predict IMM). Plan ~10+ min for a staged claim. Production launch
+  defaults use a 30 min activation delay and a 10 min dwell; see `DEPEG_CALIBRATION.md`.
 - Reuse an existing pool instead of creating one by passing `POOL=0x…` (omit
   `BACKSTOP_PKG`/`LP_SEED`).
 - **Governance:** `create_and_share` mints an `AdminCap` to the deployer (printed as

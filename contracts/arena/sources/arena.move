@@ -17,12 +17,20 @@ module arena::arena {
     /// Minimum bond (MIST) an agent must stake to enroll.
     const MIN_BOND: u64 = 10_000_000; // 0.01 SUI
 
+    /// Immutable accuracy bar (bps). An agent is slashable only when its realized
+    /// accuracy falls below this; set once at arena creation, never per-call.
+    const MIN_ACCURACY_BPS: u64 = 5_000; // 50%
+
+    /// Minimum settled quotes before an agent is slashable at all.
+    const MIN_SETTLED: u64 = 2;
+
     const EAlreadyEnrolled: u64 = 0;
     const EBondTooLow: u64 = 1;
     const ENotEnrolled: u64 = 2;
     const EBadBps: u64 = 3;
     const ENoRound: u64 = 4;
     const ENotMiscalibrated: u64 = 5;
+    const ETooFewSettled: u64 = 6;
 
     /// One agent's probability quote for a market, in basis points (0..10000).
     public struct Quote has store, copy, drop {
@@ -35,6 +43,7 @@ module arena::arena {
         name: String,
         bond: Balance<SUI>,
         quotes: u64,
+        settled: u64,
         hits: u64,
         wins: u64,
         slashed: u64,
@@ -46,6 +55,10 @@ module arena::arena {
         agents: Table<address, AgentStat>,
         roster: vector<address>,
         open: Table<String, vector<Quote>>,
+        /// Immutable accuracy bar (bps) below which an agent is slashable.
+        min_accuracy_bps: u64,
+        /// Neutral protocol sink: forfeited bonds collect here, never the admin.
+        sink: Balance<SUI>,
     }
 
     /// Authority to settle rounds and slash miscalibrated agents.
@@ -78,6 +91,8 @@ module arena::arena {
             agents: table::new(ctx),
             roster: vector[],
             open: table::new(ctx),
+            min_accuracy_bps: MIN_ACCURACY_BPS,
+            sink: balance::zero(),
         });
         transfer::transfer(AdminCap { id: object::new(ctx) }, ctx.sender());
     }
@@ -94,6 +109,7 @@ module arena::arena {
             name: string::utf8(name),
             bond: coin::into_balance(bond),
             quotes: 0,
+            settled: 0,
             hits: 0,
             wins: 0,
             slashed: 0,
@@ -158,6 +174,7 @@ module arena::arena {
         while (j < n) {
             let q = quotes.borrow(j);
             let s = table::borrow_mut(&mut arena.agents, q.agent);
+            s.settled = s.settled + 1;
             if ((q.prob_bps >= 5000) == crashed) {
                 s.hits = s.hits + 1;
             };
@@ -169,32 +186,39 @@ module arena::arena {
         event::emit(RoundSettled { market: key, crashed, winner });
     }
 
-    /// Slash an agent whose realized accuracy is below `min_accuracy_bps`. Only
-    /// the genuinely miscalibrated qualify (ENotMiscalibrated otherwise). Half
-    /// the bond is forfeited and returned to the caller (the admin) as a Coin.
+    /// Slash an agent whose realized accuracy is below the arena's immutable bar
+    /// (`min_accuracy_bps`, fixed at creation — the admin cannot move it per-call).
+    /// Accuracy is measured over SETTLED quotes only, and the agent must have at
+    /// least MIN_SETTLED of them (ETooFewSettled otherwise) so the freshly enrolled
+    /// are never slashable. Only the genuinely miscalibrated qualify
+    /// (ENotMiscalibrated otherwise). Half the bond is forfeited into the neutral
+    /// protocol sink — never paid out to the admin.
     public fun slash_miscalibrated(
         arena: &mut Arena,
         _cap: &AdminCap,
         agent: address,
-        min_accuracy_bps: u64,
-        ctx: &mut TxContext,
-    ): Coin<SUI> {
+    ) {
         assert!(table::contains(&arena.agents, agent), ENotEnrolled);
+        let bar = arena.min_accuracy_bps;
         let s = table::borrow_mut(&mut arena.agents, agent);
-        let acc = if (s.quotes == 0) 0 else s.hits * 10_000 / s.quotes;
-        assert!(acc < min_accuracy_bps, ENotMiscalibrated);
+        assert!(s.settled >= MIN_SETTLED, ETooFewSettled);
+        let acc = s.hits * 10_000 / s.settled;
+        assert!(acc < bar, ENotMiscalibrated);
         let amt = balance::value(&s.bond) / 2;
         s.slashed = s.slashed + amt;
+        let forfeited = balance::split(&mut s.bond, amt);
         event::emit(AgentSlashed { agent, amount: amt, accuracy_bps: acc });
-        coin::take(&mut s.bond, amt, ctx)
+        balance::join(&mut arena.sink, forfeited);
     }
 
     // --- Views ---
 
     public fun accuracy_bps(arena: &Arena, agent: address): u64 {
         let s = table::borrow(&arena.agents, agent);
-        if (s.quotes == 0) 0 else s.hits * 10_000 / s.quotes
+        if (s.settled == 0) 0 else s.hits * 10_000 / s.settled
     }
+    public fun min_accuracy_bps(arena: &Arena): u64 { arena.min_accuracy_bps }
+    public fun sink_balance(arena: &Arena): u64 { balance::value(&arena.sink) }
     public fun bond_of(arena: &Arena, agent: address): u64 {
         balance::value(&table::borrow(&arena.agents, agent).bond)
     }
@@ -203,6 +227,9 @@ module arena::arena {
     }
     public fun quotes_of(arena: &Arena, agent: address): u64 {
         table::borrow(&arena.agents, agent).quotes
+    }
+    public fun settled_of(arena: &Arena, agent: address): u64 {
+        table::borrow(&arena.agents, agent).settled
     }
     public fun hits_of(arena: &Arena, agent: address): u64 {
         table::borrow(&arena.agents, agent).hits
@@ -224,6 +251,8 @@ module arena::arena {
                 agents: table::new(ctx),
                 roster: vector[],
                 open: table::new(ctx),
+                min_accuracy_bps: MIN_ACCURACY_BPS,
+                sink: balance::zero(),
             },
             AdminCap { id: object::new(ctx) },
         )

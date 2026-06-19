@@ -1,6 +1,6 @@
 {
   "name": "@gudman/backstop-sdk",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "description": "TypeScript helpers for Backstop's Sui mainnet depeg cover and risk-oracle research layer.",
   "type": "module",
   "main": "./dist/index.js",

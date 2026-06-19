@@ -13,12 +13,16 @@ module risk_guard::risk_guard {
 
     /// Withdrawal blocked: the market-implied crash probability exceeds tolerance.
     const ECrashRiskTooHigh: u64 = 0;
+    /// Caller is not the treasury owner.
+    const ENotOwner: u64 = 1;
 
     /// A treasury gated on the crash risk of `market`. Funds can be deposited
-    /// freely, but withdrawals require the latest feed reading to be within
-    /// `max_prob_bps` (basis points of implied probability of failure).
+    /// freely, but withdrawals require BOTH the caller to be the `owner` AND the
+    /// latest feed reading to be within `max_prob_bps` (basis points of implied
+    /// probability of failure).
     public struct GuardedTreasury<phantom T> has key {
         id: UID,
+        owner: address,
         market: String,
         max_prob_bps: u64,
         funds: Balance<T>,
@@ -31,6 +35,7 @@ module risk_guard::risk_guard {
     ): GuardedTreasury<T> {
         GuardedTreasury {
             id: object::new(ctx),
+            owner: ctx.sender(),
             market,
             max_prob_bps,
             funds: balance::zero<T>(),
@@ -58,13 +63,16 @@ module risk_guard::risk_guard {
             && risk_feed::probability_bps(feed, t.market) <= t.max_prob_bps
     }
 
-    /// Withdraw `amount` — aborts unless the feed says the market is calm enough.
+    /// Withdraw `amount` — aborts unless the caller owns the treasury AND the feed
+    /// says the market is calm enough. The owner check stops anyone from draining a
+    /// shared treasury during a calm market.
     public fun withdraw<T>(
         t: &mut GuardedTreasury<T>,
         feed: &RiskFeed,
         amount: u64,
         ctx: &mut TxContext,
     ): Coin<T> {
+        assert!(ctx.sender() == t.owner, ENotOwner);
         assert!(is_safe(t, feed), ECrashRiskTooHigh);
         coin::take(&mut t.funds, amount, ctx)
     }
@@ -79,6 +87,7 @@ module risk_guard::risk_guard {
     }
 
     public fun value<T>(t: &GuardedTreasury<T>): u64 { balance::value(&t.funds) }
+    public fun owner<T>(t: &GuardedTreasury<T>): address { t.owner }
     public fun market<T>(t: &GuardedTreasury<T>): String { t.market }
     public fun max_prob_bps<T>(t: &GuardedTreasury<T>): u64 { t.max_prob_bps }
 }

@@ -18,6 +18,7 @@ module pyth_cover_pool::pyth_cover_pool_tests {
     const SURGE_BPS: u64 = 800;        // +8% at 100% utilization
     const TREASURY_FEE_BPS: u64 = 500; // 5% protocol fee on paid premiums
     const KEEPER_BOUNTY: u64 = 2;
+    const K_MIN_DWELL_SECS: u8 = 5;
     const K_TREASURY_FEE_BPS: u8 = 9;
     const K_KEEPER_BOUNTY: u8 = 10;
     const BPS: u128 = 10_000;
@@ -1245,5 +1246,112 @@ module pyth_cover_pool::pyth_cover_pool_tests {
         unit_test::destroy(cap_a);
         unit_test::destroy(poola);
         unit_test::destroy(poolb);
+    }
+
+    // --- Audit-fix regressions ---
+
+    // M4: LPs cannot redeem while a breach epoch is armed (or confirmed) — no bank run
+    // ahead of pending claims.
+    #[test]
+    #[expected_failure(abort_code = pyth_cover_pool::EPoolEpochOpen)]
+    fun withdraw_blocked_during_armed_epoch() {
+        let mut ctx = tx_context::dummy();
+        let mut clock = clock::create_for_testing(&mut ctx);
+        let mut pool = new_pool(PREMIUM_BPS, &mut ctx);
+        let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(1000, &mut ctx), &mut ctx);
+        let policy = buy(&mut pool, 500, EXPIRY, &clock, &mut ctx);
+
+        clock::set_for_testing(&mut clock, ARM_MS);
+        pyth_cover_pool::latch_pool_at_price_for_testing(&mut pool, DEPEG, 0, &clock, &mut ctx);
+        assert!(pyth_cover_pool::epoch_armed(&pool), 0);
+
+        let out = pyth_cover_pool::withdraw_lp(&mut pool, lp, &mut ctx); // aborts
+        coin::burn_for_testing(out);
+        unit_test::destroy(policy);
+        clock::destroy_for_testing(clock);
+        unit_test::destroy(pool);
+    }
+
+    // M2: the production constructor rejects a sub-floor dwell window (the test-only
+    // constructor used elsewhere bypasses the floor on purpose).
+    #[test]
+    #[expected_failure(abort_code = pyth_cover_pool::EBadParamValue)]
+    fun production_pool_rejects_short_dwell() {
+        let mut ctx = tx_context::dummy();
+        let pool = pyth_cover_pool::new_pool<TESTCOIN>(
+            FEED, true, EXPO_MAG, THRESHOLD, MAX_AGE, PREMIUM_BPS, SURGE_BPS,
+            MAX_CONF_BPS, 10, 1800, MAX_TERM_SECS, 0, 0, TIMELOCK_SECS,
+            TREASURY_FEE_BPS, KEEPER_BOUNTY, &mut ctx,
+        );
+        unit_test::destroy(pool);
+    }
+
+    // M2: governance cannot timelock the dwell window below the production floor.
+    #[test]
+    #[expected_failure(abort_code = pyth_cover_pool::EBadParamValue)]
+    fun governance_cannot_lower_dwell_below_floor() {
+        let mut ctx = tx_context::dummy();
+        let clock = clock::create_for_testing(&mut ctx);
+        let mut pool = new_pool(PREMIUM_BPS, &mut ctx);
+        let cap = pyth_cover_pool::new_admin_cap_for_testing(&pool, &mut ctx);
+        pyth_cover_pool::propose_param_update(&mut pool, &cap, K_MIN_DWELL_SECS, 10, &clock);
+
+        unit_test::destroy(cap);
+        clock::destroy_for_testing(clock);
+        unit_test::destroy(pool);
+    }
+
+    // M6: a confirmed-but-never-claimed policy can be reaped after the claim window,
+    // releasing the LP capital its liability was locking.
+    #[test]
+    fun reap_releases_unclaimed_confirmed_policy() {
+        let mut ctx = tx_context::dummy();
+        let mut clock = clock::create_for_testing(&mut ctx);
+        let mut pool = new_pool(PREMIUM_BPS, &mut ctx);
+        let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(1000, &mut ctx), &mut ctx);
+        let policy = buy(&mut pool, 500, EXPIRY, &clock, &mut ctx);
+        let policy_id = pyth_cover_pool::policy_id(&policy);
+
+        clock::set_for_testing(&mut clock, ARM_MS);
+        pyth_cover_pool::latch_pool_at_price_for_testing(&mut pool, DEPEG, 0, &clock, &mut ctx);
+        clock::set_for_testing(&mut clock, CONFIRM_MS);
+        pyth_cover_pool::latch_pool_at_price_for_testing(&mut pool, DEPEG, 0, &clock, &mut ctx);
+        assert!(pyth_cover_pool::epoch_breached(&pool), 0);
+        assert!(pyth_cover_pool::total_cover(&pool) == 500, 1);
+
+        // 14-day claim window + a tick past confirmation.
+        clock::set_for_testing(&mut clock, CONFIRM_MS + 1_209_600_000 + 1);
+        pyth_cover_pool::reap_unclaimed_policy(&mut pool, policy_id, &clock);
+        assert!(pyth_cover_pool::total_cover(&pool) == 0, 2);
+
+        unit_test::destroy(policy);
+        unit_test::destroy(lp);
+        clock::destroy_for_testing(clock);
+        unit_test::destroy(pool);
+    }
+
+    // M6: reaping is blocked while the claim window is still open (holder can claim).
+    #[test]
+    #[expected_failure(abort_code = pyth_cover_pool::EClaimWindowOpen)]
+    fun reap_blocked_within_claim_window() {
+        let mut ctx = tx_context::dummy();
+        let mut clock = clock::create_for_testing(&mut ctx);
+        let mut pool = new_pool(PREMIUM_BPS, &mut ctx);
+        let lp = pyth_cover_pool::deposit_lp(&mut pool, fund(1000, &mut ctx), &mut ctx);
+        let policy = buy(&mut pool, 500, EXPIRY, &clock, &mut ctx);
+        let policy_id = pyth_cover_pool::policy_id(&policy);
+
+        clock::set_for_testing(&mut clock, ARM_MS);
+        pyth_cover_pool::latch_pool_at_price_for_testing(&mut pool, DEPEG, 0, &clock, &mut ctx);
+        clock::set_for_testing(&mut clock, CONFIRM_MS);
+        pyth_cover_pool::latch_pool_at_price_for_testing(&mut pool, DEPEG, 0, &clock, &mut ctx);
+
+        clock::set_for_testing(&mut clock, CONFIRM_MS + 1000); // within the window
+        pyth_cover_pool::reap_unclaimed_policy(&mut pool, policy_id, &clock); // aborts
+
+        unit_test::destroy(policy);
+        unit_test::destroy(lp);
+        clock::destroy_for_testing(clock);
+        unit_test::destroy(pool);
     }
 }
