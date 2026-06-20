@@ -314,6 +314,27 @@
         "outcome": "suiUSDe above floor; v5 adapter-held cover remains active, charged premium was retained by LPs, and direct wallet buys are disabled"
       },
       "note": "v5 low-cap BuyerCap-restricted deployment; superseded by the v6 audit-hardened deploy."
+    },
+    "openPool": {
+      "feed": "suiUSDe/USD",
+      "note": "Open direct-sale pool (any wallet can buy cover) built from a cover package that exposes set_direct_sales. Low-cap experimental: 0.02 SUI/policy, 0.1 SUI total, $0.985 floor. Powers the interactive /depeg cover desk; the production pool above stays adapter-only for the audited proof story.",
+      "coverPackage": "0x695059637b8706b6d095b794fcb38565f0a3b8e5384d3e812bda0c36f56cad62",
+      "coverPublishDigest": "7DvGAU2336GekAQn2UyUy18F3txdxBzHF1dFtqGfJfMH",
+      "coverUpgradeCap": "0x03bc518b618c777bd627f6f8bdf07c2679af75c7311929d745762dec47d9578d",
+      "pool": "0x457123082ccd9677be44c74f81e2d24ecc43ef50de1378695b9ede1e9561b3e2",
+      "adminCap": "0x74661fdf47265d397b684bae4d8fd0230082598dc1efc30d883f0ca2933085a5",
+      "buyerCap": "0xf6a89460d5c422a5f3cbb49f5419d29fafb19806826474b26eacbcdc90f30dc1",
+      "directSalesEnabled": true,
+      "thresholdUsd": 0.985,
+      "maxCoverPerPolicyMist": 20000000,
+      "maxTotalCoverMist": 100000000,
+      "lpSeedMist": 100000000,
+      "activationDelaySecs": 300,
+      "minDwellSecs": 300,
+      "timelockSecs": 3600,
+      "createPoolDigest": "BSvoCE5XM1BzDtYW5FnqM12epLTN6aeNoiWsi2Pdnz54",
+      "setDirectSalesDigest": "8n63b9ZfAssLGxU1nQ57Ju9iizqhp8MX7NWAzw37UVSi",
+      "depositLpDigest": "DUSDGEsUsSnRJW6hrh3SjhvgTeJPYG99BT5Vdp7kCLGz"
     }
   }
 }

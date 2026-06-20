@@ -90,6 +90,16 @@ export const PYTH_DEPEG_POOL = hx(
   "1d9d15da40239822d4201e713ae92d5f",
   "ec415f9771e4711be30fc7e76886c523",
 );
+// Open, direct-sale pool: any wallet can buy cover here (the production pool above is
+// adapter-only). Low-cap (0.02 SUI/policy, 0.1 SUI total) so real-money risk is bounded.
+export const PYTH_OPEN_COVER_PKG = hx(
+  "695059637b8706b6d095b794fcb38565",
+  "f0a3b8e5384d3e812bda0c36f56cad62",
+);
+export const PYTH_OPEN_POOL = hx(
+  "457123082ccd9677be44c74f81e2d24e",
+  "cc43ef50de1378695b9ede1e9561b3e2",
+);
 export const PYTH_LENDING_PKG = hx(
   "729e11856afe3d1f7678366b7fbcbe8a",
   "f0aecb623cc0277f372a5b95fa6a3b2e",

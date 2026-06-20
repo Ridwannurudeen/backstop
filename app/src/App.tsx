@@ -70,8 +70,8 @@ export default function App() {
             path="/depeg"
             element={
               <>
-                <DepegSimulator />
                 <DepegActions />
+                <DepegSimulator />
                 <DepegProofHealth />
                 <DepegCover />
               </>

@@ -126,6 +126,33 @@ LP_SEED=100000000 RESERVE=0 KEEPER_BOUNTY=100000 \
   with `TIMELOCK_SECS` (default 86400 = 24h). Keep the AdminCap safe — move it to a
   multisig for production (the UpgradeCap policy is tracked separately as G7).
 
+## Open (direct-sale) pool for the app
+
+The production pool is **adapter-only** (`direct_sales_enabled = false`), so the app's
+Buy button is disabled against it. To give wallets a clickable buy/underwrite/claim
+surface, publish the cover package (it exposes the `set_direct_sales` setter) and create
+a small **open** pool:
+
+```bash
+cd ../../agent
+# 1. publish the cover package (prints PACKAGE=0x…)
+DEPLOY_NETWORK=mainnet \
+  BYTECODE_JSON=../contracts/pyth_cover_pool/bytecode.json \
+  SUI_KEY_ALIAS=backstop-mainnet-deployer npm run deploy-package
+# 2. create the open pool: create_and_share → set_direct_sales(true) → deposit_lp
+BACKSTOP_PKG=0x<package-from-step-1> \
+  SUI_KEY_ALIAS=backstop-mainnet-deployer npm run open-pool
+```
+
+`open-pool` defaults keep real-money exposure minimal: floor $0.985 (below spot, so
+direct buys stay open), `MAX_COVER_PER_POLICY` 0.02 SUI, `MAX_TOTAL_COVER` 0.1 SUI, LP
+seed 0.1 SUI; activation/dwell sit at the 300 s production floor and timelock at 3600 s
+(all enforced by `new_pool`). It prints `POOL` / `ADMIN_CAP` / `BUYER_CAP`. Wire the app
+by pointing `PYTH_DEPEG_COVER_PKG` + `PYTH_DEPEG_POOL` (`app/src/lib/deployment.ts`) at
+the new package + pool and bumping `DEPEG_CONFIG_KEY` so returning users pick up the new
+default; then redeploy. Keep the production adapter-only pool documented as the
+institutional integration surface.
+
 ## Notes
 
 - Record the resulting ids + digests in `deployment.json` (edit via node/shell, not
