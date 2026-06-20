@@ -490,3 +490,64 @@
   overflow-wrap: anywhere;
   padding-left: 12px;
 }
+
+/* Depeg stress test */
+.stress-banner {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  transition: border-color 0.3s ease;
+}
+.stress-safe {
+  border-color: color-mix(in srgb, var(--good) 34%, var(--line));
+}
+.stress-armed {
+  border-color: color-mix(in srgb, var(--warn) 44%, var(--line));
+}
+.stress-paid {
+  border-color: color-mix(in srgb, var(--good) 60%, var(--line));
+}
+.stress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.stress-tag {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.stress-safe .stress-tag {
+  color: var(--good);
+}
+.stress-armed .stress-tag {
+  color: var(--warn);
+}
+.stress-paid .stress-tag {
+  color: var(--good);
+}
+.stress-price {
+  font-family: var(--mono, monospace);
+  font-size: 22px;
+  font-weight: 700;
+}
+.stress-line {
+  margin: 8px 0 10px;
+  color: var(--muted, inherit);
+  font-size: 13px;
+}
+.stress-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.stress-controls .btn {
+  width: auto;
+  margin-top: 0;
+}
