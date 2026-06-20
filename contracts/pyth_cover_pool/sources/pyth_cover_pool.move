@@ -295,6 +295,11 @@ module pyth_cover_pool::pyth_cover_pool {
         paused: bool,
     }
 
+    public struct DirectSalesSet has copy, drop {
+        pool: ID,
+        enabled: bool,
+    }
+
     public struct ParamUpdateProposed has copy, drop {
         pool: ID,
         kind: u8,
@@ -1135,6 +1140,14 @@ module pyth_cover_pool::pyth_cover_pool {
         assert_admin(pool, cap);
         pool.paused = paused;
         event::emit(PausedSet { pool: object::id(pool), paused });
+    }
+
+    /// Enable or disable the direct wallet purchase path. Pools default to
+    /// adapter-only; opening direct sales lets any wallet buy cover from this pool.
+    public fun set_direct_sales<T>(pool: &mut DepegCoverPool<T>, cap: &AdminCap, enabled: bool) {
+        assert_admin(pool, cap);
+        pool.direct_sales_enabled = enabled;
+        event::emit(DirectSalesSet { pool: object::id(pool), enabled });
     }
 
     /// Withdraw protocol fees without touching LP funds or policy collateral.

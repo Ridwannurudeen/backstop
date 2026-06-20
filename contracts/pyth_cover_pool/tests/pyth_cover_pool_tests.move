@@ -1105,6 +1105,37 @@ module pyth_cover_pool::pyth_cover_pool_tests {
     }
 
     #[test]
+    fun set_direct_sales_toggles_flag() {
+        let mut ctx = tx_context::dummy();
+        let mut pool = new_pool(PREMIUM_BPS, &mut ctx);
+        let cap = pyth_cover_pool::new_admin_cap_for_testing(&pool, &mut ctx);
+        // Pools default to adapter-only.
+        assert!(!pyth_cover_pool::direct_sales_enabled(&pool), 0);
+
+        pyth_cover_pool::set_direct_sales(&mut pool, &cap, true);
+        assert!(pyth_cover_pool::direct_sales_enabled(&pool), 1);
+        pyth_cover_pool::set_direct_sales(&mut pool, &cap, false);
+        assert!(!pyth_cover_pool::direct_sales_enabled(&pool), 2);
+
+        unit_test::destroy(cap);
+        unit_test::destroy(pool);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = pyth_cover_pool::EWrongAdminCap)]
+    fun set_direct_sales_rejects_wrong_cap() {
+        let mut ctx = tx_context::dummy();
+        let poola = new_pool(PREMIUM_BPS, &mut ctx);
+        let mut poolb = new_pool(PREMIUM_BPS, &mut ctx);
+        let cap_a = pyth_cover_pool::new_admin_cap_for_testing(&poola, &mut ctx);
+        pyth_cover_pool::set_direct_sales(&mut poolb, &cap_a, true);
+
+        unit_test::destroy(cap_a);
+        unit_test::destroy(poola);
+        unit_test::destroy(poolb);
+    }
+
+    #[test]
     #[expected_failure(abort_code = pyth_cover_pool::ETimelockNotElapsed)]
     fun param_update_blocked_before_timelock() {
         let mut ctx = tx_context::dummy();

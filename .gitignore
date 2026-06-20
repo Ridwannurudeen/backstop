@@ -5,6 +5,7 @@ out/
 build/
 *.tgz
 .localkey
+*.key
 .manager
 .localmanager
 .env

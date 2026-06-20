@@ -8,8 +8,8 @@ import {
 import {
   CLOCK,
   HERMES,
-  PYTH_DEPEG_COVER_PKG,
-  PYTH_DEPEG_POOL,
+  PYTH_OPEN_COVER_PKG,
+  PYTH_OPEN_POOL,
   PYTH_STATE,
   SUI_TYPE,
   SUIUSDE_FEED_ID,
@@ -17,7 +17,7 @@ import {
 } from "./deployment";
 
 export const MIST_PER_SUI = 1_000_000_000;
-export const DEPEG_CONFIG_KEY = "backstop:depeg:mainnet-config";
+export const DEPEG_CONFIG_KEY = "backstop:depeg:mainnet-config-open";
 const BPS = 10_000n;
 const PREMIUM_PERIOD_SECS = 2_592_000n;
 const DAY_SECS = 86_400;
@@ -28,8 +28,8 @@ export type DepegConfig = {
 };
 
 const DEFAULT_DEPEG_CONFIG: DepegConfig = {
-  pkg: PYTH_DEPEG_COVER_PKG,
-  poolId: PYTH_DEPEG_POOL,
+  pkg: PYTH_OPEN_COVER_PKG,
+  poolId: PYTH_OPEN_POOL,
 };
 
 export type DepegPoolState = {
