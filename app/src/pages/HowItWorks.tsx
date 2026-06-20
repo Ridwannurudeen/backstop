@@ -76,7 +76,7 @@ export default function HowItWorks() {
           <ul className="doc-list">
             <li>
               <b>Live on mainnet:</b> Pyth-settled stablecoin-depeg cover: the
-              v5 package, low-cap BuyerCap-restricted production pool, LP and
+              v6 package, low-cap BuyerCap-restricted production pool, LP and
               keeper wallet actions, duration-priced economics, permissionless
               expiry sweep, pool-level depeg epochs, fresh Pyth sale checks,
               proof-health checks, and archived staged mechanism-test claim

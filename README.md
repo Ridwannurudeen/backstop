@@ -9,7 +9,7 @@ Backstop protects Sui DeFi from depeg and bad-debt cascades before emergency
 validator intervention is the only option. The mainnet deployment is an early,
 low-cap experimental Pyth-settled, SUI-collateralized depeg-cover pool on Sui
 mainnet; it is not a funded production insurance product an external user can
-buy from today. The live v5
+buy from today. The live v6
 pool is BuyerCap-restricted: direct wallet sales are disabled, and cover is
 bought through a protocol adapter that holds the policy. DeepBook Predict, SRX,
 RiskFeed, Walrus, and agent-accountability modules are live testnet/research
@@ -29,7 +29,7 @@ oracle.
   treasury fee, keeper bounty, pause-exempt claims, timelocked bounded parameter
   updates, and permissionless expired-policy cleanup
 - wallet-connected `/depeg` app flow for LP deposit/withdraw and keeper actions;
-  v5 cover purchase is adapter-only through a pool-scoped `BuyerCap`
+  v6 cover purchase is adapter-only through a pool-scoped `BuyerCap`
 - mainnet proof-health card checks package existence, production pool state,
   DEP_ONLY upgrade locks, AdminCap custody transfer, archived staged
   mechanism-test claim evidence, and current production active cover
@@ -39,16 +39,16 @@ Pyth sale checks, required-premium charging with excess refunds, zero-share LP
 protection, pool-epoch-only direct latch compatibility, bounded dwell
 confirmation, healthy-observation reset, settlement-term immutability while
 cover is active, duration pricing, max term, bounded governance, and
-permissionless expiry sweeping are live on the public `/depeg` route. v5 also
+permissionless expiry sweeping are live on the public `/depeg` route. v6 also
 disables direct wallet sales and installs the pool `BuyerCap` into the reference
-lending adapter, which holds the active production policy. Keep caps low: v5 is
+lending adapter, which holds the active production policy. Keep caps low: v6 is
 experimental and should not be marketed as production-safe insurance.
 
 Important honesty note: the paid mainnet claim in `deployment.json` is archived
 v3 staged mechanism-test evidence using a proof pool with intentionally
 permissive trigger parameters. It proves the buy -> dwell -> claim path can pay
-on-chain; it is not a real production depeg event and is not a v5 payout proof.
-The current v5 `.985` pool has adapter-held active cover and retained premium
+on-chain; it is not a real production depeg event and is not a v6 payout proof.
+The current v6 `.985` pool has adapter-held active cover and retained premium
 while suiUSDe remains above the floor.
 
 ### Testnet: risk-oracle research layer

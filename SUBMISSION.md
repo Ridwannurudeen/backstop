@@ -20,7 +20,7 @@ need emergency intervention.
 
 - **Live on mainnet:** `pyth_cover_pool`, production pool, wallet-connected
   `/depeg` actions, proof-health checks, custody/upgrade-lock evidence, active
-  production cover, duration-priced v3 economics, permissionless expiry
+  production cover, duration-priced v6 economics, permissionless expiry
   sweeping, pool-level depeg epochs, and a staged mechanism-test claim.
 - **Live on testnet:** DeepBook Predict quote reads, SRX, RiskFeed/RiskGuard,
   agent decisions, calibration ledger, and arena.

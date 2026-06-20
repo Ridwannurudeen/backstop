@@ -3,7 +3,7 @@
  *
  * Backstop exposes the mainnet Pyth-settled depeg pool plus the older testnet
  * DeepBook/Walrus risk primitives:
- *   - Depeg cover - Pyth-settled suiUSDe cover; live v5 is a low-cap
+ *   - Depeg cover - Pyth-settled suiUSDe cover; live v6 is a low-cap
  *     BuyerCap-restricted SUI-collateralized pool
  *   - SRX - the Sui Risk Index (CRASH / VOL / TAIL), options-implied
  *   - RiskFeed - market-implied probability-of-failure readings

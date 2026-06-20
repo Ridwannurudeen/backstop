@@ -1,10 +1,10 @@
 # Changelog
 
-## Unreleased — v6 audit hardening
+## v6 audit hardening (deployed to mainnet)
 
-Post-audit fixes; all tests green (130 across 11 packages). The live v5 packages are
-`DEP_ONLY`-locked and cannot be upgraded in place, so these ship as fresh **v6**
-packages on redeploy.
+Post-audit fixes; all tests green (130 across 11 packages). The v5 packages were
+`DEP_ONLY`-locked and could not be upgraded in place, so these shipped as fresh
+**v6** packages — now live on mainnet (deploy details below).
 
 Mainnet money path:
 - `pyth_cover_pool`: block LP deposits into a fully-drained pool (no silent zombie-share

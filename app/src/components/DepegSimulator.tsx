@@ -12,7 +12,8 @@ import "./terminal.css";
 
 // Simple simulator estimate; the live pool prices on utilization.
 const EST_PREMIUM_RATE = 0.02;
-const TERMS = [7, 30, 90];
+// Live pool caps policy duration at 30 days (maxPolicyDurationSecs = 2592000).
+const TERMS = [7, 14, 30];
 
 export default function DepegSimulator() {
   const { data } = useQuery({
