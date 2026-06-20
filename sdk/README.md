@@ -103,7 +103,7 @@ const tx = await buildDepegRecordBreachTx({
 });
 ```
 
-Prefer the pool-level epoch builders for keeper operations. For the v5 adapter
+Prefer the pool-level epoch builders for keeper operations. For the v6 adapter
 market, use the reference `pyth_lending_demo::record_shortfall` flow from the
 repository integration scripts.
 

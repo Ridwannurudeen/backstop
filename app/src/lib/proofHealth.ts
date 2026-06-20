@@ -202,7 +202,7 @@ export async function fetchProofHealth(): Promise<ProofHealth> {
         "Production cover",
         sui(pool.totalCoverMist),
         "Missing",
-        "v5 adapter-held policy has outstanding cover and retained premium while suiUSDe stayed above floor",
+        "v6 adapter-held policy has outstanding cover and retained premium while suiUSDe stayed above floor",
         txUrl(PYTH_PRODUCTION_INSURE_TX),
       ),
     ],

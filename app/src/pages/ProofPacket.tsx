@@ -128,7 +128,7 @@ const proofTxs = [
     label: "Production active cover",
     value: PYTH_PRODUCTION_INSURE_TX,
     detail:
-      "v5 adapter-held policy retained premium while suiUSDe stayed above floor",
+      "v6 adapter-held policy retained premium while suiUSDe stayed above floor",
   },
   {
     label: "Archived staged claim",
@@ -223,7 +223,7 @@ export default function ProofPacket() {
           <p className="proof-kicker">Mainnet proof packet</p>
           <h1>Every load-bearing claim in one place.</h1>
           <p>
-            Current v5 package IDs, pool IDs, custody, upgrade policy, active
+            Current v6 package IDs, pool IDs, custody, upgrade policy, active
             cover, and archived staged-payout evidence are read from Sui mainnet
             and linked to public explorers.
           </p>
@@ -440,7 +440,7 @@ export default function ProofPacket() {
             ],
             [
               "Buy policy",
-              `Use the v5 BuyerCap adapter for ${sui(1_000_000n)}-style cover chunks or a capped position size.`,
+              `Use the v6 BuyerCap adapter for ${sui(1_000_000n)}-style cover chunks or a capped position size.`,
             ],
             [
               "Maintain keeper",

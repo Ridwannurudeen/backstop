@@ -3,9 +3,44 @@
 `deployment.json` is the machine-readable source of truth. This file is the
 human-readable summary.
 
-## Sui Mainnet v5
+## Sui Mainnet v6
 
-Status: deployed, experimental, low-cap.
+Status: deployed, experimental, low-cap. Current default production deployment.
+
+- `pyth_cover_pool` package:
+  `0x3ec312b1173922dfe6d5866741299f4525c135fa90709a39ddb0a0f7e8baccb5`
+- Production pool:
+  `0x1d9d15da40239822d4201e713ae92d5fec415f9771e4711be30fc7e76886c523`
+- `pyth_lending_demo` package:
+  `0x729e11856afe3d1f7678366b7fbcbe8af0aecb623cc0277f372a5b95fa6a3b2e`
+- Production lending market:
+  `0xf36d1a0f00e1777e0c4ce3b4355d531f15d06b4d0aa6a87160fe4a18e575b209`
+- AdminCap custody owner:
+  `0x5f21a9aaf680f6b0e0190e6a99bb9d4e314e0761ff3c3bc809f298711e73d8e5`
+- Cover publish digest:
+  `4zokYucWTV94xSiRqPQLHdYqFdVdijVNKhGFDumcQxdb`
+- Lending publish digest:
+  `3chQbhL1esHhNvB6zkMhoX1UkUTGuizDoF7dNFn7g8qf`
+- Cover UpgradeCap lock digest:
+  `Bp9wqauHkuAKSWUkj7kT3r14bg3jULbdp27VfixZ5S7V`
+- Lending UpgradeCap lock digest:
+  `Bp9wqauHkuAKSWUkj7kT3r14bg3jULbdp27VfixZ5S7V`
+- Production AdminCap custody digest:
+  `Fwdf5RJQi3L8fvg52YnmK4wzR1UjTLw6dabUpnHhkGiV`
+- Active cover buy (adapter insure) digest:
+  `98LSeMGDYvmKsYqv7wmRTnrWvLcuAdhGHctbthCgJ8E3`
+
+The v6 pool is intentionally tiny: 0.1 SUI seeded LP capital and 0.05 SUI of
+adapter-held active cover. Direct wallet sales are disabled; the pool-scoped
+`BuyerCap` is installed into the reference lending market. It is the
+audit-hardened deployment (dwell/activation floors, withdraw freeze during a
+breach epoch, reap-unclaimed path, consumer expire + cap-gated withdraw_reserve)
+and exists to prove the restricted adapter path, custody, and proof surface
+without implying production-safe capacity.
+
+## Archived Sui Mainnet v5
+
+Status: archived low-cap deployment, superseded by v6.
 
 - `pyth_cover_pool` package:
   `0x49a4385606094ec78faa8b445372e8dd515dd0ddb513730a8ba9c4b734d5827c`
@@ -69,7 +104,7 @@ Status: archived mechanism-test evidence.
 
 The archived staged claim used intentionally permissive trigger parameters to
 exercise buy -> dwell -> claim on-chain. It is not a real depeg event and is not
-a v5 payout proof.
+a v6 payout proof.
 
 ## Testnet Research
 

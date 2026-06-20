@@ -29,7 +29,7 @@ $env:DEPEG_SMOKE_URL='https://backstop.gudman.xyz/depeg'; npm --prefix app run s
 3. `/proof` package IDs, pool IDs, custody, UpgradeCap lock, active cover,
    staged claim, verifier status, and SDK snippets.
 4. Risk Feed and Agent Proofs as supporting research surfaces.
-5. Live v3 hardening: duration pricing, expiry cleanup, max term, bounded
+5. Live v6 hardening: duration pricing, expiry cleanup, max term, bounded
    governance, and pool-level depeg epochs; then protocol integration and
    trust-minimized disputes.
 

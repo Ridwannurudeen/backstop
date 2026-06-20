@@ -85,7 +85,7 @@ export default function Landing() {
   const activeCoverValue = productionCover?.value ?? "—";
   const stagedClaimValue = stagedClaim?.value ?? "—";
   const productionPoolDetail =
-    productionPool?.detail ?? `v5 pool ${truncate(PYTH_DEPEG_POOL)}`;
+    productionPool?.detail ?? `v6 pool ${truncate(PYTH_DEPEG_POOL)}`;
 
   return (
     <div className="landing">

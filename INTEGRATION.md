@@ -1,13 +1,13 @@
 # Backstop Integration Kit
 
-Backstop's live production surface is the Sui mainnet `pyth_cover_pool` v5
+Backstop's live production surface is the Sui mainnet `pyth_cover_pool` v6
 deployment for suiUSDe depeg cover. It is experimental and low-cap. The pool
 requires a fresh Pyth sale check inside the buy transaction, refunds excess
 premium instead of accepting donations into pool value, and disables direct
 wallet sales by default. Protocol adapters buy cover through a pool-scoped
 `BuyerCap`.
 
-Use the TypeScript SDK source from `sdk/` until a v5 npm release is explicitly
+Use the TypeScript SDK source from `sdk/` until a v6 npm release is explicitly
 approved:
 
 ```bash
@@ -84,7 +84,7 @@ await signAndExecute({ transaction: tx, chain: "sui:mainnet" });
 
 ## Restricted Adapter Buy
 
-Direct wallet sales are disabled on the production v5 pool. The pool creator
+Direct wallet sales are disabled on the production v6 pool. The pool creator
 installs the pool `BuyerCap` into a protocol adapter, then the adapter buys and
 holds the policy for a specific position or reserve.
 
@@ -129,7 +129,7 @@ const tx = await buildDepegBuyCoverWithCapAndPythTx({
 
 ## Record Breach
 
-`record_breach` refreshes Pyth inside the PTB. On v5 it is a compatibility
+`record_breach` refreshes Pyth inside the PTB. On v6 it is a compatibility
 path around pool-epoch eligibility, not a separate per-policy event machine. A
 claim is not single-read: keepers call once to arm, then again after
 `min_dwell_secs` to confirm.
@@ -153,7 +153,7 @@ await signAndExecute({ transaction: tx, chain: "sui:mainnet" });
 
 ## Record Pool-Level Epoch
 
-The current production mainnet pool is v5 and supports `record_pool_breach` and
+The current production mainnet pool is v6 and supports `record_pool_breach` and
 `record_pool_recovery`: one sustained pool epoch can make every policy that was
 active at arm time and unexpired at confirmation claimable. Prefer this path for
 all keeper operations.
@@ -222,9 +222,9 @@ npm run verify:depeg-ptbs
 
 ## Direct PTB Shape
 
-For protocols that do not want the SDK wrapper, the live v5 production calls are
+For protocols that do not want the SDK wrapper, the live v6 production calls are
 `buy_cover_with_cap`, `record_pool_breach`, `record_pool_recovery`, and
-`claim_latched`. Direct `buy_cover` is disabled on the production v5 pool.
+`claim_latched`. Direct `buy_cover` is disabled on the production v6 pool.
 `record_breach` remains available for compatibility but should not be your
 primary keeper path.
 

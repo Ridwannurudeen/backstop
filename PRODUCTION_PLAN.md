@@ -258,7 +258,7 @@ Additive, behaviour-preserving where possible; new state fields + new entry func
 
 ### Phase 3 â€” Mainnet v2 deploy + custody Â· _done_
 
-- Current mainnet state: the hardened v3 Pyth-settled pool is the default
+- Current mainnet state: the hardened v6 Pyth-settled pool is the default
   `/depeg` pool; the staged v3 proof pool paid a mechanism-test claim.
 - Deploy step: published the hardened `pyth_cover_pool` and updated
   `pyth_lending_demo`, provisioned a replacement production pool, seeded it with
@@ -271,7 +271,7 @@ Additive, behaviour-preserving where possible; new state fields + new entry func
 
 ### Phase 4 â€” Assurance & first integration Â· _partly external_
 
-- Pool-level epoch support is live in the v3 mainnet package:
+- Pool-level epoch support is live in the v6 mainnet package:
   `record_pool_breach`, `record_pool_recovery`, epoch-retained claim rights,
   SDK/app builders, and dry-run keeper support. Do not raise caps until external
   Move review and connected-wallet smoke are complete.
@@ -330,7 +330,7 @@ These are launch defaults, not permanent governance constants. Re-run
 
 Phase 0 (backtest + spec), Phase 1 (contract v2 + tests + prover attempt), Phase 2
 (interactive UI + no-wallet `devInspect` verification), Phase 3 (mainnet
-deploys/live buy-claim proof + custody transfer), and v3 pool-level epoch rollout
+deploys/live buy-claim proof + custody transfer), and v6 pool-level epoch rollout
 are complete. External audit, a connected-wallet smoke with a real browser
 wallet, and the first real NAVI/Suilend position-holder integration remain.
 

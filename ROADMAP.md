@@ -5,8 +5,8 @@ canonical state documents. This file is only the forward sequence.
 
 ## Phase 1 - Correct The Depeg Pool
 
-- Keep the deployed v3 pool low-cap and explicitly experimental.
-- Publish a reviewed v4 package only after the source-hardening changes pass:
+- Keep the deployed v6 pool low-cap and explicitly experimental.
+- The audit-hardened v6 package shipped the source-hardening changes:
   sale-open Pyth checks, exact premium, zero-share rejection, pool-epoch
   settlement, bounded dwell confirmation, and immutable live settlement terms.
 - Run connected-wallet smoke against the corrected package before raising caps.

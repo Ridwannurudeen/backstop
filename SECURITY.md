@@ -6,9 +6,9 @@ operated with external users.
 
 ## Current Status
 
-- Mainnet v5 is deployed as a tiny BuyerCap-restricted pool with adapter-held
+- Mainnet v6 is deployed as a tiny BuyerCap-restricted pool with adapter-held
   active cover.
-- Generic-collateral adapter source is implemented and unit-tested; the live v5
+- Generic-collateral adapter source is implemented and unit-tested; the live v6
   pool remains SUI-collateralized.
 - Mainnet v3 remains archived as mechanism-test evidence.
 - No independent Move security review has been completed.
@@ -25,7 +25,7 @@ the issue is fixed or otherwise mitigated.
 ## Required Before Higher Caps
 
 - Independent Move review of `contracts/pyth_cover_pool`.
-- Fresh deployment review for the BuyerCap-restricted v5 package and pool.
+- Fresh deployment review for the BuyerCap-restricted v6 package and pool.
 - Confirmation that all deployment IDs in `DEPLOYMENTS.md` match the intended
   package and pool.
 - Keeper runbook for breach, recovery, expiry sweeping, and oracle downtime.
