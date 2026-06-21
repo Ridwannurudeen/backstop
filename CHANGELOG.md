@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-06-21
+
+- Added SafePay to `/depeg`: one Sui PTB splits payment and premium, refreshes
+  Pyth, buys open-pool depeg cover, transfers the payment plus `Policy` object
+  to the recipient, and returns any premium refund to the payer.
+- Added SafePay PTB devInspect coverage to the depeg readiness verifier.
+- Updated submission and integration docs to frame Backstop as programmable
+  protected payments, not only a standalone cover desk.
+
 ## v6 audit hardening (deployed to mainnet)
 
 Post-audit fixes; all tests green (130 across 11 packages). The v5 packages were
@@ -7,6 +16,7 @@ Post-audit fixes; all tests green (130 across 11 packages). The v5 packages were
 **v6** packages — now live on mainnet (deploy details below).
 
 Mainnet money path:
+
 - `pyth_cover_pool`: block LP deposits into a fully-drained pool (no silent zombie-share
   dilution); enforce production floors `min_dwell_secs >= 300` and
   `activation_delay_secs >= 300` (constructor + governance); freeze `withdraw_lp` during
@@ -20,6 +30,7 @@ Mainnet money path:
   Pyth `PriceInfoObject` and dropped the refund coin); the Pyth-settled path is the only one.
 
 Testnet research cryptoeconomics (hardened from confiscation tools into accountable mechanisms):
+
 - `risk_guard`: `withdraw` now requires the treasury `owner` (was unauthenticated).
 - `risk_feed` / `risk_index`: minimum challenge bond; challenger != resolver; slash capped
   to a fraction and routed to a neutral sink (not the challenger); `unstake` path;
@@ -38,6 +49,7 @@ low-cap experimental reality.
 
 Deployed v6 audit-hardened packages to Sui mainnet (fresh, since v5 was DEP_ONLY-locked) —
 full ids in `deployment.json`:
+
 - cover package `0x3ec3…ccb5`, lending package `0x729e…3b2e`
 - production pool `0x1d9d…c523`, production lending market `0xf36d…b209`
 - both v6 UpgradeCaps locked `DEP_ONLY`; production AdminCap transferred to custody

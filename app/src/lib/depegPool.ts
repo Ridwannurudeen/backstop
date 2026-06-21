@@ -326,6 +326,42 @@ export async function buildDepegBuyCoverWithPythTx(p: {
   return tx;
 }
 
+export async function buildSafePayWithCoverTx(p: {
+  client: SuiClient;
+  pkg: string;
+  poolId: string;
+  paymentMist: bigint;
+  premiumMist: bigint;
+  coverMist: bigint;
+  expiryMs: bigint;
+  payer: string;
+  recipient: string;
+  feedId?: string;
+  coinType?: string;
+}): Promise<Transaction> {
+  const feedId = p.feedId ?? SUIUSDE_FEED_ID;
+  const { tx, priceInfoObjectId } = await buildPythUpdateTx(p.client, feedId);
+  const [payment, prem] = tx.splitCoins(tx.gas, [
+    tx.pure.u64(p.paymentMist),
+    tx.pure.u64(p.premiumMist),
+  ]);
+  const [policy, refund] = tx.moveCall({
+    target: `${p.pkg}::pyth_cover_pool::buy_cover`,
+    typeArguments: [p.coinType ?? SUI_TYPE],
+    arguments: [
+      tx.object(p.poolId),
+      prem,
+      tx.pure.u64(p.coverMist),
+      tx.pure.u64(p.expiryMs),
+      tx.object(priceInfoObjectId),
+      tx.object(CLOCK),
+    ],
+  });
+  tx.transferObjects([payment, policy], p.recipient);
+  tx.transferObjects([refund], p.payer);
+  return tx;
+}
+
 export function buildDepegBuyCoverWithCapTx(p: {
   pkg: string;
   poolId: string;

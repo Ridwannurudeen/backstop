@@ -11,10 +11,10 @@ export type NavSection = {
 export const SECTIONS: NavSection[] = [
   {
     id: "depeg",
-    label: "Cover",
+    label: "SafePay",
     base: "/depeg",
     wallet: false,
-    tabs: [{ label: "Depeg cover", to: "/depeg" }],
+    tabs: [{ label: "SafePay + cover", to: "/depeg#safe-pay" }],
   },
   {
     id: "proof",

@@ -5,10 +5,11 @@ deployment for suiUSDe depeg cover. It is experimental and low-cap. The pool
 requires a fresh Pyth sale check inside the buy transaction, refunds excess
 premium instead of accepting donations into pool value, and disables direct
 wallet sales by default. Protocol adapters buy cover through a pool-scoped
-`BuyerCap`.
+`BuyerCap`. A separate open direct-sale pool powers SafePay, where a SUI payment
+and recipient-owned cover policy are delivered in one PTB.
 
-Use the TypeScript SDK source from `sdk/` until a v6 npm release is explicitly
-approved:
+Use the published SDK for stable v6 helpers, or the app source for the
+experimental SafePay helper until the next SDK release:
 
 ```bash
 npm install @gudman/backstop-sdk @mysten/sui
@@ -20,16 +21,46 @@ Canonical IDs live in `deployment.json` and `app/src/lib/deployment.ts`.
 
 | Role                        | ID                                                                   |
 | --------------------------- | -------------------------------------------------------------------- |
-| `pyth_cover_pool` package   | `0x49a4385606094ec78faa8b445372e8dd515dd0ddb513730a8ba9c4b734d5827c` |
-| Production pool             | `0x55fe8bb8730c68931bbbcf876b7007d190febb04e2b82cccac7057868e83d8b1` |
-| `pyth_lending_demo` package | `0xdbddf4df28aea4489f7979cc608bea4a599a6643f79bfe10cecca1cc06aabaa8` |
-| Production lending market   | `0xda46848a368d5ea6c48f776fc233479c30ac807a1b1a2d5c0b59de11b3bac0c0` |
+| `pyth_cover_pool` package   | `0x3ec312b1173922dfe6d5866741299f4525c135fa90709a39ddb0a0f7e8baccb5` |
+| Production pool             | `0x1d9d15da40239822d4201e713ae92d5fec415f9771e4711be30fc7e76886c523` |
+| Open SafePay package        | `0x695059637b8706b6d095b794fcb38565f0a3b8e5384d3e812bda0c36f56cad62` |
+| Open SafePay pool           | `0x457123082ccd9677be44c74f81e2d24ecc43ef50de1378695b9ede1e9561b3e2` |
+| `pyth_lending_demo` package | `0x729e11856afe3d1f7678366b7fbcbe8af0aecb623cc0277f372a5b95fa6a3b2e` |
+| Production lending market   | `0xf36d1a0f00e1777e0c4ce3b4355d531f15d06b4d0aa6a87160fe4a18e575b209` |
 | Admin custody owner         | `0x5f21a9aaf680f6b0e0190e6a99bb9d4e314e0761ff3c3bc809f298711e73d8e5` |
-| Cover UpgradeCap lock tx    | `FhJxJrZFoQmePPcnMiJ2C5TXKFzSaub27GRh934PyK23`                       |
-| Lending UpgradeCap lock tx  | `FhJxJrZFoQmePPcnMiJ2C5TXKFzSaub27GRh934PyK23`                       |
+| Cover UpgradeCap lock tx    | `Bp9wqauHkuAKSWUkj7kT3r14bg3jULbdp27VfixZ5S7V`                       |
+| Lending UpgradeCap lock tx  | `Bp9wqauHkuAKSWUkj7kT3r14bg3jULbdp27VfixZ5S7V`                       |
 | AdminCap custody tx         | `FA6QsTgABa8mCvcmZWpAnUFBJRKoG9zuXuFkhUqjFsrZ`                       |
-| Production active-cover tx  | `GfEGXtLsJvdRCHakV7dNpq3BHvKuxBJV68tenEtcsNDR`                       |
+| Production active-cover tx  | `98LSeMGDYvmKsYqv7wmRTnrWvLcuAdhGHctbthCgJ8E3`                       |
 | Archived staged claim tx    | `Dm9gywopkRe9p36J21HTiLJCeRaRhdjwYaDx13WA2ekC`                       |
+
+## SafePay PTB Shape
+
+SafePay is the programmable-payment path: a payer sends SUI and attaches
+recipient-owned depeg cover in the same Sui transaction. The app implementation
+lives in `app/src/lib/depegPool.ts` as `buildSafePayWithCoverTx`.
+
+```ts
+const tx = await buildSafePayWithCoverTx({
+  client,
+  pkg: openCoverPackage,
+  poolId: openPool,
+  paymentMist,
+  premiumMist,
+  coverMist,
+  expiryMs,
+  payer,
+  recipient,
+});
+
+await signAndExecute({ transaction: tx, chain: "sui:mainnet" });
+```
+
+The PTB splits payment and premium from SUI, refreshes Pyth, calls
+`buy_cover`, transfers `[payment, policy]` to the recipient, and returns the
+premium refund coin to the payer. If the Pyth sale guard, confidence bound,
+pool cap, pause state, or epoch state rejects the cover leg, the payment leg
+does not settle.
 
 ## Quote Cover
 

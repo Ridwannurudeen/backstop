@@ -11,6 +11,7 @@ import {
   buildDepegBuyCoverWithPythTx,
   buildDepegDepositLpTx,
   buildDepegWithdrawLpTx,
+  buildSafePayWithCoverTx,
   quoteDepegPremium,
   readDepegPool,
 } from "../../app/src/lib/depegPool";
@@ -41,6 +42,10 @@ type Deployment = {
     productionPool?: {
       pool?: string;
       depositLpDigest?: string;
+    };
+    openPool?: {
+      coverPackage?: string;
+      pool?: string;
     };
   };
 };
@@ -222,6 +227,8 @@ async function main(): Promise<void> {
   const coverPackage = pyth.coverPackage;
   const productionPool = pyth.productionPool.pool;
   const productionDepositDigest = pyth.productionPool.depositLpDigest;
+  const openCoverPackage = pyth.openPool?.coverPackage;
+  const openPool = pyth.openPool?.pool;
 
   const client = new SuiClient({ url: suiRpcUrl("mainnet") });
   const pool = await retryTransient("read production depeg pool", () =>
@@ -310,6 +317,36 @@ async function main(): Promise<void> {
   } else {
     ok(
       "production pool rejects direct buys; adapter BuyerCap path is required",
+    );
+  }
+
+  if (openCoverPackage && openPool) {
+    const safePayPool = await retryTransient("read open depeg pool", () =>
+      readDepegPool(client, openPool),
+    );
+    const safePayCoverMist = 1_000_000n;
+    const safePayPremiumMist = quoteDepegPremium(
+      safePayPool,
+      safePayCoverMist,
+      7,
+    );
+    await inspect(
+      client,
+      "open SafePay payment + cover PTB",
+      await retryTransient("build SafePay probe", () =>
+        buildSafePayWithCoverTx({
+          client,
+          pkg: openCoverPackage,
+          poolId: openPool,
+          paymentMist: 1_000_000n,
+          premiumMist: safePayPremiumMist,
+          coverMist: safePayCoverMist,
+          expiryMs: BigInt(Date.now() + 7 * 86_400_000 - EXPIRY_SAFETY_MS),
+          payer: ZERO_SENDER,
+          recipient: ZERO_SENDER,
+        }),
+      ),
+      { kind: "success" },
     );
   }
 }

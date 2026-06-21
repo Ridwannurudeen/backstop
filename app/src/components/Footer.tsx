@@ -6,11 +6,11 @@ export default function Footer() {
     <footer className="site-footer">
       <div className="footer-left">
         <span className="footer-brand">Backstop</span>
-        <span className="footer-tag">Mainnet depeg cover for Sui DeFi.</span>
+        <span className="footer-tag">Protected payments for Sui DeFi.</span>
       </div>
       <nav className="footer-links">
         <Link to="/how-it-works">How it works</Link>
-        <Link to="/depeg">Depeg cover</Link>
+        <Link to="/depeg#safe-pay">SafePay</Link>
         <Link to="/proof">Proof</Link>
         <Link to="/agent/ai">Agent</Link>
         <Link to="/lab/buy">Testnet lab</Link>

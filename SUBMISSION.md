@@ -5,23 +5,24 @@ does not drift from the live product.
 
 ## One-liner
 
-Backstop protects Sui DeFi from depeg and bad-debt cascades before validators
-need emergency intervention.
+Backstop turns Sui payments into protected financial objects: a payment can
+settle with fresh depeg-risk checks and recipient-owned cover attached.
 
 ## What to submit
 
 - Live app: https://backstop.gudman.xyz
 - Repo: github.com/Ridwannurudeen/backstop
-- Primary product: mainnet Pyth-settled suiUSDe depeg cover
+- Primary product: SafePay plus mainnet Pyth-settled suiUSDe depeg cover
 - Supporting proof: DeepBook Predict risk-feed lineage, SRX, Walrus evidence,
   agent/accountability testnet proofs
 
 ## Live vs roadmap
 
-- **Live on mainnet:** `pyth_cover_pool`, production pool, wallet-connected
-  `/depeg` actions, proof-health checks, custody/upgrade-lock evidence, active
-  production cover, duration-priced v6 economics, permissionless expiry
-  sweeping, pool-level depeg epochs, and a staged mechanism-test claim.
+- **Live on mainnet:** `pyth_cover_pool`, production pool, open direct-sale
+  pool, SafePay protected-payment PTB, wallet-connected `/depeg` actions,
+  proof-health checks, custody/upgrade-lock evidence, active production cover,
+  duration-priced v6 economics, permissionless expiry sweeping, pool-level depeg
+  epochs, and a staged mechanism-test claim.
 - **Live on testnet:** DeepBook Predict quote reads, SRX, RiskFeed/RiskGuard,
   agent decisions, calibration ledger, and arena.
 - **Roadmap:** external Move review, protocol integrations, multi-asset cover,
