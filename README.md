@@ -158,3 +158,7 @@ The risk layer for money on Sui — see `ROADMAP.md` for the full sequence:
 stablecoins → **(3)** SafePay as a payments rail (SDK/widget) → **(4)**
 self-insuring money (yield-funded perpetual cover) → **(5)** an open risk
 marketplace.
+
+## License
+
+MIT — see [`LICENSE`](LICENSE). © 2026 Ridwannurudeen.
