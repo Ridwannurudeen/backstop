@@ -16,6 +16,18 @@ settle with fresh depeg-risk checks and recipient-owned cover attached.
 - Supporting proof: DeepBook Predict risk-feed lineage, SRX, Walrus evidence,
   agent/accountability testnet proofs
 
+## Not just stablecoins
+
+The cover contract is asset-agnostic: `DepegCoverPool<T>` is generic over the
+collateral coin, and the insured Pyth feed, exponent, and threshold are pool
+parameters - nothing is hardcoded to a stablecoin (only comments use suiUSDe as
+the example). The primitive is "pay out if a Pyth-priced asset falls at or below
+a chosen floor." For a $1 stablecoin that is depeg cover (live today on
+suiUSDe); for a volatile asset (BTC, ETH, SUI, LSTs) the same contract is crash
+/ downside cover with the floor set below spot. Covering a new asset is a pool
+creation with that feed id + threshold (`create_and_share`) - config, not new
+code - given a live Pyth feed on Sui mainnet.
+
 ## Live vs roadmap
 
 - **Live on mainnet:** `pyth_cover_pool`, production pool, open direct-sale
