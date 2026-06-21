@@ -24,7 +24,7 @@ const CRASH_PRICE = 0.97;
 const DWELL_ANIM_MS = 4000;
 const DWELL_STEP_MS = 120;
 
-type Phase = "safe" | "confirming" | "paid";
+type Phase = "safe" | "confirming" | "paid" | "recovered";
 
 export default function DepegSimulator() {
   const { data } = useQuery({
@@ -57,7 +57,8 @@ export default function DepegSimulator() {
   // above the floor before confirmation resets it (wicks don't pay).
   useEffect(() => {
     if (!breached) {
-      setPhase("safe");
+      // Recovering above the floor mid-dwell is a wick: it must NOT pay.
+      setPhase((prev) => (prev === "confirming" ? "recovered" : "safe"));
       setDwellPct(0);
       return;
     }
@@ -83,6 +84,8 @@ export default function DepegSimulator() {
   };
   const resetLive = () => {
     touched.current = false;
+    setPhase("safe");
+    setDwellPct(0);
     if (livePrice != null) setSimPrice(livePrice);
   };
 
@@ -97,17 +100,23 @@ export default function DepegSimulator() {
           tag: "PAID OUT",
           line: `Payout of ${usd(payout)} released in SUI to the holder - automatically, no claim filed.`,
         }
-      : phase === "confirming"
+      : phase === "recovered"
         ? {
-            cls: "stress-armed",
-            tag: "BREACH - confirming dwell",
-            line: `${asset} is below the $${FLOOR.toFixed(3)} floor. The policy is armed; settlement waits out the sustained-breach dwell.`,
+            cls: "stress-recovered",
+            tag: "RECOVERED - NO PAYOUT",
+            line: `${asset} climbed back above the $${FLOOR.toFixed(3)} floor before the dwell elapsed. The breach was a wick, so nothing pays - this is the anti-manipulation guard.`,
           }
-        : {
-            cls: "stress-safe",
-            tag: "ACTIVE",
-            line: `${asset} is above the $${FLOOR.toFixed(3)} floor. Cover is live and no payout is owed.`,
-          };
+        : phase === "confirming"
+          ? {
+              cls: "stress-armed",
+              tag: "BREACH - confirming dwell",
+              line: `${asset} is below the $${FLOOR.toFixed(3)} floor. The policy is armed; settlement waits out the sustained-breach dwell.`,
+            }
+          : {
+              cls: "stress-safe",
+              tag: "ACTIVE",
+              line: `${asset} is above the $${FLOOR.toFixed(3)} floor. Cover is live and no payout is owed.`,
+            };
 
   return (
     <div className="card" id="depeg-simulator">
@@ -159,7 +168,7 @@ export default function DepegSimulator() {
           <span className="stress-price">{priceLabel}</span>
         </div>
         <p className="stress-line">{banner.line}</p>
-        {phase !== "safe" && (
+        {(phase === "confirming" || phase === "paid") && (
           <div className="depeg-progress" aria-label="Dwell progress">
             <span style={{ width: `${dwellPct}%` }} />
           </div>
