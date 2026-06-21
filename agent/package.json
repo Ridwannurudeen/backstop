@@ -15,6 +15,7 @@
     "pyth-cover": "tsx src/pythCover.ts",
     "pyth-lending": "tsx src/provisionPythLending.ts",
     "open-pool": "tsx src/provisionOpenPool.ts",
+    "safepay-proof": "tsx src/safePayProof.ts",
     "backtest-depeg": "tsx src/backtestDepeg.ts",
     "verify-depeg-integrations": "tsx src/verifyDepegIntegrations.ts",
     "verify-depeg-ptbs": "tsx src/verifyDepegPtbs.ts",

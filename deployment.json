@@ -334,7 +334,14 @@
       "timelockSecs": 3600,
       "createPoolDigest": "BSvoCE5XM1BzDtYW5FnqM12epLTN6aeNoiWsi2Pdnz54",
       "setDirectSalesDigest": "8n63b9ZfAssLGxU1nQ57Ju9iizqhp8MX7NWAzw37UVSi",
-      "depositLpDigest": "DUSDGEsUsSnRJW6hrh3SjhvgTeJPYG99BT5Vdp7kCLGz"
+      "depositLpDigest": "DUSDGEsUsSnRJW6hrh3SjhvgTeJPYG99BT5Vdp7kCLGz",
+      "safePay": {
+        "note": "Real SafePay (protected payment + attached cover) executed on Sui mainnet in one atomic PTB; self-addressed so the payment returned to the sender and only premium+gas was spent. Proves live on mainnet, not just devInspect.",
+        "proofDigest": "Hc5Yg83SdLXcW3KA3S8DxFWArzMRcJ46MYfqr2uRgbpN",
+        "policyId": "0x7a55c96c7f53edac0e5c6c61178290dd738ca0f9b52ba34937490ef15a0cf308",
+        "paymentMist": 10000000,
+        "coverMist": 10000000
+      }
     }
   }
 }
