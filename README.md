@@ -7,6 +7,7 @@ automatically, settled by the Pyth oracle with no claims committee. Or use
 atomic transaction.
 
 - **Website (homepage):** https://backstop.gudman.xyz
+- **Demo video:** https://youtu.be/l2nwic7Hlbc
 - **Repo:** https://github.com/Ridwannurudeen/backstop
 - **Network:** Sui **mainnet** (live), plus testnet research surfaces
 - **Proof:** https://backstop.gudman.xyz/proof — live IDs + verifiable transactions
