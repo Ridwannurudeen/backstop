@@ -551,3 +551,9 @@
   width: auto;
   margin-top: 0;
 }
+.stress-recovered {
+  border-color: color-mix(in srgb, var(--accent) 44%, var(--line));
+}
+.stress-recovered .stress-tag {
+  color: var(--accent);
+}
