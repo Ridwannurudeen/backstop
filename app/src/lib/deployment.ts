@@ -150,6 +150,7 @@ export const PYTH_STAGED_CLAIM_TX =
   "Dm9gywopkRe9p36J21HTiLJCeRaRhdjwYaDx13WA2ekC";
 export const PYTH_PRODUCTION_INSURE_TX =
   "GfEGXtLsJvdRCHakV7dNpq3BHvKuxBJV68tenEtcsNDR";
+export const PYTH_SAFEPAY_TX = "Hc5Yg83SdLXcW3KA3S8DxFWArzMRcJ46MYfqr2uRgbpN";
 export const PYTH_STATE = hx(
   "1f9310238ee9298fb703c3419030b35b",
   "22bb1cc37113e3bb5007c99aec79e5b8",
