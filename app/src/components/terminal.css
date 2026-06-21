@@ -476,6 +476,20 @@
     grid-template-columns: 1fr;
   }
 
+  .safepay-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .safepay-flow {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .safepay-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
   .depeg-policy-actions {
     width: 100%;
     justify-content: stretch;

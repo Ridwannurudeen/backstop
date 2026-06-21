@@ -13,6 +13,7 @@ import {
   PYTH_OPEN_COVER_PKG,
   PYTH_OPEN_POOL,
   PYTH_PRODUCTION_INSURE_TX,
+  PYTH_SAFEPAY_TX,
   PYTH_STAGED_COVER_PKG,
   PYTH_STAGED_CLAIM_TX,
   PYTH_STAGED_LENDING_MARKET,
@@ -131,6 +132,12 @@ const proofTxs = [
     value: PYTH_PRODUCTION_INSURE_TX,
     detail:
       "v6 adapter-held policy retained premium while suiUSDe stayed above floor",
+  },
+  {
+    label: "SafePay protected payment",
+    value: PYTH_SAFEPAY_TX,
+    detail:
+      "payment + recipient-owned cover settled in one atomic PTB on mainnet",
   },
   {
     label: "Archived staged claim",
