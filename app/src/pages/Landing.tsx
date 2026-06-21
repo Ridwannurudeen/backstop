@@ -17,6 +17,14 @@ const LIFECYCLE = [
 const PRODUCT_RAILS = [
   {
     network: "Sui mainnet",
+    title: "SafePay",
+    status: "Programmable payment rail",
+    body: "A SUI payment that atomically runs a fresh Pyth sale check, buys open-pool depeg cover, and delivers the payment plus Policy object to the recipient.",
+    cta: "Send SafePay",
+    to: "/depeg#safe-pay",
+  },
+  {
+    network: "Sui mainnet",
     title: "Pyth depeg cover",
     status: "Production rail",
     body: "suiUSDe-family protection with objective Pyth settlement, activation delay, dwell, confidence checks, and a pre-funded SUI payout pool.",
@@ -96,27 +104,27 @@ export default function Landing() {
           <div className="hero-copy">
             <div className="hero-badge">
               <span className="live-dot" />
-              Sui mainnet - Pyth-settled depeg protection
+              Sui mainnet - programmable protected payments
             </div>
 
-            <h1>When the peg breaks, the payout path is already written.</h1>
+            <h1>Payments that carry their own depeg backstop.</h1>
             <p>
-              Buy pre-funded depeg protection for wallets and protocols. A fresh
-              Pyth reading confirms the breach, the contract enforces the dwell
-              rule, and an eligible claim is paid from the cover pool.
+              SafePay sends SUI and attaches recipient-owned depeg cover in one
+              transaction. A fresh Pyth check gates the cover leg; if the risk
+              rule rejects, the payment does not settle.
             </p>
 
             <div className="hero-cta">
-              <a href="#claim-replay" className="btn hero-primary">
-                Replay a paid claim
-              </a>
-              <Link to="/depeg" className="btn ghost">
-                Open cover desk
+              <Link to="/depeg#safe-pay" className="btn hero-primary">
+                Send SafePay
               </Link>
+              <a href="#claim-replay" className="btn ghost">
+                Replay paid claim
+              </a>
             </div>
 
             <p className="hero-proof-line">
-              Pre-funded pool / objective trigger / public settlement proof
+              Payment / Pyth check / cover object / public receipt
             </p>
           </div>
 
@@ -231,11 +239,11 @@ export default function Landing() {
         <section className="reserve-flow-section">
           <div className="section-intro">
             <span className="section-kicker">Protocol integration</span>
-            <h2>Make cover part of the position, not a separate chore.</h2>
+            <h2>Make cover part of the money movement.</h2>
             <p>
-              The real wedge is protocol-native protection: lending markets and
-              position managers can buy cover where exposure is created, then
-              claim into reserves when objective conditions are met.
+              The wedge is protocol-native protection: payments can carry cover
+              to the recipient, and lending markets or position managers can buy
+              cover where exposure is created.
             </p>
           </div>
           <div className="reserve-flow">
@@ -283,11 +291,11 @@ export default function Landing() {
 
         <section className="integration-callout">
           <div>
-            <span className="section-kicker">Cover desk</span>
-            <h2>Review the quote, then inspect the proof.</h2>
+            <span className="section-kicker">SafePay desk</span>
+            <h2>Build the payment, then inspect the proof.</h2>
             <p>
-              The cover desk keeps wallet actions, policy state, underwriting,
-              keeper status, and proof-health visible without changing the
+              The `/depeg` desk keeps SafePay, cover actions, policy state,
+              keeper status, and proof-health visible without hiding the
               underlying Sui transaction builders.
             </p>
           </div>

@@ -10,6 +10,8 @@ import {
   PYTH_LENDING_MARKET,
   PYTH_LENDING_PKG,
   PYTH_LENDING_UPGRADE_CAP,
+  PYTH_OPEN_COVER_PKG,
+  PYTH_OPEN_POOL,
   PYTH_PRODUCTION_INSURE_TX,
   PYTH_STAGED_COVER_PKG,
   PYTH_STAGED_CLAIM_TX,
@@ -138,6 +140,24 @@ const proofTxs = [
 ];
 
 const snippets = [
+  {
+    title: "SafePay protected payment",
+    body: `import { buildSafePayWithCoverTx } from "../lib/depegPool";
+
+const tx = await buildSafePayWithCoverTx({
+  client,
+  pkg: "${PYTH_OPEN_COVER_PKG}",
+  poolId: "${PYTH_OPEN_POOL}",
+  paymentMist,
+  premiumMist,
+  coverMist,
+  expiryMs,
+  payer,
+  recipient,
+});
+
+await signAndExecute({ transaction: tx, chain: "sui:mainnet" });`,
+  },
   {
     title: "Quote cover",
     body: `import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
@@ -419,6 +439,31 @@ export default function ProofPacket() {
                 <code>{snippet.body}</code>
               </pre>
             </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="card">
+        <h3>
+          SafePay PTB shape <span className="sub">- protected payment</span>
+        </h3>
+        <div className="proof-flow">
+          {[
+            ["Split payment", "Create payment and premium coins from SUI."],
+            ["Refresh Pyth", "Insert the same sale guard used by cover buys."],
+            [
+              "Buy cover",
+              "Mint a recipient-owned Policy object from the open pool.",
+            ],
+            [
+              "Deliver",
+              "Transfer payment plus Policy; refund excess premium to payer.",
+            ],
+          ].map(([title, body]) => (
+            <div className="term-stat" key={title}>
+              <div className="k">{title}</div>
+              <p className="muted">{body}</p>
+            </div>
           ))}
         </div>
       </section>

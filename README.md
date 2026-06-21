@@ -8,13 +8,13 @@ Live app: https://backstop.gudman.xyz
 Backstop protects Sui DeFi from depeg and bad-debt cascades before emergency
 validator intervention is the only option. The mainnet deployment is an early,
 low-cap experimental Pyth-settled, SUI-collateralized depeg-cover pool on Sui
-mainnet; it is not a funded production insurance product an external user can
-buy from today. The live v6
-pool is BuyerCap-restricted: direct wallet sales are disabled, and cover is
-bought through a protocol adapter that holds the policy. DeepBook Predict, SRX,
-RiskFeed, Walrus, and agent-accountability modules are live testnet/research
-primitives behind that direction, not yet a fully trustless production risk
-oracle.
+mainnet. The flagship v6 pool is BuyerCap-restricted: direct wallet sales are
+disabled, and cover is bought through a protocol adapter that holds the policy.
+A separate low-cap open pool powers SafePay, a programmable-payment PTB that
+sends SUI and attaches recipient-owned depeg cover atomically. DeepBook Predict,
+SRX, RiskFeed, Walrus, and agent-accountability modules are live
+testnet/research primitives behind that direction, not yet a fully trustless
+production risk oracle.
 
 ## What is live
 
@@ -30,6 +30,9 @@ oracle.
   updates, and permissionless expired-policy cleanup
 - wallet-connected `/depeg` app flow for LP deposit/withdraw and keeper actions;
   v6 cover purchase is adapter-only through a pool-scoped `BuyerCap`
+- SafePay flow that splits a SUI payment, runs a fresh Pyth sale check, buys
+  open-pool cover, and transfers the payment plus `Policy` object to the
+  recipient in one PTB
 - mainnet proof-health card checks package existence, production pool state,
   DEP_ONLY upgrade locks, AdminCap custody transfer, archived staged
   mechanism-test claim evidence, and current production active cover
@@ -80,6 +83,8 @@ does not expose it as a normal route.
 ## App surfaces
 
 - **Cover** (`/depeg`): flagship mainnet depeg-cover cockpit.
+- **SafePay** (`/depeg#safe-pay`): protected SUI payment that delivers a payment
+  plus recipient-owned depeg policy in one PTB.
 - **Proof** (`/proof`): live package, pool, custody, upgrade-lock, archived
   staged-claim, active-cover, and SDK integration packet.
 - **Risk Feed** (`/markets/*`): public SRX and Predict-derived risk views.
@@ -97,9 +102,13 @@ Backstop is easiest to integrate as a position-native cover rail:
 4. Install the pool `BuyerCap` into a protocol adapter and use
    `buildDepegBuyCoverWithCapAndPythTx` so policies are held by the adapter
    rather than free-floating wallet exposure.
-6. Run a keeper that calls `record_pool_breach` during a sustained depeg and
+5. Run a keeper that calls `record_pool_breach` during a sustained depeg and
    `claim_latched` after the dwell confirms. Per-policy `record_breach` remains
    only as a compatibility path around pool-epoch eligibility.
+
+For payment products, use the SafePay PTB shape: split payment and premium from
+SUI, refresh Pyth, buy direct-sale cover from the open pool, transfer the payment
+and `Policy` object to the recipient, and return any premium refund to the payer.
 
 Start with:
 
@@ -186,13 +195,13 @@ Recommended next build order:
 
 Lead with:
 
-> Backstop protects Sui DeFi from depeg and bad-debt cascades before validators
-> need emergency intervention.
+> Backstop turns Sui payments into protected financial objects: a payment can
+> settle only with fresh depeg-risk checks and recipient-owned cover attached.
 
 Then show:
 
-1. live mainnet Pyth price and production pool
-2. wallet-connected buy/LP/position flow
-3. proof-health checks and staged mechanism-test claim
-4. DeepBook/Walrus risk-oracle lineage
-5. roadmap to protocol-native cover and trust-minimized dispute resolution
+1. SafePay protected payment PTB
+2. live mainnet Pyth price and production/open pool state
+3. wallet-connected buy/LP/position flow
+4. proof-health checks and staged mechanism-test claim
+5. DeepBook/Walrus risk-oracle lineage

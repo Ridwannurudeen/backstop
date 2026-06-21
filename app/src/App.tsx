@@ -9,6 +9,7 @@ import Landing from "./pages/Landing";
 const HowItWorks = lazy(() => import("./pages/HowItWorks"));
 const ProofPacket = lazy(() => import("./pages/ProofPacket"));
 const SrxIndex = lazy(() => import("./components/SrxIndex"));
+const SafePay = lazy(() => import("./components/SafePay"));
 const DepegSimulator = lazy(() => import("./components/DepegSimulator"));
 const DepegActions = lazy(() => import("./components/DepegActions"));
 const DepegProofHealth = lazy(() => import("./components/DepegProofHealth"));
@@ -70,6 +71,7 @@ export default function App() {
             path="/depeg"
             element={
               <>
+                <SafePay />
                 <DepegActions />
                 <DepegSimulator />
                 <DepegProofHealth />
